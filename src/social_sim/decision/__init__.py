@@ -3,8 +3,10 @@
 from .client import (
     DecisionClientError,
     DecisionModelClient,
+    DecisionResponseMetadata,
     FakeDecisionClient,
     OpenAICompatibleDecisionClient,
+    ProviderContractError,
 )
 from .models import ActionType, DecisionProposal
 from .parser import DecisionParseError, DecisionParser
@@ -15,10 +17,12 @@ __all__ = [
     "CompactDecisionService",
     "DecisionClientError",
     "DecisionModelClient",
+    "DecisionResponseMetadata",
     "DecisionParseError",
     "DecisionParser",
     "DecisionProposal",
     "DecisionResult",
     "FakeDecisionClient",
     "OpenAICompatibleDecisionClient",
+    "ProviderContractError",
 ]

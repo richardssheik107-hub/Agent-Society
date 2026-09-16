@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from social_sim.actions import ActionIntent, proposal_to_intent
 from social_sim.decision import ActionType, CompactDecisionService, DecisionProposal
@@ -21,6 +21,10 @@ class StepResult:
     observation_before: LocalObservation
     context_chars: int
     prompt_chars: int
+    decision_latency_seconds: float
+    input_tokens: int | None
+    output_tokens: int | None
+    raw_output_chars: int
 
 
 class ClosedLoopStep:
@@ -86,6 +90,10 @@ class ClosedLoopStep:
             observation_before=observation,
             context_chars=decision.context_chars,
             prompt_chars=decision.prompt_chars,
+            decision_latency_seconds=decision.latency_seconds,
+            input_tokens=decision.input_tokens,
+            output_tokens=decision.output_tokens,
+            raw_output_chars=decision.raw_output_chars,
         )
 
 
@@ -115,6 +123,13 @@ class LunchScenarioRunner:
         world: WorldState,
         actor_id: int,
         profile: Mapping[str, object],
+        *,
+        available_actions: Sequence[ActionType] = (
+            ActionType.MOVE,
+            ActionType.BUY,
+            ActionType.EAT,
+        ),
+        on_step: Callable[[int, StepResult], None] | None = None,
     ) -> LunchRunResult:
         current = world
         steps: list[StepResult] = []
@@ -126,10 +141,14 @@ class LunchScenarioRunner:
                 final_observation=ObservationBuilder(current).build(actor_id),
                 events=(),
             )
-        for _ in range(self.max_decisions):
-            result = await self.step.run(current, actor_id, profile)
+        for decision_number in range(1, self.max_decisions + 1):
+            result = await self.step.run(
+                current, actor_id, profile, available_actions=available_actions
+            )
             steps.append(result)
             current = result.world_after
+            if on_step is not None:
+                on_step(decision_number, result)
             person = current.get_person(actor_id)
             if person.hunger <= 0.2 and person.inventory.get("meal", 0) == 0:
                 return LunchRunResult(

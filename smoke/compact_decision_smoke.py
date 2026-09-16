@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import re
 import time
 from datetime import datetime, timezone
@@ -15,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / "third_party" / "AgentSociety" / ".env")
 
 from social_sim.context import ContextCompiler  # noqa: E402
+from social_sim.decision.config import DecisionProviderConfig  # noqa: E402
 from social_sim.decision import (  # noqa: E402
     CompactDecisionService,
     DecisionParseError,
@@ -70,17 +70,14 @@ async def main() -> None:
     print(f"CONTEXT_CHARS={len(context)}", flush=True)
     print(f"PROMPT_CHARS={prompt.prompt_chars}", flush=True)
 
-    config_names = (
-        "AGENTSOCIETY_LLM_API_BASE",
-        "AGENTSOCIETY_LLM_API_KEY",
-        "AGENTSOCIETY_LLM_MODEL",
-    )
-    if any(not os.getenv(name) for name in config_names):
+    try:
+        config = DecisionProviderConfig.from_env()
+    except ValueError:
         raise RuntimeError("Missing model configuration in the ignored upstream .env")
     client = OpenAICompatibleDecisionClient(
-        base_url=os.environ["AGENTSOCIETY_LLM_API_BASE"],
-        api_key=os.environ["AGENTSOCIETY_LLM_API_KEY"],
-        model=os.environ["AGENTSOCIETY_LLM_MODEL"],
+        base_url=config.api_base,
+        api_key=config.api_key,
+        model=config.model,
         timeout_seconds=60,
         max_tokens=64,
         temperature=0.0,
