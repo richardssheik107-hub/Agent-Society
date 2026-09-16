@@ -19,12 +19,18 @@ class StepResult:
     outcome: ExecutionOutcome
     world_after: WorldState
     observation_before: LocalObservation
+    context: str
+    system_prompt: str
+    user_prompt: str
     context_chars: int
     prompt_chars: int
     decision_latency_seconds: float
     input_tokens: int | None
     output_tokens: int | None
     raw_output_chars: int
+    reasoning_tokens: int | None
+    provider_model: str | None
+    provider_request_count: int
 
 
 class ClosedLoopStep:
@@ -51,19 +57,24 @@ class ClosedLoopStep:
             ActionType.BUY,
             ActionType.EAT,
         ),
+        available_targets: Sequence[str] | None = None,
     ) -> StepResult:
         observation = ObservationBuilder(world).build(actor_id)
         recent_events = tuple(
             event.compact() for event in self.event_log.recent_for_agent(actor_id, limit=3)
         )
-        target_ids = tuple(
-            sorted(
-                set(world.locations)
-                | {
-                    item_id
-                    for offers in world.venues.values()
-                    for item_id in offers
-                }
+        target_ids = (
+            tuple(available_targets)
+            if available_targets is not None
+            else tuple(
+                sorted(
+                    set(world.locations)
+                    | {
+                        item_id
+                        for offers in world.venues.values()
+                        for item_id in offers
+                    }
+                )
             )
         )
         calls_before = self.decision_service.decision_call_count
@@ -88,12 +99,18 @@ class ClosedLoopStep:
             outcome=outcome,
             world_after=outcome.new_world,
             observation_before=observation,
+            context=decision.context,
+            system_prompt=decision.system_prompt,
+            user_prompt=decision.user_prompt,
             context_chars=decision.context_chars,
             prompt_chars=decision.prompt_chars,
             decision_latency_seconds=decision.latency_seconds,
             input_tokens=decision.input_tokens,
             output_tokens=decision.output_tokens,
             raw_output_chars=decision.raw_output_chars,
+            reasoning_tokens=decision.reasoning_tokens,
+            provider_model=decision.provider_model,
+            provider_request_count=decision.provider_request_count,
         )
 
 

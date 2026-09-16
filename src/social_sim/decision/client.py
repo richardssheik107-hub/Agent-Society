@@ -16,6 +16,9 @@ class DecisionReply:
     raw_text: str
     input_tokens: int | None = None
     output_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    provider_model: str | None = None
+    provider_request_count: int = 0
 
 
 class DecisionModelClient(Protocol):
@@ -233,6 +236,7 @@ class OpenAICompatibleDecisionClient:
             transport=transport or httpx.AsyncHTTPTransport(retries=0),
         )
         self.call_count = 0
+        self.provider_request_count = 0
         self.last_raw_text: str | None = None
         self.last_metadata: DecisionResponseMetadata | None = None
         self.last_latency_seconds: float | None = None
@@ -260,6 +264,7 @@ class OpenAICompatibleDecisionClient:
                 request_body["thinking"] = {"type": "disabled"}
         started = time.perf_counter()
         try:
+            self.provider_request_count += 1
             response = await self._http.post(self._url, json=request_body)
         finally:
             self.last_latency_seconds = time.perf_counter() - started
@@ -302,7 +307,14 @@ class OpenAICompatibleDecisionClient:
             raise
         self.last_metadata = metadata
         self.last_raw_text = raw_text
-        return DecisionReply(raw_text, metadata.input_tokens, metadata.output_tokens)
+        return DecisionReply(
+            raw_text,
+            metadata.input_tokens,
+            metadata.output_tokens,
+            metadata.reasoning_tokens,
+            metadata.provider_model,
+            1,
+        )
 
     async def aclose(self) -> None:
         await self._http.aclose()

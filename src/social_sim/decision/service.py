@@ -18,12 +18,18 @@ from .prompt import MAX_CONTEXT_CHARS, build_decision_prompt
 @dataclass(frozen=True)
 class DecisionResult:
     proposal: DecisionProposal
+    context: str
+    system_prompt: str
+    user_prompt: str
     context_chars: int
     prompt_chars: int
     raw_output_chars: int
     latency_seconds: float
     input_tokens: int | None
     output_tokens: int | None
+    reasoning_tokens: int | None
+    provider_model: str | None
+    provider_request_count: int
 
 
 class CompactDecisionService:
@@ -91,10 +97,16 @@ class CompactDecisionService:
                 )
         return DecisionResult(
             proposal=proposal,
+            context=context,
+            system_prompt=prompt.system,
+            user_prompt=prompt.user,
             context_chars=prompt.context_chars,
             prompt_chars=prompt.prompt_chars,
             raw_output_chars=len(reply.raw_text),
             latency_seconds=latency,
             input_tokens=reply.input_tokens,
             output_tokens=reply.output_tokens,
+            reasoning_tokens=reply.reasoning_tokens,
+            provider_model=reply.provider_model,
+            provider_request_count=reply.provider_request_count,
         )

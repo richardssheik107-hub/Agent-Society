@@ -2,9 +2,13 @@
 
 ## Status and scope
 
-This is the target architecture for a local, approximately 8B-parameter model with limited context and inference speed. Phase 1B implemented the deterministic path from `WorldState` to a compact observation, plus a bounded `ContextCompiler`. Phase 2 verified a manually triggered, compact single-call decision that ends at a proposal. Phase 3 added deterministic `MOVE`; Phases 4–6 add `BUY` and `EAT`, execution events, and a bounded single-person lunch loop. These are domain orchestration steps, not a replacement for AgentSociety's simulation scheduler.
+This is the target architecture for a local, approximately 8B-parameter model with limited context and inference speed. Phase 1B implemented the deterministic path from `WorldState` to a compact observation, plus a bounded `ContextCompiler`. Phase 2 verified a manually triggered, compact single-call decision that ends at a proposal. Phase 3 added deterministic `MOVE`; Phases 4–6 added `BUY` and `EAT`, execution events, and a bounded single-person lunch loop. Phase 6.5C verified that loop once against a real provider. Phase 7 adds an evaluation layer around the same loop rather than changing its behavior. These are domain orchestration steps, not a replacement for AgentSociety's simulation scheduler.
 
 AgentSociety 2 remains the simulation runtime, clock, Ray execution, workspace, and replay infrastructure. Integration code lives under `src/social_sim/`; upstream `third_party/AgentSociety/` is not modified.
+
+## Frozen v0.1 baseline
+
+The current comparison baseline is **Single-Agent Real Closed-Loop**. Its only executable behavior types are `MOVE`, `BUY`, and `EAT`. Every decision uses one model request and bounded compact context. Observation, environment routing, rules, effect selection, reduction, and event generation use **zero LLM calls**. Phase 6.5C's one real-provider lunch episode followed `MOVE restaurant → BUY meal → EAT meal` in three decisions and three provider requests; Alice finished with money `80.0`, hunger `0.2`, no meal, and restaurant meal stock `9`. The full offline suite then had 210 passing tests. The [Phase 6.5 record](phase6_5_real_closed_loop.md) separates this successful run from earlier failed provider-contract attempts. It is a frozen historical baseline, not a claim about Phase 7's three-episode pilot.
 
 ## Permanent constraints
 
@@ -36,19 +40,34 @@ WorldState(t) (source of truth)
 
 `ClosedLoopStep` wires one pass through this path. `LunchScenarioRunner` repeats it for at most five decisions and stops on the deterministic condition `hunger <= 0.2` and `meal inventory == 0`. This is **not** `every tick -> LLM`: a future deterministic trigger will decide when a fresh decision is needed. A model returns only a small proposal such as `{"action":"BUY","target":"meal"}`; it cannot approve an action, choose an effect, or mutate the world. Free-text reasoning and chain-of-thought are neither requested nor exposed.
 
+## Evaluation Layer
+
+```text
+Fixed Scenario + fresh WorldState
+  -> EpisodeRunner -> ClosedLoopStep × N
+       World / Decision / Rules -> TrajectoryRecorder (observer only)
+                              -> StepTrajectory / EpisodeResult
+                              -> MetricsAggregator
+                              -> BenchmarkReport -> Model Comparison
+```
+
+Phase 7's evaluation layer wraps the existing deterministic loop; it does not live inside `RuleEngine` or alter the world. It records structured before/after state, the actual local observation and bounded context, parsed proposal, deterministic rule/effect/event result, and safe usage/latency metadata. It does **not** retain hidden reasoning text or provider secrets. The lunch goal is evaluated from objective `WorldState`, never by an LLM judge. Each episode starts from a new world; `lunch-000001` and `lunch-000002` must not share depleted restaurant stock. The local JSON/JSONL dataset and JSON/Markdown summary live under ignored `run/evaluation/`.
+
+For future model comparison, keep the same `ScenarioConfig`, initial world, `ContextCompiler`, `RuleEngine`, goal, trajectory validation, and metrics. Replace only the injected `DecisionClient`. Record `model_name`, `decision_policy_name`, and `context_policy_name="baseline_compact"` so comparisons are traceable. Context ablation is not a Phase 7 feature. See the [Phase 7 evaluation design and results](phase7_evaluation_and_trajectories.md).
+
 ## Decision Contract
 
 | Item | Contract |
 | --- | --- |
 | Input | A bounded compact context compiled from selected local observation, a tiny profile, and short action/target IDs; never the complete `WorldState`, `RuleSet`, or tool schema. |
-| Output | `DecisionProposal` with only `action` (`WAIT`, `REST`, `MOVE`, `BUY`, or `EAT`) and optional `target`; this is a proposal, not an executed action. Python supplies the actor ID and one-unit quantity for `BUY`/`EAT`. |
+| Output | `DecisionProposal` with an `action` and optional `target`; the parser recognizes `WAIT` and `REST`, but the frozen lunch benchmark advertises and executes only `MOVE`, `BUY`, and `EAT`. This is a proposal, not an executed action. Python supplies the actor ID and one-unit quantity for `BUY`/`EAT`. |
 | LLM calls per decision | At most **1** application-level model call; no LLM-based output repair, application retry, ReAct, or tool-calling loop. |
 | Environment LLM calls | **0**, including routing, observation, statistics, and world description. |
 | Rule, effect, reducer, event LLM calls | **0**; validation, consequences, state transitions, and feedback remain deterministic. |
 
-The target deployment input is approximately **2K tokens or less**. Because the final tokenizer is unknown, Phase 2 guards input by character count: `CompactDecisionService` uses a **2,000-character context cap**, and the entire prompt—including system, user, and schema instructions—is preferably **under 1,500 characters**, with a hard guard rejecting 3,000 characters or more. When the local model is selected, add a tokenizer-specific check. The preferred decision response is **under 100 characters** of JSON only, with a small output-token limit. The prompt says not to explain and never requests chain-of-thought. The Phase 2 smoke measured **166 context characters**, **445 prompt characters**, and a **39-character** response.
+The target deployment input is approximately **2K tokens or less**. Because the final tokenizer is unknown, Phase 2 guards input by character count: `CompactDecisionService` uses a **2,000-character context cap**, and the entire prompt—including system, user, and schema instructions—is preferably **under 1,500 characters**, with a hard guard rejecting 3,000 characters or more. When the local model is selected, add a tokenizer-specific check. The preferred decision response is **under 100 characters** of JSON only. The prompt says not to explain and never requests chain-of-thought. The Phase 2 smoke measured **166 context characters**, **445 prompt characters**, and a **39-character** response. The Phase 6.5C real-provider path instead uses the verified minimal `model`+`messages` request body, without an optional output-token cap or thinking/temperature setting; the 2,000/3,000-character input guards still apply.
 
-`DecisionClient` isolates the backend. The current Volcengine OpenAI-compatible endpoint is a **remote test provider only**. A future OpenAI-compatible local server, vLLM, llama.cpp, Ollama, or another local endpoint must be substitutable without changing `WorldState`, `ObservationBuilder`, `ContextCompiler`, or the future `RuleEngine`. The decision path has a 60-second timeout and zero configured transport retries; parsing or provider failure ends the attempt rather than invoking another model call. The Phase 2 smoke observed **one application-level request**, a valid `MOVE` proposal, and unchanged world state; see the [Phase 2 verification record](phase2_compact_decision.md) for full measurements.
+`DecisionClient` isolates the backend. The current Volcengine OpenAI-compatible endpoint is a **remote test provider only**. A future OpenAI-compatible local server, vLLM, llama.cpp, Ollama, or another local endpoint must be substitutable without changing `WorldState`, `ObservationBuilder`, `ContextCompiler`, or `RuleEngine`. The decision path has a 60-second timeout and zero configured transport retries; parsing or provider failure ends the attempt rather than invoking another model call. The Phase 2 smoke observed **one application-level request**, a valid `MOVE` proposal, and unchanged world state; see the [Phase 2 verification record](phase2_compact_decision.md) for full measurements.
 
 ## Deterministic action execution
 
@@ -97,6 +116,6 @@ Future memory retrieval may contribute only a few recent or relevant memories (r
 
 `CodeGenRouter` is valid upstream behavior but is **not used in the final deterministic environment path**: its initialization can use LLM-generated observe/statistics code and its default world description can use an LLM. The Phase 1 custom-world run reached statistics code generation and timed out after a 300-second first attempt, then retried. This is a fit-to-constraints decision, not a claim that upstream is broken.
 
-Upstream `PersonAgent` ReAct remains an available capability, but it is **not selected as the final local-8B decision architecture** because a decision cannot rely on multi-turn tool use or multiple model calls. Full AgentSociety lifecycle integration of this lunch loop remains future work. Conflict resolution, broader economy, relationships, other executable actions, and multi-agent behavior remain out of scope.
+Upstream `PersonAgent` ReAct remains an available capability, but it is **not selected as the final local-8B decision architecture** because a decision cannot rely on multi-turn tool use or multiple model calls. The real-provider lunch smoke initialized and closed AgentSociety with a deterministic router, but did not run the lunch decisions through `PersonAgent` or the AgentSociety scheduler; full scheduler integration remains future work. Conflict resolution, broader economy, relationships, other executable actions, and multi-agent behavior remain out of scope.
 
-Phase 2 verified `Compact Context -> exactly one LLM call when manually triggered -> tiny structured proposal`, stopping before state mutation. Phase 3 connected `MOVE`; Phases 4–6 verified the network-free `MOVE -> BUY -> EAT` path through new state, events, and final observation with three scripted calls. The optional real-provider lunch loop and an AgentSociety lifecycle-wrapped lunch smoke have **not** been run. Phase 2 has a separate real single-call smoke; Phase 1B's runtime smoke alone did not establish this decision path.
+Phase 2 verified `Compact Context -> exactly one LLM call when manually triggered -> tiny structured proposal`, stopping before state mutation. Phase 3 connected `MOVE`; Phases 4–6 verified the network-free `MOVE -> BUY -> EAT` path through new state, events, and final observation with three scripted calls. Phase 6.5C then completed the real-provider lunch path in three requests while wrapping the smoke in a successful AgentSociety init/close lifecycle. Phase 7 measures that architecture across fresh episodes without introducing new actions. A future local 8B comparison replaces only the decision client; context ablation and multi-agent simulation remain separate later phases.
