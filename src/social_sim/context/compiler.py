@@ -24,6 +24,7 @@ class ContextCompiler:
     MAX_RELEVANT_MEMORIES = 3
     MAX_EVENTS = 3
     MAX_AVAILABLE_ACTIONS = 6
+    MAX_AVAILABLE_TARGETS = 5
     MAX_PROFILE_STRING_CHARS = 96
     MAX_STATE_STRING_CHARS = 96
     MAX_MEMORY_STRING_CHARS = 240
@@ -44,6 +45,7 @@ class ContextCompiler:
         relevant_memories: Sequence[str] | None = None,
         available_actions: Sequence[str] | None = None,
         events: Sequence[str] | None = None,
+        available_targets: Sequence[str] | None = None,
     ) -> str:
         """Return compact JSON containing only explicitly allowed local facts."""
         if not isinstance(profile, Mapping):
@@ -106,6 +108,10 @@ class ContextCompiler:
         )
         self._add_bounded_list(
             context, "a", available_actions, self.MAX_AVAILABLE_ACTIONS,
+            self.MAX_ACTION_STRING_CHARS,
+        )
+        self._add_bounded_list(
+            context, "targets", available_targets, self.MAX_AVAILABLE_TARGETS,
             self.MAX_ACTION_STRING_CHARS,
         )
 

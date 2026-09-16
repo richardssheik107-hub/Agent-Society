@@ -117,3 +117,25 @@ def test_optional_lists_remain_compact(observation: LocalObservation) -> None:
 def test_unbounded_profile_number_is_rejected(observation: LocalObservation) -> None:
     with pytest.raises(ValueError, match="profile.age"):
         ContextCompiler().compile({"name": "Alice", "age": 10**100}, observation)
+
+
+def test_phase2_actions_and_targets_are_compact(observation: LocalObservation) -> None:
+    compiler = ContextCompiler(max_chars=2000)
+    result = compiler.compile(
+        {"name": "Alice"}, observation,
+        available_actions=["WAIT", "REST", "MOVE"],
+        available_targets=["park", "restaurant"],
+    )
+    context = json.loads(result)
+    assert context["a"] == ["WAIT", "REST", "MOVE"]
+    assert context["targets"] == ["park", "restaurant"]
+    assert len(result) < 1000
+
+
+def test_phase2_target_count_is_bounded(observation: LocalObservation) -> None:
+    compiler = ContextCompiler()
+    with pytest.raises(ValueError, match="maximum item count"):
+        compiler.compile(
+            {"name": "Alice"}, observation,
+            available_targets=["place"] * (compiler.MAX_AVAILABLE_TARGETS + 1),
+        )
