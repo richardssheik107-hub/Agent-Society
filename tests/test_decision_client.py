@@ -53,6 +53,67 @@ def test_unavailable_move_target_rejected_after_one_call() -> None:
     assert client.call_count == service.decision_call_count == 1
 
 
+@pytest.mark.parametrize("action", ["BUY", "EAT"])
+def test_buy_and_eat_use_same_one_call_two_field_contract(action: str) -> None:
+    client = FakeDecisionClient(json.dumps({"action": action, "target": "meal"}))
+    service = CompactDecisionService(client)
+    result = asyncio.run(
+        service.decide(
+            {"name": "Alice"},
+            observation(),
+            available_actions=[action],
+            available_targets=["meal"],
+        )
+    )
+    assert result.proposal.action.value == action
+    assert result.proposal.target == "meal"
+    assert client.call_count == service.decision_call_count == 1
+
+
+@pytest.mark.parametrize("action", ["BUY", "EAT"])
+def test_unavailable_buy_or_eat_target_rejected_after_one_call(action: str) -> None:
+    client = FakeDecisionClient(json.dumps({"action": action, "target": "unlisted"}))
+    service = CompactDecisionService(client)
+    with pytest.raises(DecisionParseError, match="not currently available"):
+        asyncio.run(
+            service.decide(
+                {"name": "Alice"},
+                observation(),
+                available_actions=[action],
+                available_targets=["meal"],
+            )
+        )
+    assert client.call_count == service.decision_call_count == 1
+
+
+def test_recent_events_are_compact_and_bounded_before_call() -> None:
+    class CapturingClient(FakeDecisionClient):
+        async def complete(self, system_prompt: str, user_prompt: str):
+            self.user_prompt = user_prompt
+            return await super().complete(system_prompt, user_prompt)
+
+    client = CapturingClient('{"action":"WAIT","target":null}')
+    service = CompactDecisionService(client)
+    asyncio.run(
+        service.decide(
+            {"name": "Alice"},
+            observation(),
+            recent_events=["MOVED:restaurant", "PURCHASED:meal", "ATE:meal"],
+        )
+    )
+    context = json.loads(client.user_prompt.split("Context:", 1)[1])
+    assert context["e"] == ["MOVED:restaurant", "PURCHASED:meal", "ATE:meal"]
+    with pytest.raises(ValueError, match="maximum item count"):
+        asyncio.run(
+            service.decide(
+                {"name": "Alice"},
+                observation(),
+                recent_events=["a", "b", "c", "d"],
+            )
+        )
+    assert client.call_count == service.decision_call_count == 1
+
+
 def test_scalar_targets_fail_before_model_call() -> None:
     client = FakeDecisionClient('{"action":"WAIT","target":null}')
     service = CompactDecisionService(client)

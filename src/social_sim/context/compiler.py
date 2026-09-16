@@ -25,6 +25,7 @@ class ContextCompiler:
     MAX_EVENTS = 3
     MAX_AVAILABLE_ACTIONS = 6
     MAX_AVAILABLE_TARGETS = 5
+    MAX_LOCAL_ITEMS = 5
     MAX_PROFILE_STRING_CHARS = 96
     MAX_STATE_STRING_CHARS = 96
     MAX_MEMORY_STRING_CHARS = 240
@@ -92,6 +93,12 @@ class ContextCompiler:
             "money": self._finite_number(observation.money, "observation.money"),
             "hunger": self._finite_number(observation.hunger, "observation.hunger"),
         }
+        inventory = self._compact_inventory(observation.inventory)
+        if inventory:
+            compact_state["inv"] = inventory
+        offers = self._compact_offers(observation.offers)
+        if offers:
+            compact_state["offers"] = offers
         context: dict[str, object] = {"p": compact_profile, "s": compact_state}
 
         if working_memory is not None:
@@ -140,6 +147,49 @@ class ContextCompiler:
         if not math.isfinite(number):
             raise ValueError(f"{field} must be finite")
         return number
+
+    @classmethod
+    def _compact_inventory(cls, inventory: Mapping[str, int]) -> dict[str, int]:
+        if not isinstance(inventory, Mapping):
+            raise TypeError("observation.inventory must be a mapping")
+        if len(inventory) > cls.MAX_LOCAL_ITEMS:
+            raise ValueError("observation.inventory exceeds maximum item count")
+        compact: dict[str, int] = {}
+        for item_id, quantity in sorted(inventory.items()):
+            cls._validate_item_id(item_id, "observation.inventory")
+            if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 0:
+                raise ValueError("observation.inventory quantities must be non-negative integers")
+            compact[item_id] = quantity
+        return compact
+
+    @classmethod
+    def _compact_offers(
+        cls, offers: Mapping[str, Mapping[str, float | bool]]
+    ) -> dict[str, dict[str, float | bool]]:
+        if not isinstance(offers, Mapping):
+            raise TypeError("observation.offers must be a mapping")
+        if len(offers) > cls.MAX_LOCAL_ITEMS:
+            raise ValueError("observation.offers exceeds maximum item count")
+        compact: dict[str, dict[str, float | bool]] = {}
+        for item_id, offer in sorted(offers.items()):
+            cls._validate_item_id(item_id, "observation.offers")
+            if not isinstance(offer, Mapping):
+                raise TypeError("observation.offers values must be mappings")
+            price = cls._finite_number(offer.get("price"), "observation.offers.price")
+            if price < 0:
+                raise ValueError("observation.offers.price must be non-negative")
+            available = offer.get("available")
+            if not isinstance(available, bool):
+                raise TypeError("observation.offers.available must be a boolean")
+            compact[item_id] = {"p": price, "a": available}
+        return compact
+
+    @classmethod
+    def _validate_item_id(cls, item_id: object, field: str) -> None:
+        if not isinstance(item_id, str) or not item_id.strip():
+            raise ValueError(f"{field} item IDs must be nonempty strings")
+        if len(item_id) > cls.MAX_ACTION_STRING_CHARS:
+            raise ValueError(f"{field} item ID exceeds maximum length")
 
     @classmethod
     def _add_bounded_list(

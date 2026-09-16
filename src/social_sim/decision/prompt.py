@@ -10,9 +10,9 @@ SYSTEM_INSTRUCTION = (
     "Return JSON only. Do not explain."
 )
 USER_INSTRUCTION = (
-    "In the context, a lists allowed actions and targets lists allowed MOVE ids. "
+    "In the context, a lists allowed actions and targets lists allowed ids. "
     "Return exactly an object with action and target. "
-    "For MOVE use one listed target; for WAIT or REST use target:null.\n"
+    "For MOVE, BUY, or EAT use one listed target; for WAIT or REST use target:null.\n"
 )
 
 

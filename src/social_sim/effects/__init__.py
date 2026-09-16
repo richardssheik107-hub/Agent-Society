@@ -1,5 +1,5 @@
 """Declarative effects produced by deterministic rules."""
 
-from .models import MoveEffect
+from .models import EatEffect, Effect, MEAL_HUNGER_REDUCTION, MoveEffect, PurchaseEffect
 
-__all__ = ["MoveEffect"]
+__all__ = ["EatEffect", "Effect", "MEAL_HUNGER_REDUCTION", "MoveEffect", "PurchaseEffect"]

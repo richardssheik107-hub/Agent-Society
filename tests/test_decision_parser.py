@@ -17,6 +17,8 @@ from social_sim.decision.parser import DecisionParseError, DecisionParser
             '{"action":"MOVE","target":"park"}',
             DecisionProposal(ActionType.MOVE, "park"),
         ),
+        ('{"action":"BUY","target":"meal"}', DecisionProposal(ActionType.BUY, "meal")),
+        ('{"action":"EAT","target":"meal"}', DecisionProposal(ActionType.EAT, "meal")),
     ],
 )
 def test_valid_compact_json(raw: str, expected: DecisionProposal) -> None:

@@ -139,3 +139,38 @@ def test_phase2_target_count_is_bounded(observation: LocalObservation) -> None:
             {"name": "Alice"}, observation,
             available_targets=["place"] * (compiler.MAX_AVAILABLE_TARGETS + 1),
         )
+
+
+def test_inventory_and_local_offers_are_compact_and_keep_zero() -> None:
+    observation = LocalObservation(
+        1, "2026-01-01T00:00:00+00:00", "restaurant", 80.0, 0.2,
+        inventory={"meal": 0},
+        offers={"meal": {"price": 20.0, "available": True}},
+    )
+    result = ContextCompiler(max_chars=2000).compile(
+        {"name": "Alice"}, observation,
+        available_actions=["WAIT", "REST", "MOVE", "BUY", "EAT"],
+        available_targets=["home", "park", "restaurant", "meal"],
+        events=["MOVED:restaurant", "PURCHASED:meal", "ATE:meal"],
+    )
+    compact = json.loads(result)
+    assert compact["s"]["inv"] == {"meal": 0}
+    assert compact["s"]["offers"] == {"meal": {"p": 20.0, "a": True}}
+    assert len(result) < 1000
+    assert "stock" not in result
+    assert "RuleSet" not in result
+
+
+def test_local_inventory_and_offers_have_count_bounds() -> None:
+    compiler = ContextCompiler()
+    base = dict(agent_id=1, time="2026-01-01T00:00:00", location="restaurant", money=80.0, hunger=0.2)
+    with pytest.raises(ValueError, match="maximum item count"):
+        compiler.compile(
+            {"name": "Alice"},
+            LocalObservation(**base, inventory={f"item-{i}": 0 for i in range(6)}),
+        )
+    with pytest.raises(ValueError, match="maximum item count"):
+        compiler.compile(
+            {"name": "Alice"},
+            LocalObservation(**base, offers={f"item-{i}": {"price": 1.0, "available": True} for i in range(6)}),
+        )

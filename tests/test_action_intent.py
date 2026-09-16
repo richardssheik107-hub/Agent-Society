@@ -52,6 +52,13 @@ def test_proposal_adapter_requires_proposal() -> None:
         proposal_to_intent(1, {"action": "MOVE"})  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize("quantity", [0, 2, True, 1.0, "1"])
+def test_buy_and_eat_intents_reject_non_unit_quantity(quantity: object) -> None:
+    for action in (ActionType.BUY, ActionType.EAT):
+        with pytest.raises(ValueError, match="quantity=1 only"):
+            ActionIntent(1, action, "meal", {"quantity": quantity})
+
+
 def test_move_effect_is_declarative_and_immutable() -> None:
     effect = MoveEffect(agent_id=1, from_location="home", to_location="restaurant")
     assert (effect.agent_id, effect.from_location, effect.to_location) == (

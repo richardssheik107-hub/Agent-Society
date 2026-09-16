@@ -10,6 +10,8 @@ class ActionType(str, Enum):
     WAIT = "WAIT"
     REST = "REST"
     MOVE = "MOVE"
+    BUY = "BUY"
+    EAT = "EAT"
 
 
 @dataclass(frozen=True)
@@ -29,8 +31,8 @@ class DecisionProposal:
         elif not isinstance(self.action, ActionType):
             raise ValueError(f"Unknown action: {self.action!r}")
 
-        if self.action is ActionType.MOVE:
+        if self.action in (ActionType.MOVE, ActionType.BUY, ActionType.EAT):
             if not isinstance(self.target, str) or not self.target.strip():
-                raise ValueError("MOVE requires a nonempty string target")
+                raise ValueError(f"{self.action.value} requires a nonempty string target")
         elif self.target is not None:
             raise ValueError(f"{self.action.value} requires target=None")

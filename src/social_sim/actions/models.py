@@ -32,7 +32,12 @@ class ActionIntent:
             raise ValueError("target must be a string or None")
         if not isinstance(self.params, Mapping):
             raise ValueError("params must be a mapping")
-        object.__setattr__(self, "params", MappingProxyType(dict(self.params)))
+        params = dict(self.params)
+        if self.action in (ActionType.BUY, ActionType.EAT):
+            quantity = params.get("quantity", 1)
+            if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity != 1:
+                raise ValueError("BUY and EAT support quantity=1 only")
+        object.__setattr__(self, "params", MappingProxyType(params))
 
 
 def proposal_to_intent(actor_id: int, proposal: DecisionProposal) -> ActionIntent:
@@ -44,4 +49,7 @@ def proposal_to_intent(actor_id: int, proposal: DecisionProposal) -> ActionInten
         actor_id=actor_id,
         action=proposal.action,
         target=proposal.target,
+        params={"quantity": 1}
+        if proposal.action in (ActionType.BUY, ActionType.EAT)
+        else {},
     )

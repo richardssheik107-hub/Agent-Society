@@ -51,6 +51,7 @@ class CompactDecisionService:
             ActionType.MOVE,
         ),
         available_targets: Sequence[str] = (),
+        recent_events: Sequence[str] | None = None,
     ) -> DecisionResult:
         actions = tuple(ActionType(action) for action in available_actions)
         if not actions or len(set(actions)) != len(actions):
@@ -73,6 +74,7 @@ class CompactDecisionService:
             observation,
             available_actions=[action.value for action in actions],
             available_targets=targets,
+            events=recent_events,
         )
         prompt = build_decision_prompt(context)
         self.decision_call_count += 1
@@ -82,8 +84,11 @@ class CompactDecisionService:
         proposal = self.parser.parse(reply.raw_text)
         if proposal.action not in actions:
             raise DecisionParseError("Proposed action is not currently available")
-        if proposal.action is ActionType.MOVE and proposal.target not in targets:
-            raise DecisionParseError("MOVE target is not currently available")
+        if proposal.action in (ActionType.MOVE, ActionType.BUY, ActionType.EAT):
+            if proposal.target not in targets:
+                raise DecisionParseError(
+                    f"{proposal.action.value} target is not currently available"
+                )
         return DecisionResult(
             proposal=proposal,
             context_chars=prompt.context_chars,
