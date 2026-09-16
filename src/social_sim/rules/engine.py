@@ -1,0 +1,25 @@
+"""Small deterministic dispatcher; only MOVE is executable in Phase 3."""
+
+from __future__ import annotations
+
+from social_sim.actions.models import ActionIntent
+from social_sim.decision.models import ActionType
+from social_sim.rules.base import ReasonCode, Rule, RuleResult
+from social_sim.rules.movement import MoveRule
+from social_sim.world.state import WorldState
+
+
+class RuleEngine:
+    def __init__(self) -> None:
+        self._rules: dict[ActionType, Rule] = {ActionType.MOVE: MoveRule()}
+
+    def evaluate(self, world: WorldState, intent: ActionIntent) -> RuleResult:
+        rule = self._rules.get(intent.action)
+        if rule is None:
+            return RuleResult(
+                actor_id=intent.actor_id,
+                action=intent.action,
+                allowed=False,
+                reason_code=ReasonCode.UNSUPPORTED_ACTION,
+            )
+        return rule.evaluate(world, intent)

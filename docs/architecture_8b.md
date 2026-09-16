@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is the target architecture for a local, approximately 8B-parameter model with limited context and inference speed. Phase 1B implemented the deterministic path from `WorldState` to a compact observation, plus a bounded `ContextCompiler`. Phase 2 verified a manually triggered, compact single-call decision that ends at a proposal; it does **not** implement rules, effects, or a replacement decision agent.
+This is the target architecture for a local, approximately 8B-parameter model with limited context and inference speed. Phase 1B implemented the deterministic path from `WorldState` to a compact observation, plus a bounded `ContextCompiler`. Phase 2 verified a manually triggered, compact single-call decision that ends at a proposal. Phase 3 adds deterministic execution of `MOVE` only; it does not replace the decision agent or add other action effects.
 
 AgentSociety 2 remains the simulation runtime, clock, Ray execution, workspace, and replay infrastructure. Integration code lives under `src/social_sim/`; upstream `third_party/AgentSociety/` is not modified.
 
@@ -24,10 +24,9 @@ WorldState (source of truth)
   -> DecisionTrigger (future; deterministic)
        no decision: 0 LLM calls
        new decision: ContextCompiler -> local 8B (<= 1 LLM call)
-  -> tiny Decision Proposal (Phase 2; no execution)
-  -> RuleEngine (future; deterministic validation)
-  -> Effects (future; deterministic application)
-  -> WorldState
+  -> tiny DecisionProposal (Phase 2; no execution by the model)
+  -> ActionIntent -> RuleEngine -> RuleResult (Phase 3: MOVE only)
+  -> MoveEffect -> StateReducer -> new WorldState
 ```
 
 This is **not** `every tick -> LLM`. A future trigger will decide deterministically whether a fresh decision is needed; Phase 2 triggers one decision manually. The response is small structured data such as `{"action":"REST","target":null}`. Free-text reasoning and chain-of-thought are neither requested nor exposed.
@@ -45,6 +44,20 @@ This is **not** `every tick -> LLM`. A future trigger will decide deterministica
 The target deployment input is approximately **2K tokens or less**. Because the final tokenizer is unknown, Phase 2 guards input by character count: `CompactDecisionService` uses a **2,000-character context cap**, and the entire prompt—including system, user, and schema instructions—is preferably **under 1,500 characters**, with a hard guard rejecting 3,000 characters or more. When the local model is selected, add a tokenizer-specific check. The preferred decision response is **under 100 characters** of JSON only, with a small output-token limit. The prompt says not to explain and never requests chain-of-thought. The Phase 2 smoke measured **166 context characters**, **445 prompt characters**, and a **39-character** response.
 
 `DecisionClient` isolates the backend. The current Volcengine OpenAI-compatible endpoint is a **remote test provider only**. A future OpenAI-compatible local server, vLLM, llama.cpp, Ollama, or another local endpoint must be substitutable without changing `WorldState`, `ObservationBuilder`, `ContextCompiler`, or the future `RuleEngine`. The decision path has a 60-second timeout and zero configured transport retries; parsing or provider failure ends the attempt rather than invoking another model call. The Phase 2 smoke observed **one application-level request**, a valid `MOVE` proposal, and unchanged world state; see the [Phase 2 verification record](phase2_compact_decision.md) for full measurements.
+
+## Deterministic Action Execution
+
+```text
+DecisionProposal -> ActionIntent -> RuleEngine -> RuleResult
+                                      MOVE -> MoveRule -> MoveEffect
+                                                     -> StateReducer -> new WorldState
+```
+
+**LLM ends at `DecisionProposal`.** The deterministic `proposal_to_intent` adapter supplies `actor_id`; the model never constructs an internal intent, chooses an effect, reports success, or writes state. `RuleEngine` owns the allow/reject decision. Its Phase 3 registry contains only `MOVE -> MoveRule`; `WAIT` and `REST` are explicitly rejected as `UNSUPPORTED_ACTION`, not silently executed as no-ops.
+
+`MoveRule` checks actor existence, a nonempty exact target ID, membership in `WorldState.locations`, and that the destination differs from the actor's current location. `WorldState.locations` is the **sole source of valid destinations**; there is no second hard-coded list in the rule. `RuleResult` records actor, action, `allowed`, a machine-readable reason code, and declared effects. An accepted move yields `ACCEPTED` plus `MoveEffect(agent_id, from_location, to_location)`. A rejected move yields no effect, including `UNKNOWN_DESTINATION` for `MOVE moon`; the reducer is not called for rejection.
+
+Rules and effects are read-only. Only `StateReducer` creates the next `WorldState`, leaving the old state unchanged and changing only the moved person's location. It verifies that an effect's `from_location` still matches the world's current location and rejects a stale or invalid effect with `STATE_CONFLICT`. Rule validation, effect generation, and reduction use zero LLM calls. The small rule set stays out of the prompt, so Phase 3 does not expand the Phase 2 compact decision context. See the [Phase 3 MOVE contract](phase3_deterministic_move.md) for acceptance cases and verification status.
 
 ## Phase 1B environment path
 
@@ -73,6 +86,6 @@ Future memory retrieval may contribute only a few recent or relevant memories (r
 
 `CodeGenRouter` is valid upstream behavior but is **not used in the final deterministic environment path**: its initialization can use LLM-generated observe/statistics code and its default world description can use an LLM. The Phase 1 custom-world run reached statistics code generation and timed out after a 300-second first attempt, then retried. This is a fit-to-constraints decision, not a claim that upstream is broken.
 
-Upstream `PersonAgent` ReAct remains an available capability, but it is **not selected as the final local-8B decision architecture** because a decision cannot rely on multi-turn tool use or multiple model calls. The future `CompactDecisionAgent` or equivalent single-call decision path is outside Phase 1B. RuleEngine, ActionIntent execution, StateReducer, Effects, conflict resolution, economy, relationships, and multi-agent behavior are also outside this phase.
+Upstream `PersonAgent` ReAct remains an available capability, but it is **not selected as the final local-8B decision architecture** because a decision cannot rely on multi-turn tool use or multiple model calls. A replacement `CompactDecisionAgent` or equivalent runtime integration remains future work. Phase 3 implements the minimal `MOVE` rule/effect/reducer path; conflict resolution, economy, relationships, other executable actions, and multi-agent behavior remain out of scope.
 
-Phase 2 verified `Compact Context -> exactly one LLM call when manually triggered -> tiny structured proposal`, stopping before state mutation. A later phase will address `Decision Proposal -> deterministic RuleEngine -> Effects`. Phase 2 has separate tests and a real single-call smoke; Phase 1B's runtime smoke alone did not establish this decision path.
+Phase 2 verified `Compact Context -> exactly one LLM call when manually triggered -> tiny structured proposal`, stopping before state mutation. Phase 3 connects a proposal to deterministic `MOVE` execution and does not require another provider call for its core tests or smoke. Phase 2 has separate tests and a real single-call smoke; Phase 1B's runtime smoke alone did not establish this decision path.
