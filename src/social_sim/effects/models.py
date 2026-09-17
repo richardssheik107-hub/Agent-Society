@@ -1,7 +1,10 @@
 """Effects describe approved changes but never apply them to the world."""
 
 from dataclasses import dataclass
+from datetime import datetime
 import math
+
+from social_sim.decision.models import ActionType
 
 
 MEAL_HUNGER_REDUCTION = 0.6
@@ -90,4 +93,34 @@ class EatEffect:
             raise ValueError("hunger must be in [0, 1]")
 
 
-Effect = MoveEffect | PurchaseEffect | EatEffect
+@dataclass(frozen=True)
+class StartActivityEffect:
+    """Start one timed activity after a rule has validated its preconditions."""
+
+    agent_id: int
+    action: ActionType
+    expected_location: str
+    expected_time: str
+    end_time: str
+
+    def __post_init__(self) -> None:
+        _nonnegative_int(self.agent_id, "agent_id")
+        if isinstance(self.action, str):
+            try:
+                object.__setattr__(self, "action", ActionType(self.action))
+            except ValueError as exc:
+                raise ValueError("action must be a timed activity") from exc
+        if self.action not in (ActionType.SLEEP, ActionType.WORK, ActionType.LEISURE):
+            raise ValueError("action must be a timed activity")
+        if not isinstance(self.expected_location, str) or not self.expected_location.strip():
+            raise ValueError("expected_location must be nonempty")
+        try:
+            start = datetime.fromisoformat(self.expected_time)
+            end = datetime.fromisoformat(self.end_time)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("activity times must be ISO datetime strings") from exc
+        if end <= start:
+            raise ValueError("activity end_time must follow expected_time")
+
+
+Effect = MoveEffect | PurchaseEffect | EatEffect | StartActivityEffect

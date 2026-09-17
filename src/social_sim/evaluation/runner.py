@@ -8,10 +8,12 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
 from social_sim.closed_loop import ClosedLoopStep
+from social_sim.context import ContextPolicy
 from social_sim.decision import (
     ActionType,
     CompactDecisionService,
@@ -36,6 +38,9 @@ from .models import (
 )
 from .recorder import TrajectoryRecorder
 from .validation import validate_trajectory
+
+if TYPE_CHECKING:
+    from .ablation_scenarios import PreludeSetup
 
 
 LUNCH_ACTIONS = (ActionType.MOVE, ActionType.BUY, ActionType.EAT)
@@ -141,6 +146,7 @@ class EpisodeRunner:
         decision_policy_name: str = "unknown",
         model_name: str | None = None,
         context_policy_name: str = "baseline_compact",
+        context_policy: ContextPolicy | None = None,
         write_artifacts: bool = True,
     ) -> None:
         self.scenario = scenario
@@ -150,24 +156,36 @@ class EpisodeRunner:
         self.decision_policy_name = decision_policy_name
         self.model_name = model_name
         self.context_policy_name = context_policy_name
+        self.context_policy = context_policy
         self.write_artifacts = write_artifacts
 
-    async def run_episode(self, number: int) -> EpisodeResult:
+    async def run_episode(
+        self,
+        number: int,
+        *,
+        episode_id: str | None = None,
+        setup: PreludeSetup | None = None,
+        experiment_config_hash: str | None = None,
+    ) -> EpisodeResult:
         if isinstance(number, bool) or not isinstance(number, int) or number < 1:
             raise ValueError("episode number must be a positive integer")
         start_episode = getattr(self.decision_client, "start_episode", None)
         if callable(start_episode):
             start_episode()
-        episode_id = f"{self.scenario.scenario_name}-{number:06d}"
-        world = self.scenario.initial_world_factory()
+        episode_id = episode_id or f"{self.scenario.scenario_name}-{number:06d}"
+        world = setup.world if setup is not None else self.scenario.initial_world_factory()
         if not isinstance(world, WorldState):
             raise TypeError("initial_world_factory must return WorldState")
         world.get_person(self.scenario.actor_id)
         recorder = TrajectoryRecorder(
             episode_id, output_dir=self.output_dir, record_prompt=self.record_prompt
         )
-        service = CompactDecisionService(self.decision_client)
-        stepper = ClosedLoopStep(service, EventLog())
+        if setup is not None and world_snapshot(world) != setup.model_start_state:
+            raise RuntimeError("Prelude model-start state does not match its world")
+        service = CompactDecisionService(
+            self.decision_client, context_policy=self.context_policy
+        )
+        stepper = ClosedLoopStep(service, setup.event_log if setup is not None else EventLog())
         provider_start = getattr(self.decision_client, "provider_request_count", None)
         termination = TerminationReason.GOAL_REACHED if self.scenario.goal(world) else None
         invalid_outputs = 0
@@ -261,6 +279,12 @@ class EpisodeRunner:
             context_policy_name=self.context_policy_name,
             decision_policy_name=self.decision_policy_name,
             model_name=self.model_name,
+            scenario_variant=setup.variant.value if setup is not None else None,
+            prelude_events=setup.prelude_events if setup is not None else (),
+            prelude_action_count=setup.prelude_action_count if setup is not None else 0,
+            prelude_rejection_count=setup.prelude_rejection_count if setup is not None else 0,
+            model_start_state=setup.model_start_state if setup is not None else None,
+            experiment_config_hash=experiment_config_hash,
         )
         validate_trajectory(result)
         if self.write_artifacts:

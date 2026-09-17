@@ -12,6 +12,9 @@ class ActionType(str, Enum):
     MOVE = "MOVE"
     BUY = "BUY"
     EAT = "EAT"
+    SLEEP = "SLEEP"
+    WORK = "WORK"
+    LEISURE = "LEISURE"
 
 
 @dataclass(frozen=True)

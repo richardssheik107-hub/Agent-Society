@@ -16,6 +16,9 @@ class LocalObservation:
     hunger: float
     inventory: Mapping[str, int] = field(default_factory=dict)
     offers: Mapping[str, Mapping[str, float | bool]] = field(default_factory=dict)
+    energy: float | None = None
+    activity: str | None = None
+    activity_end_time: str | None = None
 
     def __post_init__(self) -> None:
         # A local observation is a snapshot, not a live view of the world.
@@ -37,6 +40,7 @@ class LocalObservation:
                 self.agent_id, self.time, self.location, self.money, self.hunger,
                 dict(self.inventory),
                 {item_id: dict(offer) for item_id, offer in self.offers.items()},
+                self.energy, self.activity, self.activity_end_time,
             ),
         )
 
@@ -54,6 +58,10 @@ class LocalObservation:
             result["offers"] = {
                 item_id: dict(offer) for item_id, offer in self.offers.items()
             }
+        if self.energy is not None:
+            result["energy"] = self.energy
+            result["activity"] = self.activity
+            result["activity_end_time"] = self.activity_end_time
         return result
 
 
@@ -72,6 +80,9 @@ class ObservationBuilder:
             money=person.money,
             hunger=person.hunger,
             inventory=person.inventory,
+            energy=person.energy,
+            activity=person.activity,
+            activity_end_time=person.activity_end_time,
             offers={
                 item_id: {"price": offer.price, "available": offer.stock > 0}
                 for item_id, offer in self._world_state.offers_at(person.location).items()

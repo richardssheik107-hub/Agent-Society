@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
@@ -30,6 +31,8 @@ class ContextCompiler:
     MAX_STATE_STRING_CHARS = 96
     MAX_MEMORY_STRING_CHARS = 240
     MAX_ACTION_STRING_CHARS = 48
+    MAX_BEHAVIOR_HINTS = 3
+    MAX_BEHAVIOR_HINT_CHARS = 96
 
     def __init__(self, max_chars: int = HARD_MAX_CHARS) -> None:
         if isinstance(max_chars, bool) or not isinstance(max_chars, int):
@@ -47,12 +50,19 @@ class ContextCompiler:
         available_actions: Sequence[str] | None = None,
         events: Sequence[str] | None = None,
         available_targets: Sequence[str] | None = None,
+        daily_mode: bool = False,
+        work_window: str | None = None,
+        behavior_hints: Sequence[str] | None = None,
     ) -> str:
         """Return compact JSON containing only explicitly allowed local facts."""
         if not isinstance(profile, Mapping):
             raise TypeError("profile must be a mapping")
         if not isinstance(observation, LocalObservation):
             raise TypeError("observation must be a LocalObservation")
+        if not isinstance(daily_mode, bool):
+            raise TypeError("daily_mode must be a boolean")
+        if not daily_mode and (work_window is not None or behavior_hints is not None):
+            raise ValueError("daily context inputs require daily_mode=True")
 
         name = profile.get("name")
         if not isinstance(name, str) or not name:
@@ -75,7 +85,16 @@ class ContextCompiler:
             if not 0 <= age <= 150:
                 raise ValueError("profile.age must be between 0 and 150")
             compact_profile["age"] = age
-        assert len(compact_profile) <= self.MAX_PROFILE_FIELDS
+        if daily_mode:
+            for key in ("occupation", "personality", "home", "workplace"):
+                value = profile.get(key)
+                if value is not None:
+                    compact_profile[key] = self._clip(
+                        self._require_string(value, f"profile.{key}"),
+                        self.MAX_PROFILE_STRING_CHARS,
+                    )
+        else:
+            assert len(compact_profile) <= self.MAX_PROFILE_FIELDS
 
         agent_id = observation.agent_id
         if isinstance(agent_id, bool) or not isinstance(agent_id, int):
@@ -99,7 +118,43 @@ class ContextCompiler:
         offers = self._compact_offers(observation.offers)
         if offers:
             compact_state["offers"] = offers
+        if daily_mode:
+            energy = observation.energy
+            if energy is None:
+                raise ValueError("daily observation must include energy")
+            compact_state["energy"] = self._finite_number(energy, "observation.energy")
+            if not 0 <= compact_state["energy"] <= 1:
+                raise ValueError("observation.energy must be between 0 and 1")
+            activity = observation.activity
+            if activity is not None:
+                compact_state["act"] = self._clip(
+                    self._require_string(activity, "observation.activity"),
+                    self.MAX_ACTION_STRING_CHARS,
+                )
+                end_time = observation.activity_end_time
+                if end_time is None:
+                    raise ValueError("active activity requires activity_end_time")
+                compact_state["rem"] = self._remaining_minutes(time, end_time)
+            else:
+                compact_state["act"] = None
+                compact_state["rem"] = 0
         context: dict[str, object] = {"p": compact_profile, "s": compact_state}
+
+        if daily_mode:
+            if work_window is not None:
+                if not isinstance(work_window, str) or not re.fullmatch(
+                    r"(?:[01][0-9]|2[0-3]):[0-5][0-9]-(?:[01][0-9]|2[0-3]):[0-5][0-9]",
+                    work_window,
+                ):
+                    raise ValueError("work_window must be HH:MM-HH:MM")
+                context["work"] = work_window
+            self._add_bounded_list(
+                context,
+                "h",
+                behavior_hints,
+                self.MAX_BEHAVIOR_HINTS,
+                self.MAX_BEHAVIOR_HINT_CHARS,
+            )
 
         if working_memory is not None:
             context["wm"] = self._clip(
@@ -113,6 +168,10 @@ class ContextCompiler:
         self._add_bounded_list(
             context, "e", events, self.MAX_EVENTS, self.MAX_MEMORY_STRING_CHARS,
         )
+        # An explicit event selection keeps the same prompt structure across
+        # context policies, including the state-only e:[] condition.
+        if events is not None:
+            context.setdefault("e", [])
         self._add_bounded_list(
             context, "a", available_actions, self.MAX_AVAILABLE_ACTIONS,
             self.MAX_ACTION_STRING_CHARS,
@@ -128,6 +187,18 @@ class ContextCompiler:
                 f"Compiled context exceeds max_chars: {len(serialized)} > {self.max_chars}"
             )
         return serialized
+
+    @staticmethod
+    def _remaining_minutes(time: str, end_time: str) -> int:
+        if not isinstance(end_time, str):
+            raise TypeError("observation.activity_end_time must be an ISO string")
+        try:
+            current = datetime.fromisoformat(time)
+            end = datetime.fromisoformat(end_time)
+            seconds = (end - current).total_seconds()
+        except (TypeError, ValueError) as error:
+            raise ValueError("activity times must be comparable ISO datetimes") from error
+        return math.ceil(max(0, seconds) / 60)
 
     @staticmethod
     def _require_string(value: object, field: str) -> str:

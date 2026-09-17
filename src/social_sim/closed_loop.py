@@ -58,11 +58,19 @@ class ClosedLoopStep:
             ActionType.EAT,
         ),
         available_targets: Sequence[str] | None = None,
+        daily_mode: bool = False,
+        work_window: str | None = None,
+        behavior_hints: Sequence[str] | None = None,
     ) -> StepResult:
         observation = ObservationBuilder(world).build(actor_id)
-        recent_events = tuple(
-            event.compact() for event in self.event_log.recent_for_agent(actor_id, limit=3)
+        # Explicit Phase 8A policies select from the full history. Preserve
+        # Phase 7's bounded recent-three contract for the default service.
+        actor_events = (
+            event for event in self.event_log.all() if event.actor_id == actor_id
         )
+        recent_events = tuple(event.compact() for event in actor_events)
+        if not self.decision_service.accepts_full_event_history:
+            recent_events = recent_events[-3:]
         target_ids = (
             tuple(available_targets)
             if available_targets is not None
@@ -84,6 +92,9 @@ class ClosedLoopStep:
             available_actions=available_actions,
             available_targets=target_ids,
             recent_events=recent_events,
+            daily_mode=daily_mode,
+            work_window=work_window,
+            behavior_hints=behavior_hints,
         )
         if self.decision_service.decision_call_count != calls_before + 1:
             raise RuntimeError("One closed-loop step must use exactly one decision call")

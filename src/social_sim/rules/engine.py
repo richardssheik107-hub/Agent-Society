@@ -5,6 +5,7 @@ from __future__ import annotations
 from social_sim.actions.models import ActionIntent
 from social_sim.decision.models import ActionType
 from social_sim.rules.base import ReasonCode, Rule, RuleResult
+from social_sim.rules.activity import ActivityRule
 from social_sim.rules.eating import EatRule
 from social_sim.rules.movement import MoveRule
 from social_sim.rules.purchasing import BuyRule
@@ -17,6 +18,9 @@ class RuleEngine:
             ActionType.MOVE: MoveRule(),
             ActionType.BUY: BuyRule(),
             ActionType.EAT: EatRule(),
+            ActionType.SLEEP: ActivityRule(ActionType.SLEEP),
+            ActionType.WORK: ActivityRule(ActionType.WORK),
+            ActionType.LEISURE: ActivityRule(ActionType.LEISURE),
         }
 
     def evaluate(self, world: WorldState, intent: ActionIntent) -> RuleResult:

@@ -7,7 +7,11 @@ from collections.abc import Sequence
 from .models import EpisodeResult, StepTrajectory
 
 
-_ACCEPTED_EVENTS = {"MOVE": "MOVED", "BUY": "PURCHASED", "EAT": "ATE"}
+_ACCEPTED_EVENTS = {
+    "MOVE": "MOVED", "BUY": "PURCHASED", "EAT": "ATE",
+    "SLEEP": "SLEEP_STARTED", "WORK": "WORK_STARTED",
+    "LEISURE": "LEISURE_STARTED",
+}
 
 
 def validate_trajectory(trajectory: EpisodeResult | Sequence[StepTrajectory]) -> bool:
@@ -15,9 +19,11 @@ def validate_trajectory(trajectory: EpisodeResult | Sequence[StepTrajectory]) ->
     if isinstance(trajectory, EpisodeResult):
         steps = trajectory.steps
         episode_id = trajectory.episode_id
+        daily = trajectory.scenario_name == "neutral_day"
     elif isinstance(trajectory, Sequence) and not isinstance(trajectory, (str, bytes)):
         steps = tuple(trajectory)
         episode_id = steps[0].episode_id if steps else None
+        daily = False
     else:
         raise TypeError("trajectory must be EpisodeResult or a step sequence")
 
@@ -30,7 +36,7 @@ def validate_trajectory(trajectory: EpisodeResult | Sequence[StepTrajectory]) ->
             raise ValueError("steps must belong to the same episode")
         if step.step_index != index:
             raise ValueError("step indices must be contiguous and start at 1")
-        if previous is not None and step.state_before != previous.state_after:
+        if previous is not None and step.state_before != previous.state_after and not daily:
             raise ValueError("world continuity violated between adjacent steps")
 
         proposal_action = step.proposal.get("action")
@@ -57,9 +63,9 @@ def validate_trajectory(trajectory: EpisodeResult | Sequence[StepTrajectory]) ->
 
         if step.rule_allowed:
             if proposal_action not in _ACCEPTED_EVENTS:
-                raise ValueError("accepted action is not part of the Phase 7 baseline")
+                raise ValueError("accepted action is not part of the supported action set")
             if not step.effects:
-                raise ValueError("accepted MOVE/BUY/EAT must have an effect")
+                raise ValueError("accepted action must have an effect")
             if step.event.get("event_type") != _ACCEPTED_EVENTS[proposal_action]:
                 raise ValueError("accepted action has the wrong event type")
             if step.rule_reason_code != "ACCEPTED":
@@ -76,6 +82,10 @@ def validate_trajectory(trajectory: EpisodeResult | Sequence[StepTrajectory]) ->
         previous = step
 
     if isinstance(trajectory, EpisodeResult):
+        if trajectory.model_start_state is not None:
+            start = steps[0].state_before if steps else trajectory.final_state
+            if start != trajectory.model_start_state:
+                raise ValueError("first model step does not match model_start_state")
         if trajectory.accepted_actions != sum(step.rule_allowed for step in steps):
             raise ValueError("episode accepted_actions does not match steps")
         if trajectory.rejected_actions != sum(not step.rule_allowed for step in steps):
@@ -86,6 +96,6 @@ def validate_trajectory(trajectory: EpisodeResult | Sequence[StepTrajectory]) ->
             raise ValueError("episode provider requests are smaller than recorded requests")
         if tuple(step.event for step in steps) != trajectory.events:
             raise ValueError("episode events do not match step events")
-        if steps and trajectory.final_state != steps[-1].state_after:
+        if steps and trajectory.final_state != steps[-1].state_after and not daily:
             raise ValueError("episode final state does not match last step")
     return True

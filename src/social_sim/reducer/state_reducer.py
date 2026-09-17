@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Iterable
 
-from social_sim.effects import EatEffect, MoveEffect, PurchaseEffect
+from social_sim.effects import EatEffect, MoveEffect, PurchaseEffect, StartActivityEffect
 from social_sim.effects.models import MEAL_HUNGER_REDUCTION
 from social_sim.world import WorldState
 
@@ -22,7 +22,7 @@ class StateReducer:
     def apply(
         self,
         world: WorldState,
-        effects: Iterable[MoveEffect | PurchaseEffect | EatEffect],
+        effects: Iterable[MoveEffect | PurchaseEffect | EatEffect | StartActivityEffect],
     ) -> WorldState:
         people = world.people
         venues = world.venues
@@ -84,6 +84,22 @@ class StateReducer:
                 inventory_after[effect.item_id] = inventory_before - effect.quantity
                 people[effect.agent_id] = replace(
                     person, inventory=inventory_after, hunger=effect.new_hunger
+                )
+            elif isinstance(effect, StartActivityEffect):
+                person = people.get(effect.agent_id)
+                if person is None:
+                    raise StateConflictError("STATE_CONFLICT: activity actor missing")
+                if (
+                    person.location != effect.expected_location
+                    or world.time.isoformat() != effect.expected_time
+                    or person.activity is not None
+                    or person.activity_end_time is not None
+                ):
+                    raise StateConflictError("STATE_CONFLICT: activity precondition changed")
+                people[effect.agent_id] = replace(
+                    person,
+                    activity=effect.action.value,
+                    activity_end_time=effect.end_time,
                 )
             else:
                 raise TypeError("Unsupported effect type")

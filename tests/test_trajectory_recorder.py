@@ -75,3 +75,38 @@ def test_recorder_does_not_replace_existing_episode_file(tmp_path) -> None:
     with pytest.raises(FileExistsError):
         second.write_episode()
     assert len((tmp_path / "trajectories.jsonl").read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_nonadjacent_rejection_repeat_is_recorded(tmp_path) -> None:
+    recorder = TrajectoryRecorder("lunch-000001", output_dir=tmp_path)
+    baseline = _step()
+    home = baseline.state_before
+    for index, action, reason in (
+        (1, "BUY", "NOT_AT_SELLER"),
+        (2, "EAT", "ITEM_NOT_OWNED"),
+        (3, "BUY", "NOT_AT_SELLER"),
+    ):
+        recorder.append_step(replace(
+            baseline,
+            step_index=index,
+            state_before=home,
+            state_after=home,
+            proposal={"action": action, "target": "meal"},
+            intent={"actor_id": 1, "action": action, "target": "meal", "params": {"quantity": 1}},
+            rule_allowed=False,
+            rule_reason_code=reason,
+            effects=(),
+            event={
+                "event_id": f"event-{index}", "event_type": "ACTION_REJECTED",
+                "actor_id": 1, "action": action, "target": "meal", "success": False,
+                "reason_code": reason,
+            },
+        ))
+    result = recorder.finish_episode(
+        success=False,
+        termination_reason=TerminationReason.MAX_DECISIONS,
+        final_state=home,
+        scenario_variant="S1_LAST_REJECTION",
+        model_start_state=home,
+    )
+    assert result.same_rejected_action_repeat_count == 1

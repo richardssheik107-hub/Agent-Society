@@ -14,6 +14,12 @@ USER_INSTRUCTION = (
     "Return exactly an object with action and target. "
     "For MOVE, BUY, or EAT use one listed target; for WAIT or REST use target:null.\n"
 )
+DAILY_USER_INSTRUCTION = (
+    "In the context, a lists allowed actions and targets lists allowed ids. "
+    "Return exactly an object with action and target. "
+    "For MOVE, BUY, or EAT use one listed target; "
+    "for SLEEP, WORK, or LEISURE use target:null.\n"
+)
 
 
 @dataclass(frozen=True)
@@ -27,14 +33,16 @@ class DecisionPrompt:
         return len(self.system) + len(self.user)
 
 
-def build_decision_prompt(compact_context: str) -> DecisionPrompt:
+def build_decision_prompt(
+    compact_context: str, *, daily_mode: bool = False
+) -> DecisionPrompt:
     if not isinstance(compact_context, str):
         raise TypeError("compact_context must be a string")
     if len(compact_context) > MAX_CONTEXT_CHARS:
         raise ValueError("Decision context exceeds MAX_CONTEXT_CHARS")
     prompt = DecisionPrompt(
         system=SYSTEM_INSTRUCTION,
-        user=f"{USER_INSTRUCTION}Context:{compact_context}",
+        user=f"{DAILY_USER_INSTRUCTION if daily_mode else USER_INSTRUCTION}Context:{compact_context}",
         context_chars=len(compact_context),
     )
     if prompt.prompt_chars >= MAX_PROMPT_CHARS:

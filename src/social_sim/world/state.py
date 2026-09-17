@@ -17,12 +17,35 @@ class PersonWorldState:
     money: float
     hunger: float
     inventory: Mapping[str, int] = field(default_factory=dict)
+    # ``None`` keeps pre-daily worlds and their serialized observations stable.
+    # Daily worlds opt in with a concrete value in [0, 1].
+    energy: float | None = None
+    activity: str | None = None
+    activity_end_time: str | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.money, bool) or not isinstance(self.money, (int, float)) or not math.isfinite(self.money) or self.money < 0:
             raise ValueError("money must be finite and non-negative")
         if isinstance(self.hunger, bool) or not isinstance(self.hunger, (int, float)) or not math.isfinite(self.hunger) or not 0 <= self.hunger <= 1:
             raise ValueError("hunger must be between 0 and 1")
+        if self.energy is not None and (
+            isinstance(self.energy, bool)
+            or not isinstance(self.energy, (int, float))
+            or not math.isfinite(self.energy)
+            or not 0 <= self.energy <= 1
+        ):
+            raise ValueError("energy must be between 0 and 1 when supplied")
+        if self.activity is not None and self.activity not in ("SLEEP", "WORK", "LEISURE"):
+            raise ValueError("activity must be SLEEP, WORK, LEISURE or None")
+        if (self.activity is None) != (self.activity_end_time is None):
+            raise ValueError("activity and activity_end_time must be set together")
+        if self.activity_end_time is not None:
+            if not isinstance(self.activity_end_time, str):
+                raise ValueError("activity_end_time must be an ISO datetime string")
+            try:
+                datetime.fromisoformat(self.activity_end_time)
+            except ValueError as exc:
+                raise ValueError("activity_end_time must be an ISO datetime string") from exc
         if not isinstance(self.inventory, Mapping):
             raise TypeError("inventory must be a mapping")
         inventory = dict(self.inventory)
@@ -37,7 +60,10 @@ class PersonWorldState:
         """Serialize the immutable snapshot without serializing mappingproxy."""
         return (
             type(self),
-            (self.agent_id, self.location, self.money, self.hunger, dict(self.inventory)),
+            (
+                self.agent_id, self.location, self.money, self.hunger,
+                dict(self.inventory), self.energy, self.activity, self.activity_end_time,
+            ),
         )
 
 

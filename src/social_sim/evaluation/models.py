@@ -16,12 +16,14 @@ from typing import Mapping
 
 from social_sim.actions import ActionIntent
 from social_sim.decision import DecisionProposal
-from social_sim.effects.models import EatEffect, Effect, MoveEffect, PurchaseEffect
+from social_sim.effects.models import EatEffect, Effect, MoveEffect, PurchaseEffect, StartActivityEffect
 from social_sim.events import DomainEvent
 from social_sim.world import LocalObservation, WorldState
 
 
 TRAJECTORY_SCHEMA_VERSION = "0.1"
+ABLATION_EPISODE_SCHEMA_VERSION = "0.2"
+DAILY_TRAJECTORY_SCHEMA_VERSION = "0.3"
 trajectory_schema_version = TRAJECTORY_SCHEMA_VERSION
 
 
@@ -33,6 +35,8 @@ class TerminationReason(str, Enum):
     PROVIDER_ERROR = "PROVIDER_ERROR"
     TIMEOUT = "TIMEOUT"
     ARCHITECTURE_ERROR = "ARCHITECTURE_ERROR"
+    DAY_END = "DAY_END"
+    BEHAVIOR_LOOP = "BEHAVIOR_LOOP"
 
 
 _SENSITIVE_KEY = re.compile(
@@ -98,6 +102,11 @@ def world_snapshot(world: WorldState) -> dict[str, object]:
                 "money": person.money,
                 "hunger": person.hunger,
                 "inventory": dict(person.inventory),
+                **({
+                    "energy": person.energy,
+                    "activity": person.activity,
+                    "activity_end_time": person.activity_end_time,
+                } if person.energy is not None else {}),
             }
             for agent_id, person in sorted(world.people.items())
         },
@@ -123,6 +132,11 @@ def observation_snapshot(observation: LocalObservation) -> dict[str, object]:
         "hunger": observation.hunger,
         "inventory": dict(observation.inventory),
         "offers": {item_id: dict(offer) for item_id, offer in observation.offers.items()},
+        **({
+            "energy": observation.energy,
+            "activity": observation.activity,
+            "activity_end_time": observation.activity_end_time,
+        } if observation.energy is not None else {}),
     }
 
 
@@ -172,6 +186,15 @@ def effect_snapshot(effect: Effect) -> dict[str, object]:
             "expected_inventory_before": effect.expected_inventory_before,
             "expected_hunger_before": effect.expected_hunger_before,
             "new_hunger": effect.new_hunger,
+        }
+    if isinstance(effect, StartActivityEffect):
+        return {
+            "type": "START_ACTIVITY",
+            "agent_id": effect.agent_id,
+            "action": effect.action.value,
+            "expected_location": effect.expected_location,
+            "expected_time": effect.expected_time,
+            "end_time": effect.end_time,
         }
     raise TypeError(f"Unsupported effect: {type(effect).__name__}")
 
@@ -228,6 +251,12 @@ class StepTrajectory:
     visible_content_chars: int
     provider_model: str | None
     prompt: str | None = None
+    simulation_time: str | None = None
+    active_activity: str | None = None
+    activity_remaining_minutes: int | None = None
+    hunger: float | None = None
+    energy: float | None = None
+    trigger_reason: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.episode_id, str) or not self.episode_id:
@@ -272,11 +301,30 @@ class StepTrajectory:
             if not isinstance(self.provider_model, str):
                 raise TypeError("provider_model must be a string or None")
             object.__setattr__(self, "provider_model", _safe_text(self.provider_model))
+        if self.simulation_time is not None:
+            if not isinstance(self.simulation_time, str) or not self.simulation_time:
+                raise ValueError("simulation_time must be a nonempty string")
+            _count(self.activity_remaining_minutes, "activity_remaining_minutes", nullable=True)
+            for field_name in ("hunger", "energy"):
+                value = getattr(self, field_name)
+                if value is None or isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1:
+                    raise ValueError(f"daily {field_name} must be in [0,1]")
+            if self.trigger_reason is not None:
+                if not isinstance(self.trigger_reason, str) or self.trigger_reason not in {
+                    "NO_ACTIVE_ACTIVITY", "ACTIVITY_COMPLETED", "ACTION_REJECTED",
+                    "OBLIGATION_BOUNDARY", "CRITICAL_NEED", "WORLD_EVENT",
+                }:
+                    raise ValueError("unknown daily trigger_reason")
+        elif self.trigger_reason is not None:
+            raise ValueError("trigger_reason requires simulation_time")
 
     def to_dict(self) -> dict[str, object]:
         """Return a fresh JSON tree; do not expose mutable nested storage."""
         return {
-            "schema_version": TRAJECTORY_SCHEMA_VERSION,
+            "schema_version": (
+                DAILY_TRAJECTORY_SCHEMA_VERSION
+                if self.simulation_time is not None else TRAJECTORY_SCHEMA_VERSION
+            ),
             "episode_id": self.episode_id,
             "step_index": self.step_index,
             "state_before": _json_copy(self.state_before),
@@ -300,6 +348,14 @@ class StepTrajectory:
             "visible_content_chars": self.visible_content_chars,
             "provider_model": self.provider_model,
             **({"prompt": self.prompt} if self.prompt is not None else {}),
+            **({
+                "simulation_time": self.simulation_time,
+                "active_activity": self.active_activity,
+                "activity_remaining_minutes": self.activity_remaining_minutes,
+                "hunger": self.hunger,
+                "energy": self.energy,
+                **({"trigger_reason": self.trigger_reason} if self.trigger_reason is not None else {}),
+            } if self.simulation_time is not None else {}),
         }
 
 
@@ -328,6 +384,18 @@ class EpisodeResult:
     decision_policy_name: str = "unknown"
     model_name: str | None = None
     seed: int | None = None
+    scenario_variant: str | None = None
+    prelude_events: tuple[dict[str, object], ...] = ()
+    prelude_action_count: int = 0
+    prelude_rejection_count: int = 0
+    model_start_state: dict[str, object] | None = None
+    experiment_config_hash: str | None = None
+    prelude_rejection_present: bool = False
+    first_decision_action: str | None = None
+    first_decision_target: str | None = None
+    first_decision_repeats_prelude_rejection: bool | None = None
+    recovery_after_rejection: bool | None = None
+    same_rejected_action_repeat_count: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.episode_id, str) or not self.episode_id:
@@ -343,6 +411,8 @@ class EpisodeResult:
             "provider_errors", "total_provider_requests", "total_input_tokens",
             "total_output_tokens", "total_reasoning_tokens", "max_context_chars",
             "max_prompt_chars",
+            "prelude_action_count", "prelude_rejection_count",
+            "same_rejected_action_repeat_count",
         ):
             _count(getattr(self, field_name), field_name)
         if (
@@ -358,6 +428,39 @@ class EpisodeResult:
             raise TypeError("events must be a tuple")
         object.__setattr__(self, "final_state", _snapshot(self.final_state, "final_state"))
         object.__setattr__(self, "events", tuple(_snapshot(event, "event") for event in self.events))
+        if not isinstance(self.prelude_events, tuple):
+            raise TypeError("prelude_events must be a tuple")
+        object.__setattr__(
+            self, "prelude_events",
+            tuple(_snapshot(event, "prelude_event") for event in self.prelude_events),
+        )
+        if self.model_start_state is not None:
+            object.__setattr__(
+                self, "model_start_state", _snapshot(self.model_start_state, "model_start_state")
+            )
+        if self.scenario_variant is not None:
+            if not isinstance(self.scenario_variant, str) or not self.scenario_variant:
+                raise ValueError("scenario_variant must be a nonempty string or None")
+            object.__setattr__(self, "scenario_variant", _safe_text(self.scenario_variant))
+        if self.experiment_config_hash is not None:
+            if not isinstance(self.experiment_config_hash, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", self.experiment_config_hash
+            ):
+                raise ValueError("experiment_config_hash must be a SHA-256 hex digest")
+        if not isinstance(self.prelude_rejection_present, bool):
+            raise TypeError("prelude_rejection_present must be a bool")
+        for field_name in ("first_decision_action", "first_decision_target"):
+            value = getattr(self, field_name)
+            if value is not None:
+                if not isinstance(value, str):
+                    raise TypeError(f"{field_name} must be a string or None")
+                object.__setattr__(self, field_name, _safe_text(value))
+        for field_name in (
+            "first_decision_repeats_prelude_rejection", "recovery_after_rejection"
+        ):
+            value = getattr(self, field_name)
+            if value is not None and not isinstance(value, bool):
+                raise TypeError(f"{field_name} must be a bool or None")
         for field_name in ("scenario_name", "context_policy_name", "decision_policy_name"):
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value:
@@ -372,7 +475,11 @@ class EpisodeResult:
 
     def to_dict(self) -> dict[str, object]:
         payload = {
-            "schema_version": TRAJECTORY_SCHEMA_VERSION,
+            "schema_version": (
+                DAILY_TRAJECTORY_SCHEMA_VERSION if self.scenario_name == "neutral_day"
+                else ABLATION_EPISODE_SCHEMA_VERSION if self.scenario_variant is not None
+                else TRAJECTORY_SCHEMA_VERSION
+            ),
             "episode_id": self.episode_id,
             "success": self.success,
             "termination_reason": self.termination_reason.value,
@@ -397,6 +504,23 @@ class EpisodeResult:
             "model_name": self.model_name,
             "seed": self.seed,
         }
+        if self.scenario_variant is not None:
+            payload.update(
+                scenario_variant=self.scenario_variant,
+                prelude_events=_json_copy(self.prelude_events),
+                prelude_action_count=self.prelude_action_count,
+                prelude_rejection_count=self.prelude_rejection_count,
+                model_start_state=_json_copy(self.model_start_state),
+                experiment_config_hash=self.experiment_config_hash,
+                prelude_rejection_present=self.prelude_rejection_present,
+                first_decision_action=self.first_decision_action,
+                first_decision_target=self.first_decision_target,
+                first_decision_repeats_prelude_rejection=(
+                    self.first_decision_repeats_prelude_rejection
+                ),
+                recovery_after_rejection=self.recovery_after_rejection,
+                same_rejected_action_repeat_count=self.same_rejected_action_repeat_count,
+            )
         # Catch any accidental non-JSON extension at the serialization boundary.
         json.dumps(payload, ensure_ascii=False, allow_nan=False)
         return payload

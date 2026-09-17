@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from social_sim.context import ContextCompiler
+from social_sim.context import C3Recent3Policy, ContextCompiler, ContextPolicy
 from social_sim.world.observation import LocalObservation
 
 from .client import DecisionModelClient
@@ -40,10 +40,16 @@ class CompactDecisionService:
         client: DecisionModelClient,
         compiler: ContextCompiler | None = None,
         parser: DecisionParser | None = None,
+        context_policy: ContextPolicy | None = None,
     ) -> None:
         self.client = client
         self.compiler = compiler or ContextCompiler(max_chars=MAX_CONTEXT_CHARS)
         self.parser = parser or DecisionParser()
+        # Legacy direct callers pass an already bounded recent-three list.
+        # An explicitly injected policy instead receives the complete log and
+        # performs its own selection (needed to rescue a buried rejection).
+        self.accepts_full_event_history = context_policy is not None
+        self.context_policy = context_policy or C3Recent3Policy()
         self.decision_call_count = 0
 
     async def decide(
@@ -58,6 +64,9 @@ class CompactDecisionService:
         ),
         available_targets: Sequence[str] = (),
         recent_events: Sequence[str] | None = None,
+        daily_mode: bool = False,
+        work_window: str | None = None,
+        behavior_hints: Sequence[str] | None = None,
     ) -> DecisionResult:
         actions = tuple(ActionType(action) for action in available_actions)
         if not actions or len(set(actions)) != len(actions):
@@ -75,14 +84,27 @@ class CompactDecisionService:
         if len(set(targets)) != len(targets):
             raise ValueError("available_targets must be unique")
 
+        if isinstance(recent_events, (str, bytes)):
+            raise TypeError("recent_events must be a sequence of compact strings")
+        history = tuple(recent_events) if recent_events is not None else ()
+        if not self.accepts_full_event_history and len(history) > ContextCompiler.MAX_EVENTS:
+            raise ValueError("recent_events exceeds maximum item count")
+        goal = profile.get("goal")
+        selected_events = self.context_policy.select_events(
+            history, observation, goal if isinstance(goal, str) else ""
+        )
+
         context = self.compiler.compile(
             profile,
             observation,
             available_actions=[action.value for action in actions],
             available_targets=targets,
-            events=recent_events,
+            events=selected_events,
+            daily_mode=daily_mode,
+            work_window=work_window,
+            behavior_hints=behavior_hints,
         )
-        prompt = build_decision_prompt(context)
+        prompt = build_decision_prompt(context, daily_mode=daily_mode)
         self.decision_call_count += 1
         start = time.perf_counter()
         reply = await self.client.complete(prompt.system, prompt.user)

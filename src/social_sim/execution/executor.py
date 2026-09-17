@@ -29,6 +29,9 @@ class ActionExecutor:
         "MOVE": EventType.MOVED,
         "BUY": EventType.PURCHASED,
         "EAT": EventType.ATE,
+        "SLEEP": EventType.SLEEP_STARTED,
+        "WORK": EventType.WORK_STARTED,
+        "LEISURE": EventType.LEISURE_STARTED,
     }
 
     def __init__(

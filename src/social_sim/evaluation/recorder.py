@@ -69,6 +69,12 @@ class TrajectoryRecorder:
         decision_policy_name: str = "unknown",
         model_name: str | None = None,
         seed: int | None = None,
+        scenario_variant: str | None = None,
+        prelude_events: tuple[dict[str, object], ...] = (),
+        prelude_action_count: int = 0,
+        prelude_rejection_count: int = 0,
+        model_start_state: dict[str, object] | None = None,
+        experiment_config_hash: str | None = None,
     ) -> EpisodeResult:
         if self._result is not None:
             raise RuntimeError("episode is already finished")
@@ -83,8 +89,38 @@ class TrajectoryRecorder:
             raise ValueError("decision_count cannot be less than recorded decisions")
         if total_provider_requests < observed_requests:
             raise ValueError("total_provider_requests cannot be less than recorded requests")
-        if success != (termination_reason == TerminationReason.GOAL_REACHED):
+        expected_success = (
+            termination_reason == TerminationReason.DAY_END
+            if scenario_name == "neutral_day"
+            else termination_reason == TerminationReason.GOAL_REACHED
+        )
+        if success != expected_success:
             raise ValueError("success and termination_reason disagree")
+        if prelude_rejection_count > prelude_action_count:
+            raise ValueError("prelude rejection count exceeds action count")
+        first = steps[0] if steps else None
+        first_action = first.proposal.get("action") if first else None
+        first_target = first.proposal.get("target") if first else None
+        has_prelude_rejection = prelude_rejection_count > 0
+        first_repeats = (
+            first_action == "BUY" and first_target == "meal"
+            if has_prelude_rejection and first is not None else None
+        )
+        same_rejection_repeats = 0
+        seen_rejections: set[tuple[object, object, str]] = set()
+        for step in steps:
+            # A state-changing accepted action starts a new rejection context.
+            if step.state_before != step.state_after:
+                seen_rejections.clear()
+            if step.rule_allowed or step.state_before != step.state_after:
+                continue
+            key = (
+                step.proposal.get("action"), step.proposal.get("target"),
+                step.rule_reason_code,
+            )
+            if key in seen_rejections:
+                same_rejection_repeats += 1
+            seen_rejections.add(key)
         result = EpisodeResult(
             episode_id=self.episode_id,
             success=success,
@@ -109,6 +145,18 @@ class TrajectoryRecorder:
             decision_policy_name=decision_policy_name,
             model_name=model_name,
             seed=seed,
+            scenario_variant=scenario_variant,
+            prelude_events=prelude_events,
+            prelude_action_count=prelude_action_count,
+            prelude_rejection_count=prelude_rejection_count,
+            model_start_state=model_start_state,
+            experiment_config_hash=experiment_config_hash,
+            prelude_rejection_present=has_prelude_rejection,
+            first_decision_action=first_action,
+            first_decision_target=first_target,
+            first_decision_repeats_prelude_rejection=first_repeats,
+            recovery_after_rejection=(not first_repeats if first_repeats is not None else None),
+            same_rejected_action_repeat_count=same_rejection_repeats,
         )
         validate_trajectory(result)
         self._result = result
