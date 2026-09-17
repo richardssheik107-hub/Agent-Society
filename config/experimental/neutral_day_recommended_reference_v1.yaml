@@ -1,0 +1,85 @@
+# EXPERIMENTAL A2-FINAL REFERENCE; NOT A PRODUCTION DEFAULT.
+# Stage A selected this decision-level baseline; Stage B continuity acceptance is incomplete.
+profile_name: neutral-day-recommended-reference-v1
+version: 1
+git_baseline_commit: 9b5e6e33f0ea9046e596a649562a1737e98c8491
+stage_a_config_hash: 133f6259049b42279a487e5adc7aff82171edb63ea248401c9b054599f38fee0
+research_status: RESEARCH_QUESTION_1_PARTIALLY_UNRESOLVED
+profile_basis: A2_0_G2
+ontology:
+  name: Core7
+  activities: [SLEEP, WORK, EAT, LEISURE, MOVE, PERSONAL_CARE, CHORES]
+durations_minutes:
+  SLEEP: 360
+  WORK: 270
+  LEISURE: 75
+  PERSONAL_CARE: 30
+  CHORES: 30
+  EAT: immediate_effect
+  MOVE: immediate_location_transition
+source:
+  dataset: NHAPS_AHTUS_1992_94
+  population: employed_weekday_adults
+  source_artifact_sha256: 777553282692dec01f31deaa72ef67c8c2646d797cfc341ab55b75b5fa353dca
+  eligible_day_diaries: 3215
+  split_seed: 2025
+  split_method: sorted_day_ids_then_random_shuffle_prefix
+  split_hash: 2366dbe80d95fe57137358b43bb8ede0b77380d91ac28675aaebad6f318c88db
+  train_diaries: 2572
+  eval_diaries: 643
+  eval_used_for_retrieval: false
+behavior_prior:
+  selected_corpus: BTRAIN_ALL
+  selected_corpus_diaries: 2572
+  train_sample_hash: 07ddc63b93496903c7edb74d057492159257fb87fbc5be2b0fe928c461abfa1c
+  selected_prior: R1
+  max_activity_names_per_decision: 1
+  query: 30_minute_clock_bucket_plus_previous_canonical_activity
+  fallback: [L0_exact_bucket_previous, L1_bucket, L2_adjacent_30_minutes, L3_global_employed_weekday]
+  min_support_count: 10
+  other_in_denominator: true
+  other_returned_to_model: false
+  llm_calls: 0
+context:
+  tested_runtime_event_policy: C3_recent3
+  tested_structure: compact_current_state_plus_needs_obligation_plus_up_to_3_recent_events_plus_R1_prior
+  current_minimum_candidate: compact_current_state_plus_needs_obligation_plus_last_relevant_event_plus_R1_prior
+  recommended_short_event_memory: 1_to_3_recent_events
+  candidate_jointly_tested_with_prior: false
+  do_not_change_context_during_model_swap: true
+runtime_guard: NONE
+closure_audit:
+  experiment_id: audit_20260917T111536910509Z
+  max_decisions_audited: 7
+  global_dominant_cause: B_IMMEDIATE_ACTION_CHURN
+  prior_loop_signal: 'YES'
+  runtime_change_decision: BEHAVIORAL_CAUSE_UNRESOLVED
+  runtime_behavior_change: NONE
+  real_continuity_rerun: NOT_NEEDED
+  decision_layer_status: CLOSED_ENGINEERING
+  continuity_layer_status: PARTIALLY_UNRESOLVED
+  question_2_status: CLOSED_ENGINEERING
+selection:
+  criterion_type: pre_registered_engineering_tolerance_not_statistical_significance
+  minimum_exact_hit_rate: 0.60
+  maximum_matched_heldout_share_gap: 0.05
+  maximum_matched_executable_rate_gap: 0.05
+  minimum_panel_success_rate: 0.90
+  minimum_matched_pairs_of_16: 12
+  observed_panel_requests: 80
+  observed_panel_success: 77
+  observed_panel_timeout: 3
+  selected_actual_backend: glm-5.3
+  stage_b_episodes: 16
+  stage_b_complete: 5
+  stage_b_architecture_failures: 1
+  stage_b_minimum_validation: INSUFFICIENT_COMPLETE
+reference_decision_client:
+  requested_alias: ark-code-latest
+  request_fields: [model, messages]
+  timeout_seconds: 60
+  transport_retries: 0
+future_model_swap:
+  only_change: DecisionClient_and_model
+  local_8b_run_in_this_phase: false
+production_config_modified: false
