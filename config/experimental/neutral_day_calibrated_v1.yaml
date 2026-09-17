@@ -1,0 +1,79 @@
+# EXPERIMENTAL CALIBRATION PROFILE
+# NOT PRODUCTION DEFAULT
+# NHAPS/AHTUS 1992–94 US ADULT PILOT
+profile_name: neutral-day-calibrated-v1
+version: 1
+source:
+  dataset: NHAPS_AHTUS_1992_94
+  survey_years: 1992-1994
+  archive_sha256: 030ae6009bf30316379ec49c8da174f85b4726dc6a3c64f202617c3285ea07ca
+  subgroup: employed_weekday_adults
+ontology:
+  version: shadow-nhaps-main-v1
+  status: EXPERIMENTAL
+  activities:
+  - SLEEP
+  - WORK
+  - EAT
+  - LEISURE
+  - MOVE
+  - PERSONAL_CARE
+  - CHORES
+  selected_minimal_all_adults:
+  - PERSONAL_CARE
+  - CHORES
+  selected_minimal_employed_weekday:
+  - CHORES
+coverage:
+  all_adults:
+    episodes: 123132
+    covered_episodes: 111661
+    episode_coverage: 0.906839814
+    minutes: 10571040
+    covered_minutes: 9830721
+    minute_coverage: 0.92996725
+    OTHER_remaining_minutes: 740319
+    transitions: 103708
+    covered_transitions: 82322
+    transition_coverage: 0.7937864
+  employed_adults:
+    episodes: 79105
+    covered_episodes: 72277
+    episode_coverage: 0.913684344
+    minutes: 6874560
+    covered_minutes: 6466676
+    minute_coverage: 0.940667621
+    OTHER_remaining_minutes: 407884
+    transitions: 66840
+    covered_transitions: 54055
+    transition_coverage: 0.808722322
+  employed_weekday_adults:
+    episodes: 53768
+    covered_episodes: 49217
+    episode_coverage: 0.915358578
+    minutes: 4629600
+    covered_minutes: 4380149
+    minute_coverage: 0.946118239
+    OTHER_remaining_minutes: 249451
+    transitions: 45302
+    covered_transitions: 36855
+    transition_coverage: 0.813540241
+duration_candidates:
+  SLEEP: 360
+  WORK: 270
+  EAT: 30
+  LEISURE: 80
+  MOVE: 15
+  PERSONAL_CARE: 25
+  CHORES: 30
+duration_semantics:
+  SLEEP: session placeholder pending overnight redesign
+  EAT: future occupancy only
+  MOVE: future travel occupancy only
+  others: experimental merged-episode median
+time_prior_status: DESCRIPTIVE_ONLY_NOT_IN_PROMPT
+transition_prior_status: DESCRIPTIVE_ONLY_NOT_IN_PROMPT
+recommendation: RECOMMENDED_FOR_NEXT_EXPERIMENT
+target_minute_coverage: 0.9
+production_config_modified: false
+LLM_calls: 0
