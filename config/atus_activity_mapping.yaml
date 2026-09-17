@@ -1,0 +1,61 @@
+version: atus-2025-b1-v1
+source: https://www.bls.gov/tus/lexicons/lexiconnoex2025.pdf
+default: OTHER
+other_labels:
+  '010102': Sleeplessness
+  '010199': 'Sleeping, n.e.c.'
+  '0102': Grooming
+  '0103': Health-related self care
+  '0104': Personal activities
+  '02': Household activities
+  '0201': Housework
+  '0202': Food and drink preparation, presentation, and clean-up
+  '0205': Lawn, garden, and houseplants
+  '0206': Animals and pets
+  '03': Caring for and helping household members
+  '04': Caring for and helping nonhousehold members
+  '05': Work-related activity outside direct job work
+  '06': Education
+  '07': Consumer purchases
+  '08': Professional and personal care services
+  '09': Household services
+  '10': Government services and civic obligations
+  '11': Eating-related waiting or unspecified
+  '12': Socializing-related waiting or unspecified
+  '13': Sports, exercise, and recreation
+  '14': Religious and spiritual activities
+  '15': Volunteer activities
+  '16': Telephone calls
+  '1818': Security procedures related to traveling
+  '50': Data codes / unable to code
+rules:
+  - {prefix: '010101', label: Sleeping, canonical: SLEEP, rationale: Explicit sleeping only; sleeplessness is not sleep., confidence: high}
+  - {prefix: '050101', label: 'Work, main job', canonical: WORK, rationale: Paid main-job work., confidence: high}
+  - {prefix: '050102', label: 'Work, other job(s)', canonical: WORK, rationale: Paid other-job work., confidence: high}
+  - {prefix: '110101', label: Eating and drinking, canonical: EAT, rationale: Explicit eating and drinking., confidence: high}
+  - {prefix: '110199', label: 'Eating and drinking, n.e.c.', canonical: EAT, rationale: Other activities within explicit eating and drinking subcategory., confidence: high}
+  - {prefix: '1201', label: Socializing and communicating, canonical: LEISURE, rationale: Lexicon socializing subcategory., confidence: high}
+  - {prefix: '1202', label: Attending or hosting social events, canonical: LEISURE, rationale: Lexicon social events subcategory., confidence: high}
+  - {prefix: '1203', label: Relaxing and leisure, canonical: LEISURE, rationale: Lexicon relaxing and leisure subcategory., confidence: high}
+  - {prefix: '120401', label: Attending performing arts, canonical: LEISURE, rationale: Explicit arts attendance., confidence: high}
+  - {prefix: '120402', label: Attending museums, canonical: LEISURE, rationale: Explicit museum attendance., confidence: high}
+  - {prefix: '120403', label: Attending movies/film, canonical: LEISURE, rationale: Explicit film attendance., confidence: high}
+  - {prefix: '120404', label: Attending gambling establishments, canonical: LEISURE, rationale: Lexicon arts and entertainment activity., confidence: high}
+  - {prefix: '120499', label: 'Arts and entertainment, n.e.c.', canonical: LEISURE, rationale: Other arts and entertainment activity., confidence: high}
+  - {prefix: '1801', label: Travel related to personal care, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1802', label: Travel related to household activities, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1803', label: Travel related to caring for household members, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1804', label: Travel related to caring for nonhousehold members, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1805', label: Travel related to work, canonical: MOVE, rationale: Empirical travel time; not work activity., confidence: high}
+  - {prefix: '1806', label: Travel related to education, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1807', label: Travel related to consumer purchases, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1808', label: Travel related to personal care services, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1809', label: Travel related to household services, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1810', label: Travel related to government services, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1811', label: Travel related to eating and drinking, canonical: MOVE, rationale: Empirical travel time; not eating., confidence: high}
+  - {prefix: '1812', label: Travel related to socializing and leisure, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1813', label: Travel related to sports and recreation, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1814', label: Travel related to religious activities, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1815', label: Travel related to volunteer activities, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1816', label: Travel related to telephone calls, canonical: MOVE, rationale: Empirical travel time only., confidence: high}
+  - {prefix: '1899', label: 'Traveling, n.e.c.', canonical: MOVE, rationale: Explicit traveling category., confidence: high}

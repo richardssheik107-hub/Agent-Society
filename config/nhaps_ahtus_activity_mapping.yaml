@@ -1,0 +1,53 @@
+version: nhaps-ahtus-1992-94-main-v1
+source_field: main
+source: Actual USA1993hfep.SAV value labels, checked against the CTUR AHTUS codebook
+unlisted_code: OTHER
+rules:
+  - {source_code: 3, source_label: sleep, canonical_activity: SLEEP, rationale: Explicit sleep, confidence: high}
+  - {source_code: 4, source_label: imputed sleep, canonical_activity: SLEEP, rationale: Explicit imputed sleep, confidence: high}
+  - {source_code: 5, source_label: naps and rest, canonical_activity: SLEEP, rationale: Sleep or rest, confidence: medium}
+  - {source_code: 8, source_label: meals at work, canonical_activity: EAT, rationale: Explicit meal, confidence: high}
+  - {source_code: 9, source_label: other meals & snacks, canonical_activity: EAT, rationale: Explicit consumption, confidence: high}
+  - {source_code: 10, source_label: main paid work (not at home), canonical_activity: WORK, rationale: Paid work, confidence: high}
+  - {source_code: 11, source_label: paid work at home, canonical_activity: WORK, rationale: Paid work, confidence: high}
+  - {source_code: 12, source_label: 'second job, other paid work', canonical_activity: WORK, rationale: Paid work, confidence: high}
+  - {source_code: 13, source_label: work breaks, canonical_activity: WORK, rationale: Work-related break (not necessarily productive work), confidence: medium}
+  - {source_code: 14, source_label: other time at workplace, canonical_activity: WORK, rationale: Work-related presence (not necessarily productive work), confidence: medium}
+  - {source_code: 50, source_label: general out-of-home leisure, canonical_activity: LEISURE, rationale: Explicit leisure, confidence: high}
+  - {source_code: 51, source_label: attend sporting event, canonical_activity: LEISURE, rationale: Recreational spectator activity, confidence: high}
+  - {source_code: 52, source_label: go to cinema, canonical_activity: LEISURE, rationale: Recreational event, confidence: high}
+  - {source_code: 53, source_label: 'theater, concert, opera', canonical_activity: LEISURE, rationale: Recreational event, confidence: high}
+  - {source_code: 54, source_label: 'museums, exhibitions', canonical_activity: LEISURE, rationale: Recreational visit, confidence: high}
+  - {source_code: 55, source_label: attend other public event, canonical_activity: LEISURE, rationale: Recreational event, confidence: medium}
+  - {source_code: 56, source_label: 'restaurant, cafe, bar', canonical_activity: LEISURE, rationale: AHTUS classifies this as out-of-home leisure; meal is not assured, confidence: medium}
+  - {source_code: 57, source_label: parties or receptions, canonical_activity: LEISURE, rationale: Social recreation, confidence: high}
+  - {source_code: 60, source_label: sports & exercise, canonical_activity: LEISURE, rationale: Recreation and exercise; distinct from passive leisure, confidence: medium}
+  - {source_code: 62, source_label: walking, canonical_activity: LEISURE, rationale: Classified as exercise rather than transport by AHTUS, confidence: medium}
+  - {source_code: 63, source_label: cycling, canonical_activity: LEISURE, rationale: Classified as exercise rather than transport by AHTUS, confidence: medium}
+  - {source_code: 64, source_label: outdoor recreation, canonical_activity: LEISURE, rationale: Explicit recreation, confidence: high}
+  - {source_code: 66, source_label: 'hunting, fishing, boating, hiking', canonical_activity: LEISURE, rationale: Outdoor recreation, confidence: medium}
+  - {source_code: 70, source_label: general indoor leisure, canonical_activity: LEISURE, rationale: Explicit leisure, confidence: high}
+  - {source_code: 71, source_label: imputed in-home social, canonical_activity: LEISURE, rationale: Imputed social activity, confidence: medium}
+  - {source_code: 72, source_label: receive or visit friends, canonical_activity: LEISURE, rationale: Social activity, confidence: high}
+  - {source_code: 73, source_label: 'other in-home social, games', canonical_activity: LEISURE, rationale: Social recreation, confidence: high}
+  - {source_code: 74, source_label: 'play musical instrument, sing, act', canonical_activity: LEISURE, rationale: Recreational performance, confidence: medium}
+  - {source_code: 75, source_label: artistic activity, canonical_activity: LEISURE, rationale: Creative recreation, confidence: medium}
+  - {source_code: 76, source_label: crafts, canonical_activity: LEISURE, rationale: Classified as in-home leisure by AHTUS, confidence: medium}
+  - {source_code: 77, source_label: hobbies, canonical_activity: LEISURE, rationale: Explicit hobbies, confidence: high}
+  - {source_code: 78, source_label: 'relax, think, do nothing', canonical_activity: LEISURE, rationale: Restful discretionary time (not sleep), confidence: medium}
+  - {source_code: 81, source_label: read books, canonical_activity: LEISURE, rationale: Recreational reading; educational reading not distinguished, confidence: medium}
+  - {source_code: 82, source_label: read periodicals, canonical_activity: LEISURE, rationale: Recreational media, confidence: medium}
+  - {source_code: 83, source_label: read newspapers, canonical_activity: LEISURE, rationale: Media consumption, confidence: medium}
+  - {source_code: 84, source_label: listen to music (cd etc.), canonical_activity: LEISURE, rationale: Media consumption, confidence: high}
+  - {source_code: 85, source_label: listen to radio, canonical_activity: LEISURE, rationale: Media consumption, confidence: medium}
+  - {source_code: 86, source_label: 'watch television, video', canonical_activity: LEISURE, rationale: Media consumption, confidence: high}
+  - {source_code: 88, source_label: 'conversation, phone, texting', canonical_activity: LEISURE, rationale: AHTUS media/social category; not necessarily recreational, confidence: medium}
+  - {source_code: 90, source_label: imputed travel, canonical_activity: MOVE, rationale: Travel (imputed), confidence: medium}
+  - {source_code: 91, source_label: personal or adult care travel, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}
+  - {source_code: 92, source_label: travel as part of paid work, canonical_activity: MOVE, rationale: Explicit travel (not productive work), confidence: high}
+  - {source_code: 93, source_label: travel to/from work + oth work trav, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}
+  - {source_code: 94, source_label: travel related to education, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}
+  - {source_code: 95, source_label: travel related to consumption, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}
+  - {source_code: 96, source_label: travel related to child care, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}
+  - {source_code: 97, source_label: travel for volunteering or worship, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}
+  - {source_code: 98, source_label: other travel, canonical_activity: MOVE, rationale: Explicit travel, confidence: high}

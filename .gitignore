@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 run/
+data/external/
 __pycache__/
 .pytest_cache/
 *.pyc

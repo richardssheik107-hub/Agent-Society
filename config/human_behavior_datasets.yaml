@@ -1,0 +1,146 @@
+datasets:
+  - name: ATUS 2025
+    provider: U.S. Bureau of Labor Statistics
+    data_type: time-use diary microdata
+    unit_of_observation: respondent-day and activity episode
+    time_resolution: activity start/stop clocks and minute duration
+    population: U.S. civilian noninstitutional population age 15 and older; B1 filters adults 18+
+    years: 2025 single-year pilot; series available 2003-2025
+    geography: United States
+    access_method: official BLS public ZIP downloads
+    license_or_terms: BLS public-domain material with source citation; BLS.gov terms and privacy protections apply
+    download_size: '2025 Activity 1.8 MB; Respondent 0.4 MB; Roster 0.08 MB; Who 0.4 MB (page estimates)'
+    contains_activity: true
+    contains_location: true
+    contains_social_contacts: partial_with_who_present_not_pairwise_sensor_contacts
+    contains_demographics: true
+    intended_simulator_use: activity durations, daily minutes, start times, transitions, empirical travel
+    priority: P1
+    current_status: DATA_ACCESS_BLOCKED
+    source_url: https://www.bls.gov/tus/data/datafiles-2025.htm
+    terms_url: https://www.bls.gov/opub/copyright-information.htm
+  - name: NHAPS_AHTUS_1992_94
+    provider: Centre for Time Use Research
+    dataset_family: AHTUS
+    original_survey: NHAPS
+    years: 1992-1994
+    population: adults 18+ (173 records with missing age excluded in pilot)
+    geography: United States
+    data_type: time-use diary
+    package_format: zip
+    file_format: SPSS .sav
+    contains_episode_data: true
+    contains_background: true
+    contains_daily_summary: true
+    contains_activity: true
+    contains_location: true
+    contains_transport: true
+    contains_co_presence: true
+    unit_of_observation: harmonized diary and activity episode
+    access_method: official CTUR AHTUS data page, adult 1992-94 ZIP
+    license_or_terms: CTUR describes AHTUS as freely available to the research community and requests sharing programs/publications; no redistribution or commercial-license claim made here
+    official_source_reference: https://www.timeuse.org/ahtus/data
+    documentation_reference: https://www.timeuse.org/sites/ctur/files/819/ahtus-codebook-26-january-2014.pdf
+    intended_simulator_use: descriptive candidates only, no production rule updates
+    priority: P0
+    current_status: ACTIVE_PILOT
+  - name: AHTUS
+    provider: Centre for Time Use Research and IPUMS Time Use
+    data_type: harmonized historical U.S. time-use diaries
+    unit_of_observation: diary day and activity episode
+    time_resolution: diary episode; survey-specific
+    population: U.S. historical survey samples; age universe varies by year
+    years: 1965 onward, release-specific coverage
+    geography: United States
+    access_method: CTUR/IPUMS AHTUS extract or published access route; verify registration per extract
+    license_or_terms: freely available to research community, with attribution and sharing request; review extract-specific terms before use
+    download_size: extract-dependent; not established
+    contains_activity: true
+    contains_location: true
+    contains_social_contacts: presence_of_others_variable_not_pairwise_contacts
+    contains_demographics: true
+    intended_simulator_use: future harmonized survey comparison beyond NHAPS 1992-94
+    priority: P1
+    current_status: metadata_reviewed_not_downloaded
+    source_url: https://www.timeuse.org/ahtus
+    terms_url: https://www.ahtusdata.org/ahtus-action/faq
+  - name: GeoLife
+    provider: Microsoft Research Asia
+    data_type: GPS trajectories
+    unit_of_observation: timestamped trajectory point and trajectory
+    time_resolution: variable; 91 percent dense at 1-5 seconds or 5-10 meters
+    population: 182 volunteer users, nonrepresentative
+    years: 2007-2012
+    geography: primarily China; trajectories can span other locations
+    access_method: Microsoft Research trajectory download linked from official user guide
+    license_or_terms: specific dataset redistribution/commercial terms not confirmed; review download terms before use
+    download_size: not established from official page
+    contains_activity: partial_transport_mode_labels_not_full_daily_activity
+    contains_location: true
+    contains_social_contacts: false
+    contains_demographics: false
+    intended_simulator_use: future trip frequency, duration, stops; never infer named individuals
+    priority: P1
+    current_status: metadata_reviewed_not_downloaded
+    source_url: https://www.microsoft.com/en-us/research/publication/geolife-gps-trajectory-dataset-user-guide/
+    terms_url: https://www.microsoft.com/en-us/research/publication/geolife-gps-trajectory-dataset-user-guide/
+  - name: SocioPatterns workplace
+    provider: SocioPatterns collaboration
+    data_type: anonymous temporal face-to-face proximity contacts
+    unit_of_observation: pairwise contact active in a 20-second interval
+    time_resolution: 20 seconds
+    population: individuals in a 2015 office building deployment; department metadata
+    years: 2015
+    geography: France
+    access_method: public contact and department files from official dataset page
+    license_or_terms: CC0 public-domain dedication; cite source publication as requested
+    download_size: 235 KB contacts plus 2 KB departments
+    contains_activity: false
+    contains_location: workplace_context_only
+    contains_social_contacts: true
+    contains_demographics: department_only
+    intended_simulator_use: future encounter duration, frequency and inter-contact gaps
+    priority: P2
+    current_status: metadata_reviewed_not_downloaded
+    source_url: https://sociopatterns.org/datasets/test/
+    terms_url: https://sociopatterns.org/datasets/test/
+  - name: SocioPatterns hospital
+    provider: SocioPatterns collaboration
+    data_type: anonymous temporal face-to-face proximity contacts
+    unit_of_observation: pairwise contact active in a 20-second interval
+    time_resolution: 20 seconds
+    population: 46 healthcare workers and 29 patients in one ward
+    years: 2010
+    geography: Lyon, France
+    access_method: public TSV contact list from official dataset page
+    license_or_terms: CC BY-NC-SA; attribution and noncommercial/share-alike conditions
+    download_size: 110 KB
+    contains_activity: false
+    contains_location: hospital_ward_context_only
+    contains_social_contacts: true
+    contains_demographics: coarse_role_status
+    intended_simulator_use: future role-conditioned workplace contacts; not general population
+    priority: P2
+    current_status: metadata_reviewed_not_downloaded
+    source_url: https://sociopatterns.org/datasets/hospital-ward-dynamic-contact-network/
+    terms_url: https://sociopatterns.org/datasets/hospital-ward-dynamic-contact-network/
+  - name: MTUS
+    provider: Centre for Time Use Research, UCL
+    data_type: harmonized multinational time-use diaries
+    unit_of_observation: diary day and harmonized episode
+    time_resolution: episode; survey-specific
+    population: many national survey samples, not one universal population
+    years: multiple surveys over approximately 55 years; release-specific
+    geography: multiple countries; current coverage page lists 27 countries
+    access_method: free account registration and separate approval for restricted datasets
+    license_or_terms: registered users must not redistribute data; data improvements and publication citations returned to CTUR; restricted surveys need extra approval
+    download_size: survey/extract-dependent; not established
+    contains_activity: true
+    contains_location: survey_dependent
+    contains_social_contacts: presence_of_others_in_some_surveys_not_sensor_contacts
+    contains_demographics: true
+    intended_simulator_use: future cross-country calibration sensitivity
+    priority: P2
+    current_status: metadata_reviewed_not_requested_or_downloaded
+    source_url: https://www.timeuse.org/mtus
+    terms_url: https://timeuse.org/mtus/access
