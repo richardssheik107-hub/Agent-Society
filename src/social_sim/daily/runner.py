@@ -171,9 +171,49 @@ def _safe_failure(
         # neither a response envelope nor token usage (notably on timeout).
         "latency_seconds": float(elapsed_seconds),
         "provider_model": _safe_provider_model(getattr(metadata, "provider_model", None), client),
+        "finish_reason": _safe_provider_model(getattr(metadata, "finish_reason", None), client),
+        "content_exists": (
+            None if getattr(metadata, "content_is_none", None) is None
+            else not metadata.content_is_none
+        ),
+        "content_chars": getattr(metadata, "content_chars", None),
+        "reasoning_field_exists": getattr(metadata, "reasoning_field_exists", None),
+        "reasoning_chars": getattr(metadata, "reasoning_chars", None),
+        "refusal_exists": getattr(metadata, "refusal_field_exists", None),
+        "tool_calls_count": getattr(metadata, "tool_calls_count", None),
         "input_tokens": getattr(metadata, "input_tokens", None),
         "output_tokens": getattr(metadata, "output_tokens", None),
         "reasoning_tokens": getattr(metadata, "reasoning_tokens", None),
+    }
+
+
+def _safe_output_failure(
+    service: CompactDecisionService, *, simulation_time: datetime,
+    trigger_reason: str, decision_index: int,
+) -> dict[str, object]:
+    """Parser diagnostics contain categories and counts, never model text."""
+    diagnostic = service.last_output_diagnostic or {}
+    return {
+        "decision_index": decision_index,
+        "simulation_time": simulation_time.isoformat(),
+        "trigger_reason": trigger_reason,
+        "failure_type": diagnostic.get("failure_type") or "INVALID_MODEL_OUTPUT",
+        "failure_category": diagnostic.get("failure_category"),
+        "strict_valid": diagnostic.get("strict_valid"),
+        "recoverable_valid": diagnostic.get("recoverable_valid"),
+        "repair_applied": diagnostic.get("repair_applied"),
+        "repair_available": diagnostic.get("repair_available"),
+        "finish_reason": diagnostic.get("finish_reason"),
+        "content_chars": diagnostic.get("content_chars"),
+        "latency_seconds": diagnostic.get("latency_seconds"),
+        "provider_model": diagnostic.get("provider_model"),
+        "input_tokens": diagnostic.get("input_tokens"),
+        "output_tokens": diagnostic.get("output_tokens"),
+        "reasoning_tokens": diagnostic.get("reasoning_tokens"),
+        "reasoning_field_exists": diagnostic.get("reasoning_field_exists"),
+        "reasoning_chars": diagnostic.get("reasoning_chars"),
+        "refusal_exists": diagnostic.get("refusal_exists"),
+        "tool_calls_count": diagnostic.get("tool_calls_count"),
     }
 
 
@@ -190,6 +230,7 @@ class DailyEpisodeRunner:
         max_decisions_per_day: int = MAX_DECISIONS_PER_DAY,
         model_name: str | None = None,
         write_artifacts: bool = True,
+        allow_deterministic_output_recovery: bool | None = None,
     ) -> None:
         if isinstance(max_decisions_per_day, bool) or not 1 <= max_decisions_per_day <= MAX_DECISIONS_PER_DAY:
             raise ValueError("max_decisions_per_day must be in [1,30]")
@@ -200,6 +241,7 @@ class DailyEpisodeRunner:
         self.max_decisions_per_day = max_decisions_per_day
         self.model_name = model_name
         self.write_artifacts = write_artifacts
+        self.allow_deterministic_output_recovery = allow_deterministic_output_recovery
 
     async def run_episode(self, number: int) -> DailyEpisodeResult:
         if isinstance(number, bool) or not isinstance(number, int) or number < 1:
@@ -212,7 +254,10 @@ class DailyEpisodeRunner:
         day_end = world.time + timedelta(hours=18)
         event_log = EventLog()
         recorder = TrajectoryRecorder(episode_id, output_dir=self.output_dir, record_prompt=False)
-        service = CompactDecisionService(self.client)
+        service = CompactDecisionService(
+            self.client,
+            allow_deterministic_output_recovery=self.allow_deterministic_output_recovery,
+        )
         stepper = ClosedLoopStep(service, event_log)
         trigger = DecisionTrigger()
         trigger_audit = DecisionTriggerAudit()
@@ -224,6 +269,7 @@ class DailyEpisodeRunner:
         provider_start = getattr(self.client, "provider_request_count", None)
         termination = DailyTerminationReason.DAY_END
         provider_failures: list[dict[str, object]] = []
+        output_failures: list[dict[str, object]] = []
         last_rejected = False
         last_completed = False
 
@@ -266,6 +312,11 @@ class DailyEpisodeRunner:
                         behavior_hints=hints,
                     )
                 except DecisionParseError:
+                    output_failures.append(_safe_output_failure(
+                        service, simulation_time=before.time,
+                        trigger_reason=trigger_reason,
+                        decision_index=service.decision_call_count,
+                    ))
                     termination = DailyTerminationReason.INVALID_MODEL_OUTPUT
                     break
                 except ProviderContractError as exc:
@@ -345,6 +396,14 @@ class DailyEpisodeRunner:
                     reasoning_tokens=completed.reasoning_tokens,
                     visible_content_chars=completed.raw_output_chars,
                     provider_model=completed.provider_model,
+                    strict_valid=completed.strict_valid,
+                    recoverable_valid=completed.recoverable_valid,
+                    failure_type=completed.failure_type,
+                    repair_applied=completed.repair_applied,
+                    repair_available=completed.repair_available,
+                    output_recovered=completed.output_recovered,
+                    legacy_non_strict_acceptance=completed.legacy_non_strict_acceptance,
+                    response_diagnostics=completed.response_diagnostics,
                     simulation_time=before.time.isoformat(),
                     active_activity=before_person.activity,
                     activity_remaining_minutes=_remaining_minutes(before),
@@ -523,6 +582,7 @@ class DailyEpisodeRunner:
             observed_ticks=len(ticks),
             truncation_reason=None if day_completed else outcome.value,
             provider_failures=tuple(provider_failures),
+            output_failures=tuple(output_failures),
             behavior_metrics_valid=day_completed,
             full_day_behavior_metrics=full_day_behavior_metrics,
             partial_window_metrics=partial_window_metrics,

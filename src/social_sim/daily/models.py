@@ -9,7 +9,7 @@ from typing import Any
 from social_sim.evaluation.models import EpisodeResult
 
 
-DAILY_SCHEMA_VERSION = "0.4"
+DAILY_SCHEMA_VERSION = "0.5"
 
 
 class DailyTerminationReason(str, Enum):
@@ -96,6 +96,7 @@ class DailyEpisodeResult:
     observed_ticks: int
     truncation_reason: str | None
     provider_failures: tuple[dict[str, object], ...]
+    output_failures: tuple[dict[str, object], ...]
     behavior_metrics_valid: bool
     full_day_behavior_metrics: dict[str, object] | None
     partial_window_metrics: dict[str, object] | None
@@ -119,6 +120,7 @@ class DailyEpisodeResult:
             "observed_ticks": self.observed_ticks,
             "truncation_reason": self.truncation_reason,
             "provider_failures": [dict(failure) for failure in self.provider_failures],
+            "output_failures": [dict(failure) for failure in self.output_failures],
             "behavior_metrics_valid": self.behavior_metrics_valid,
             "full_day_behavior_metrics": (
                 dict(self.full_day_behavior_metrics)

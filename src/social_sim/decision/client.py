@@ -175,13 +175,15 @@ def inspect_chat_completion(
         tool_calls_count=len(tool_calls) if isinstance(tool_calls, list) else 0,
     )
     metadata = DecisionResponseMetadata(**common)
+    # A length stop is an exhausted provider output budget even if a partial
+    # visible string happens to be nonempty (or syntactically valid by chance).
+    if metadata.finish_reason == "length":
+        raise ProviderContractError("OUTPUT_BUDGET_EXHAUSTED", metadata)
     if isinstance(content, str) and content.strip():
         return content, metadata
     if content is not None and not isinstance(content, str):
         raise ProviderContractError("PROVIDER_SCHEMA_MISMATCH", metadata)
-    if metadata.finish_reason == "length":
-        category = "OUTPUT_BUDGET_EXHAUSTED"
-    elif metadata.refusal_chars:
+    if metadata.refusal_chars:
         category = "PROVIDER_REFUSAL"
     elif metadata.tool_calls_count:
         category = "TOOL_CALL_INSTEAD_OF_TEXT"

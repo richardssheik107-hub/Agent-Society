@@ -31,6 +31,14 @@ class StepResult:
     reasoning_tokens: int | None
     provider_model: str | None
     provider_request_count: int
+    strict_valid: bool | None = None
+    recoverable_valid: bool | None = None
+    failure_type: str | None = None
+    repair_applied: str | None = None
+    repair_available: str | None = None
+    output_recovered: bool = False
+    legacy_non_strict_acceptance: bool = False
+    response_diagnostics: dict[str, object] | None = None
 
 
 class ClosedLoopStep:
@@ -122,6 +130,14 @@ class ClosedLoopStep:
             reasoning_tokens=decision.reasoning_tokens,
             provider_model=decision.provider_model,
             provider_request_count=decision.provider_request_count,
+            strict_valid=decision.strict_valid,
+            recoverable_valid=decision.recoverable_valid,
+            failure_type=decision.failure_type,
+            repair_applied=decision.repair_applied,
+            repair_available=decision.repair_available,
+            output_recovered=decision.output_recovered,
+            legacy_non_strict_acceptance=decision.legacy_non_strict_acceptance,
+            response_diagnostics=decision.response_diagnostics,
         )
 
 

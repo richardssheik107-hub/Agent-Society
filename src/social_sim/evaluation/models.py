@@ -23,7 +23,7 @@ from social_sim.world import LocalObservation, WorldState
 
 TRAJECTORY_SCHEMA_VERSION = "0.1"
 ABLATION_EPISODE_SCHEMA_VERSION = "0.2"
-DAILY_TRAJECTORY_SCHEMA_VERSION = "0.3"
+DAILY_TRAJECTORY_SCHEMA_VERSION = "0.4"
 trajectory_schema_version = TRAJECTORY_SCHEMA_VERSION
 
 
@@ -257,6 +257,14 @@ class StepTrajectory:
     hunger: float | None = None
     energy: float | None = None
     trigger_reason: str | None = None
+    strict_valid: bool | None = None
+    recoverable_valid: bool | None = None
+    failure_type: str | None = None
+    repair_applied: str | None = None
+    repair_available: str | None = None
+    output_recovered: bool = False
+    legacy_non_strict_acceptance: bool = False
+    response_diagnostics: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.episode_id, str) or not self.episode_id:
@@ -301,6 +309,27 @@ class StepTrajectory:
             if not isinstance(self.provider_model, str):
                 raise TypeError("provider_model must be a string or None")
             object.__setattr__(self, "provider_model", _safe_text(self.provider_model))
+        for field_name in ("strict_valid", "recoverable_valid"):
+            value = getattr(self, field_name)
+            if value is not None and not isinstance(value, bool):
+                raise TypeError(f"{field_name} must be a bool or None")
+        if not isinstance(self.output_recovered, bool) or not isinstance(
+            self.legacy_non_strict_acceptance, bool
+        ):
+            raise TypeError("output recovery flags must be bools")
+        for field_name in ("failure_type", "repair_applied", "repair_available"):
+            value = getattr(self, field_name)
+            if value is not None and (not isinstance(value, str) or not re.fullmatch(
+                r"[A-Z][A-Z0-9_]{0,63}(?:\+[A-Z][A-Z0-9_]{0,63})*", value
+            )):
+                raise ValueError(f"{field_name} must be a safe category")
+        if self.output_recovered and not self.repair_applied:
+            raise ValueError("recovered output requires repair_applied")
+        if self.response_diagnostics is not None:
+            object.__setattr__(
+                self, "response_diagnostics",
+                _snapshot(self.response_diagnostics, "response_diagnostics"),
+            )
         if self.simulation_time is not None:
             if not isinstance(self.simulation_time, str) or not self.simulation_time:
                 raise ValueError("simulation_time must be a nonempty string")
@@ -347,6 +376,17 @@ class StepTrajectory:
             "reasoning_tokens": self.reasoning_tokens,
             "visible_content_chars": self.visible_content_chars,
             "provider_model": self.provider_model,
+            **({
+                "strict_valid": self.strict_valid,
+                "recoverable_valid": self.recoverable_valid,
+                "failure_type": self.failure_type,
+                "repair_applied": self.repair_applied,
+                "repair_available": self.repair_available,
+                "output_recovered": self.output_recovered,
+                "legacy_non_strict_acceptance": self.legacy_non_strict_acceptance,
+                "repair_type": self.repair_applied if self.output_recovered else None,
+                "response_diagnostics": _json_copy(self.response_diagnostics),
+            } if self.simulation_time is not None and self.strict_valid is not None else {}),
             **({"prompt": self.prompt} if self.prompt is not None else {}),
             **({
                 "simulation_time": self.simulation_time,

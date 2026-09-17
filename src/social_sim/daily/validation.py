@@ -173,6 +173,11 @@ def validate_daily_trajectory(result: DailyEpisodeResult) -> bool:
         raise ValueError("provider-truncated day requires one failure record")
     if result.day_outcome is not DayOutcome.DAY_TRUNCATED_PROVIDER and result.provider_failures:
         raise ValueError("non-provider termination cannot carry provider failures")
+    if result.termination_reason is DailyTerminationReason.INVALID_MODEL_OUTPUT:
+        if len(result.output_failures) != 1:
+            raise ValueError("model-output-truncated day requires one output failure record")
+    elif result.output_failures:
+        raise ValueError("non-model-output termination cannot carry output failures")
     if result.decision_count != result.trajectory.decision_count:
         raise ValueError("daily decision counts disagree")
     if result.provider_request_count != result.trajectory.total_provider_requests:
