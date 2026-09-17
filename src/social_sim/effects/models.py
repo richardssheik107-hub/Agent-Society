@@ -110,7 +110,8 @@ class StartActivityEffect:
                 object.__setattr__(self, "action", ActionType(self.action))
             except ValueError as exc:
                 raise ValueError("action must be a timed activity") from exc
-        if self.action not in (ActionType.SLEEP, ActionType.WORK, ActionType.LEISURE):
+        if self.action not in (ActionType.SLEEP, ActionType.WORK, ActionType.LEISURE,
+                               ActionType.PERSONAL_CARE, ActionType.CHORES):
             raise ValueError("action must be a timed activity")
         if not isinstance(self.expected_location, str) or not self.expected_location.strip():
             raise ValueError("expected_location must be nonempty")

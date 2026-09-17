@@ -18,7 +18,8 @@ _SIMPLE_FENCE = re.compile(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n?```", re.DOTALL)
 _ALLOWED_FIELDS = frozenset({"action", "target"})
 _TARGETED_ACTIONS = frozenset({ActionType.MOVE, ActionType.BUY, ActionType.EAT})
 _NULL_TARGET_REPAIR_ACTIONS = frozenset(
-    {ActionType.SLEEP, ActionType.WORK, ActionType.LEISURE}
+    {ActionType.SLEEP, ActionType.WORK, ActionType.LEISURE,
+     ActionType.PERSONAL_CARE, ActionType.CHORES}
 )
 _MAX_SURROUNDING_TEXT_CHARS = 160
 _FORMAT_FAILURES = frozenset(
@@ -139,7 +140,11 @@ def _schema_result(
     if available_actions is not None and action not in {
         ActionType(item) for item in available_actions
     }:
-        return None, "INVALID_ACTION", False
+        return None, (
+            "ACTION_NOT_AVAILABLE_FOR_PROFILE" if action in (
+                ActionType.PERSONAL_CARE, ActionType.CHORES,
+            ) else "INVALID_ACTION"
+        ), False
     added_target = False
     if "target" not in data:
         if allow_missing_null_target and action in _NULL_TARGET_REPAIR_ACTIONS:

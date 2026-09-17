@@ -32,6 +32,8 @@ class ActionExecutor:
         "SLEEP": EventType.SLEEP_STARTED,
         "WORK": EventType.WORK_STARTED,
         "LEISURE": EventType.LEISURE_STARTED,
+        "PERSONAL_CARE": EventType.PERSONAL_CARE_STARTED,
+        "CHORES": EventType.CHORES_STARTED,
     }
 
     def __init__(

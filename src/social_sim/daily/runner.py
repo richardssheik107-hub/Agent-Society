@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
@@ -16,6 +18,8 @@ from social_sim.closed_loop import ClosedLoopStep
 from social_sim.decision import ActionType, CompactDecisionService, DecisionClientError, DecisionParseError, ProviderContractError
 from social_sim.decision.client import DecisionModelClient
 from social_sim.events import DomainEvent, EventLog, EventType
+from social_sim.execution import ActionExecutor
+from social_sim.rules import RuleEngine
 from social_sim.evaluation.models import (
     StepTrajectory, TerminationReason, effects_snapshots, event_snapshot,
     intent_snapshot, observation_snapshot, proposal_snapshot, world_snapshot,
@@ -27,10 +31,14 @@ from .idle import IdleDetector, IdleTick
 from .models import DayOutcome, DailyEpisodeResult, DailyTerminationReason, DailyTickRecord
 from .persona import NeutralPersona
 from .support import BehaviorSupportPolicy, SupportCondition
-from .time import DAY_END, DAY_START, TICK_MINUTES, WORK_END, WORK_START, advance_daily_tick
+from .time import TICK_MINUTES, WORK_END, WORK_START, advance_daily_tick
 from .trigger import DecisionTrigger
 from .trigger_audit import DecisionTriggerAudit
 from .validation import validate_daily_trajectory
+
+if TYPE_CHECKING:
+    from social_sim.behavior_prior.index import BehaviorPriorIndex
+    from .profiles import ExperimentBehaviorProfile
 
 
 DAILY_ACTIONS = (
@@ -231,6 +239,12 @@ class DailyEpisodeRunner:
         model_name: str | None = None,
         write_artifacts: bool = True,
         allow_deterministic_output_recovery: bool | None = None,
+        behavior_profile: ExperimentBehaviorProfile | None = None,
+        initial_world: WorldState | None = None,
+        window_minutes: int = 1080,
+        scenario_name: str = "neutral_day",
+        prior_index: BehaviorPriorIndex | None = None,
+        prior_limit: int = 0,
     ) -> None:
         if isinstance(max_decisions_per_day, bool) or not 1 <= max_decisions_per_day <= MAX_DECISIONS_PER_DAY:
             raise ValueError("max_decisions_per_day must be in [1,30]")
@@ -242,6 +256,18 @@ class DailyEpisodeRunner:
         self.model_name = model_name
         self.write_artifacts = write_artifacts
         self.allow_deterministic_output_recovery = allow_deterministic_output_recovery
+        if window_minutes <= 0 or window_minutes % TICK_MINUTES:
+            raise ValueError("window_minutes must be a positive number of ticks")
+        self.behavior_profile = behavior_profile
+        self.initial_world = initial_world
+        self.window_minutes = window_minutes
+        self.scenario_name = scenario_name
+        if (prior_index is None) != (prior_limit == 0):
+            raise ValueError("prior index and R1/R3 limit must be configured together")
+        if prior_limit not in (0, 1, 3):
+            raise ValueError("prior_limit must be R0, R1, or R3")
+        self.prior_index = prior_index
+        self.prior_limit = prior_limit
 
     async def run_episode(self, number: int) -> DailyEpisodeResult:
         if isinstance(number, bool) or not isinstance(number, int) or number < 1:
@@ -250,26 +276,35 @@ class DailyEpisodeRunner:
         if callable(start_episode):
             start_episode()
         episode_id = f"neutral-day-{number:06d}"
-        world = neutral_day_initial_world()
-        day_end = world.time + timedelta(hours=18)
+        world = self.initial_world or neutral_day_initial_world()
+        day_end = world.time + timedelta(minutes=self.window_minutes)
         event_log = EventLog()
         recorder = TrajectoryRecorder(episode_id, output_dir=self.output_dir, record_prompt=False)
         service = CompactDecisionService(
             self.client,
             allow_deterministic_output_recovery=self.allow_deterministic_output_recovery,
         )
-        stepper = ClosedLoopStep(service, event_log)
+        engine = None
+        if self.behavior_profile is not None:
+            engine = RuleEngine(
+                duration_overrides={ActionType(key): value for key, value in
+                                    self.behavior_profile.duration_overrides.items()},
+                experimental_actions_enabled=self.behavior_profile.experimental_actions_enabled,
+            )
+        stepper = ClosedLoopStep(service, event_log, executor=ActionExecutor(engine))
         trigger = DecisionTrigger()
         trigger_audit = DecisionTriggerAudit()
         idle_detector = IdleDetector()
         ticks: list[DailyTickRecord] = []
-        activity_counts: Counter[str] = Counter({action.value: 0 for action in DAILY_ACTIONS})
-        durations = {"SLEEP": 0, "WORK": 0, "LEISURE": 0}
+        actions = self.behavior_profile.available_actions if self.behavior_profile else DAILY_ACTIONS
+        activity_counts: Counter[str] = Counter({action.value: 0 for action in actions})
+        durations = {action: 0 for action in ("SLEEP", "WORK", "LEISURE", "PERSONAL_CARE", "CHORES")}
         meal_count = move_count = location_transitions = active_minutes = state_transitions = 0
         provider_start = getattr(self.client, "provider_request_count", None)
         termination = DailyTerminationReason.DAY_END
         provider_failures: list[dict[str, object]] = []
         output_failures: list[dict[str, object]] = []
+        prior_audit: list[dict[str, object]] = []
         last_rejected = False
         last_completed = False
 
@@ -299,13 +334,31 @@ class DailyEpisodeRunner:
                 observation = ObservationBuilder(before).build(1)
                 work_due = WORK_START <= before.time.strftime("%H:%M") < WORK_END
                 hints = self.support_policy.select_hints(observation, work_due=work_due)
+                prior_record = None
+                if self.prior_index is not None:
+                    from social_sim.behavior_prior import format_prior, previous_activity_from_events
+                    from social_sim.behavior_prior.query import PriorQuery
+                    from social_sim.behavior_prior.validation import feasible_prior_count
+
+                    previous = previous_activity_from_events(event_log.all())
+                    prior = self.prior_index.query(PriorQuery.at(before.time, previous), limit=self.prior_limit)
+                    hint = format_prior(prior)
+                    prior_record = {
+                        "simulation_time": before.time.isoformat(), "activities": list(prior.activities),
+                        "fallback_level": prior.fallback_level, "support_count": prior.support_count,
+                        "excluded_other_mass": prior.excluded_other_mass,
+                        "feasible_prior_count": feasible_prior_count(prior, before, engine),
+                        "hint_chars": len(hint), "model_action": None, "followed": None,
+                    }
+                    prior_audit.append(prior_record)
+                    hints = (hint,)
                 trigger_audit.record_decision(before.time, before, trigger_reason)
                 started = time.perf_counter()
                 metadata_before = getattr(self.client, "last_metadata", None)
                 try:
                     completed = await stepper.run(
                         before, 1, self.persona.profile(),
-                        available_actions=DAILY_ACTIONS,
+                        available_actions=actions,
                         available_targets=DAILY_TARGETS,
                         daily_mode=True,
                         work_window=f"{WORK_START}-{WORK_END}",
@@ -363,6 +416,9 @@ class DailyEpisodeRunner:
                 after_decision = completed.world_after
                 outcome = completed.outcome
                 action = completed.proposal.action
+                if prior_record is not None:
+                    prior_record["model_action"] = action.value
+                    prior_record["followed"] = action.value in prior_record["activities"]
                 attempted_action = action.value
                 attempted_target = completed.proposal.target
                 action_accepted = outcome.allowed
@@ -410,6 +466,9 @@ class DailyEpisodeRunner:
                     hunger=before_person.hunger,
                     energy=before_person.energy,
                     trigger_reason=trigger_reason,
+                    prompt_hash=hashlib.sha256(
+                        (completed.system_prompt + completed.user_prompt).encode("utf-8")
+                    ).hexdigest() if self.behavior_profile is not None else None,
                 ))
                 if outcome.allowed:
                     activity_counts[action.value] += 1
@@ -505,7 +564,7 @@ class DailyEpisodeRunner:
             invalid_outputs=int(termination is DailyTerminationReason.INVALID_MODEL_OUTPUT),
             provider_errors=int(termination in (DailyTerminationReason.PROVIDER_ERROR, DailyTerminationReason.TIMEOUT)),
             total_provider_requests=provider_requests,
-            scenario_name="neutral_day",
+            scenario_name=self.scenario_name,
             context_policy_name="C3_recent3",
             decision_policy_name=self.support_policy.condition.value,
             model_name=self.model_name,
@@ -517,6 +576,8 @@ class DailyEpisodeRunner:
             "meal_count": meal_count,
             "leisure_minutes": durations["LEISURE"],
             "move_count": move_count,
+            "personal_care_minutes": durations["PERSONAL_CARE"],
+            "chores_minutes": durations["CHORES"],
             "location_transition_count": location_transitions,
             "active_minutes": active_minutes,
             "state_transition_count": state_transitions,
@@ -586,6 +647,10 @@ class DailyEpisodeRunner:
             behavior_metrics_valid=day_completed,
             full_day_behavior_metrics=full_day_behavior_metrics,
             partial_window_metrics=partial_window_metrics,
+            behavior_profile_name=self.behavior_profile.name if self.behavior_profile else None,
+            behavior_profile_hash=self.behavior_profile.profile_hash if self.behavior_profile else None,
+            window_minutes=self.window_minutes,
+            prior_audit=tuple(prior_audit),
         )
         validate_daily_trajectory(result)
         if self.write_artifacts:

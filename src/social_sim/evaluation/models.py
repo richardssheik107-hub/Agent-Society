@@ -265,6 +265,7 @@ class StepTrajectory:
     output_recovered: bool = False
     legacy_non_strict_acceptance: bool = False
     response_diagnostics: dict[str, object] | None = None
+    prompt_hash: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.episode_id, str) or not self.episode_id:
@@ -376,6 +377,7 @@ class StepTrajectory:
             "reasoning_tokens": self.reasoning_tokens,
             "visible_content_chars": self.visible_content_chars,
             "provider_model": self.provider_model,
+            **({"prompt_hash": self.prompt_hash} if self.prompt_hash is not None else {}),
             **({
                 "strict_valid": self.strict_valid,
                 "recoverable_valid": self.recoverable_valid,

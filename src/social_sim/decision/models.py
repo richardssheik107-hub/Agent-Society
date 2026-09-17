@@ -15,6 +15,8 @@ class ActionType(str, Enum):
     SLEEP = "SLEEP"
     WORK = "WORK"
     LEISURE = "LEISURE"
+    PERSONAL_CARE = "PERSONAL_CARE"
+    CHORES = "CHORES"
 
 
 @dataclass(frozen=True)

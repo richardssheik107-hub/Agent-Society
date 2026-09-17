@@ -196,7 +196,7 @@ class CompactDecisionService:
             # separately gated full-day rerun opts into deterministic recovery.
             proposal = self.parser.parse(reply.raw_text)
         if proposal.action not in actions:
-            raise DecisionParseError("Proposed action is not currently available")
+            raise DecisionParseError("ACTION_NOT_AVAILABLE_FOR_PROFILE")
         if proposal.action in (ActionType.MOVE, ActionType.BUY, ActionType.EAT):
             if proposal.target not in targets:
                 raise DecisionParseError(

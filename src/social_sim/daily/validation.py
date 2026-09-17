@@ -183,6 +183,8 @@ def validate_daily_trajectory(result: DailyEpisodeResult) -> bool:
     if result.provider_request_count != result.trajectory.total_provider_requests:
         raise ValueError("daily provider request counts disagree")
     if result.termination_reason is DailyTerminationReason.DAY_END:
-        if len(result.ticks) != 72 or datetime.fromisoformat(final["time"]).hour != 0:
-            raise ValueError("DAY_END must complete all 72 ticks")
+        if len(result.ticks) != result.window_minutes // 15 or (
+            result.window_minutes == 1080 and datetime.fromisoformat(final["time"]).hour != 0
+        ):
+            raise ValueError("DAY_END must complete the configured window")
     return True

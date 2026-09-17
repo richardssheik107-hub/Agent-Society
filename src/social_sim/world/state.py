@@ -35,8 +35,10 @@ class PersonWorldState:
             or not 0 <= self.energy <= 1
         ):
             raise ValueError("energy must be between 0 and 1 when supplied")
-        if self.activity is not None and self.activity not in ("SLEEP", "WORK", "LEISURE"):
-            raise ValueError("activity must be SLEEP, WORK, LEISURE or None")
+        if self.activity is not None and self.activity not in (
+            "SLEEP", "WORK", "LEISURE", "PERSONAL_CARE", "CHORES",
+        ):
+            raise ValueError("activity must be a supported timed activity or None")
         if (self.activity is None) != (self.activity_end_time is None):
             raise ValueError("activity and activity_end_time must be set together")
         if self.activity_end_time is not None:

@@ -13,7 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_production_actions_rules_and_durations_untouched():
     assert (SLEEP_DURATION_MINUTES, WORK_DURATION_MINUTES, LEISURE_DURATION_MINUTES) == (360, 90, 60)
-    assert {action.value for action in ActionType} == {"WAIT", "REST", "MOVE", "BUY", "EAT", "SLEEP", "WORK", "LEISURE"}
+    # A2.0 extends the parser's vocabulary, never the default executable set.
+    assert {action.value for action in ActionType} == {
+        "WAIT", "REST", "MOVE", "BUY", "EAT", "SLEEP", "WORK", "LEISURE",
+        "PERSONAL_CARE", "CHORES",
+    }
     assert {action.value for action in RuleEngine()._rules} == {"MOVE", "BUY", "EAT", "SLEEP", "WORK", "LEISURE"}
     paths = [ROOT / "src/social_sim/daily/time.py", ROOT / "src/social_sim/rules/engine.py", ROOT / "src/social_sim/decision/models.py"]
     hashes = {path: file_sha256(path) for path in paths}

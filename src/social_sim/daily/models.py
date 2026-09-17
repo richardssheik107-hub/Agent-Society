@@ -100,12 +100,20 @@ class DailyEpisodeResult:
     behavior_metrics_valid: bool
     full_day_behavior_metrics: dict[str, object] | None
     partial_window_metrics: dict[str, object] | None
+    behavior_profile_name: str | None = None
+    behavior_profile_hash: str | None = None
+    window_minutes: int = 1080
+    prior_audit: tuple[dict[str, object], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         record = {
             "schema_version": DAILY_SCHEMA_VERSION,
             "experiment_type": "neutral_day_idle_benchmark",
             "episode_id": self.episode_id,
+            **({"prior_audit": [dict(item) for item in self.prior_audit]} if self.prior_audit else {}),
+            **({"behavior_profile_name": self.behavior_profile_name,
+                "behavior_profile_hash": self.behavior_profile_hash,
+                "window_minutes": self.window_minutes} if self.behavior_profile_name else {}),
             "termination_reason": self.termination_reason.value,
             "trajectory_episode_id": self.trajectory.episode_id,
             "decision_count": self.decision_count,

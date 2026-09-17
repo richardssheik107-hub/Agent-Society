@@ -15,10 +15,18 @@ from social_sim.world.state import WorldState
 
 
 class ActivityRule:
-    def __init__(self, action_type: ActionType) -> None:
-        if action_type not in ACTIVITY_DURATIONS_MINUTES:
+    def __init__(self, action_type: ActionType, *, duration_minutes: int | None = None) -> None:
+        if action_type not in ACTIVITY_DURATIONS_MINUTES and action_type not in (
+            ActionType.PERSONAL_CARE, ActionType.CHORES,
+        ):
             raise ValueError("ActivityRule needs SLEEP, WORK, or LEISURE")
         self.action_type = action_type
+        self.duration_minutes = (
+            duration_minutes if duration_minutes is not None
+            else ACTIVITY_DURATIONS_MINUTES[action_type]
+        )
+        if self.duration_minutes <= 0 or self.duration_minutes % 15:
+            raise ValueError("activity duration must be a positive multiple of 15")
 
     def evaluate(self, world: WorldState, intent: ActionIntent) -> RuleResult:
         if intent.action is not self.action_type:
@@ -36,6 +44,9 @@ class ActivityRule:
         elif self.action_type is ActionType.SLEEP:
             if person.location != "home":
                 return self._reject(intent, ReasonCode.NOT_AT_ACTIVITY_LOCATION)
+        elif self.action_type in (ActionType.PERSONAL_CARE, ActionType.CHORES):
+            if person.location != "home":
+                return self._reject(intent, ReasonCode.NOT_AT_ACTIVITY_LOCATION)
         elif person.location not in ("home", "park"):
             return self._reject(intent, ReasonCode.NOT_AT_ACTIVITY_LOCATION)
         return RuleResult(
@@ -49,7 +60,7 @@ class ActivityRule:
                 expected_location=person.location,
                 expected_time=world.time.isoformat(),
                 end_time=(
-                    world.time + timedelta(minutes=ACTIVITY_DURATIONS_MINUTES[intent.action])
+                    world.time + timedelta(minutes=self.duration_minutes)
                 ).isoformat(),
             ),),
         )
