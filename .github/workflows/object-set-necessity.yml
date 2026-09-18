@@ -1,0 +1,28 @@
+name: Object Set Necessity Gate
+
+on:
+  push:
+    branches:
+      - "research/object-set-necessity"
+  workflow_dispatch:
+
+jobs:
+  offline-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install focused test dependencies
+        run: python -m pip install --upgrade pip pytest httpx
+      - name: Run focused no-network tests
+        env:
+          PYTHONPATH: src
+        run: pytest -q tests/test_object_set_necessity.py
+      - name: Run 180-row offline systems probe
+        env:
+          PYTHONPATH: src
+        run: python scripts/run_object_set_necessity_offline.py
+      - name: Compile optional real runner
+        run: python -m py_compile scripts/run_object_set_necessity_real.py
