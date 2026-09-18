@@ -1,0 +1,150 @@
+experiment: resource_set_size
+version: q4_v1
+resource_levels:
+  R8:
+    - hunger
+    - energy
+    - sleep_pressure
+    - work_urgency
+    - hygiene_need
+    - chores_backlog
+    - leisure_need
+    - budget_pressure
+  R16:
+    - hunger
+    - energy
+    - sleep_pressure
+    - work_urgency
+    - hygiene_need
+    - chores_backlog
+    - leisure_need
+    - budget_pressure
+    - stress
+    - social_need
+    - commute_pressure
+    - discretionary_budget_remaining
+    - work_progress
+    - meal_recency
+    - personal_care_recency
+    - chores_recency
+  R32:
+    - hunger
+    - energy
+    - sleep_pressure
+    - work_urgency
+    - hygiene_need
+    - chores_backlog
+    - leisure_need
+    - budget_pressure
+    - stress
+    - social_need
+    - commute_pressure
+    - discretionary_budget_remaining
+    - work_progress
+    - meal_recency
+    - personal_care_recency
+    - chores_recency
+    - physical_fatigue
+    - mental_fatigue
+    - sleep_debt
+    - sleep_quality
+    - hunger_trend
+    - food_security
+    - cash_on_hand
+    - checking_balance
+    - credit_available
+    - debt_pressure
+    - work_minutes_today
+    - work_deadline_pressure
+    - commute_minutes_pressure
+    - household_load
+    - leisure_minutes_today
+    - recent_spending_ratio
+  R64:
+    - hunger
+    - energy
+    - sleep_pressure
+    - work_urgency
+    - hygiene_need
+    - chores_backlog
+    - leisure_need
+    - budget_pressure
+    - stress
+    - social_need
+    - commute_pressure
+    - discretionary_budget_remaining
+    - work_progress
+    - meal_recency
+    - personal_care_recency
+    - chores_recency
+    - physical_fatigue
+    - mental_fatigue
+    - sleep_debt
+    - sleep_quality
+    - hunger_trend
+    - food_security
+    - cash_on_hand
+    - checking_balance
+    - credit_available
+    - debt_pressure
+    - work_minutes_today
+    - work_deadline_pressure
+    - commute_minutes_pressure
+    - household_load
+    - leisure_minutes_today
+    - recent_spending_ratio
+    - hydration_need
+    - caffeine_level
+    - physical_discomfort
+    - temperature_discomfort
+    - sickness_signal
+    - exercise_fatigue
+    - work_stress
+    - financial_stress
+    - social_stress
+    - social_contact_recency
+    - friend_availability
+    - family_contact_recency
+    - loneliness
+    - shower_due
+    - dental_care_due
+    - clothing_cleanliness_need
+    - laundry_load
+    - dish_load
+    - trash_load
+    - kitchen_cleaning_need
+    - bedroom_cleaning_need
+    - cooking_prep_need
+    - grocery_stock_pressure
+    - appointment_urgency
+    - transport_availability
+    - mobility_friction
+    - cash_reserve_pressure
+    - savings_health
+    - credit_pressure
+    - currency_liquidity
+    - entertainment_novelty_need
+    - routine_disruption
+scenario_count: 24
+seed: 2026
+prior:
+  corpus: BTRAIN_ALL
+  train_diaries: 2572
+  prior_limit: R1
+heldout:
+  eval_diaries: 643
+context_policy: minimal_persona_time_location_object_facts_events_r1_resources
+object_architecture: Catalog + Top-K (fixed from Q3)
+action_set: existing ActionType profile; no new ontology
+thresholds:
+  matched_quadruples_minimum: 30
+  passing_gap: 0.05
+  top3_degradation: 0.10
+  low_marginal_positive_gain: 0.03
+  low_marginal_cost_increase: 0.15
+  overload_alignment_drop: 0.03
+  overload_critical_miss_increase: 0.03
+provider:
+  alias: ark-code-latest
+  minimal_request: true
+  application_retries: 0
