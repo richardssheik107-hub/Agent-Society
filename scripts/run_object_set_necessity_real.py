@@ -58,19 +58,21 @@ async def _run(args: argparse.Namespace) -> None:
                 repetitions=args.repetitions,
                 top_k=args.top_k,
                 max_scenarios=args.max_scenarios,
+                attempt_id=args.attempt_id,
             ),
         )
     finally:
         await client.aclose()
 
     root = Path(__file__).resolve().parents[1]
-    output = root / "run/evaluation/object_set_necessity" / f"real_{datetime.now(timezone.utc):%Y%m%dT%H%M%S%fZ}"
+    output = root / "run/evaluation/object_set_necessity" / f"real_{args.attempt_id}_{datetime.now(timezone.utc):%Y%m%dT%H%M%S%fZ}"
     output.mkdir(parents=True, exist_ok=False)
     safe = {
         "config": {
             "repetitions": args.repetitions,
             "top_k": args.top_k,
             "max_scenarios": args.max_scenarios,
+            "attempt_id": args.attempt_id,
             "catalog_objects": 1000,
             "stores_raw_prompt": False,
             "stores_raw_completion": False,
@@ -92,6 +94,7 @@ def main() -> None:
     parser.add_argument("--repetitions", type=int, default=2)
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--max-scenarios", type=int)
+    parser.add_argument("--attempt-id", default="attempt_2")
     asyncio.run(_run(parser.parse_args()))
 
 

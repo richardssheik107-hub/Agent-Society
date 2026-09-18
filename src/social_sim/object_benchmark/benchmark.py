@@ -237,7 +237,11 @@ class ObjectChoiceEvaluator:
             field in effect_attributes and field not in (record.estimated_fields if record else ())
             for field in required
         ) if attribute_source == "CATALOG_AUTHORITATIVE" else 0
-        model_estimated_fields = sum(field in model_attributes for field in required)
+        model_estimated_fields = (
+            sum(field in model_attributes for field in required)
+            if arm is ArchitectureArm.LLM_ONLY or novel_created
+            else 0
+        )
         authoritative_effect_coverage = authoritative_fields / len(required)
         model_estimated_field_rate = model_estimated_fields / len(required)
 

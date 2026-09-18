@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from social_sim.decision.client import DecisionReply
+from social_sim.decision.client import DecisionClientError, DecisionReply, DecisionResponseMetadata
 from social_sim.object_benchmark import (
     ArchitectureArm,
     ObjectChoiceEvaluator,
@@ -18,7 +18,11 @@ from social_sim.object_benchmark import (
     summarize_rows,
 )
 from social_sim.object_benchmark.benchmark import validate_effect_attributes
-from social_sim.object_benchmark.real_pilot import PilotConfig, pilot_schedule, run_real_pilot
+from social_sim.object_benchmark.real_pilot import (
+    PilotConfig,
+    pilot_schedule,
+    run_real_pilot,
+)
 
 
 def test_catalog_is_large_deterministic_and_resolves_aliases() -> None:
@@ -77,6 +81,7 @@ def test_arm_semantics_separate_resolution_executability_and_precision() -> None
     )
     assert topk["resolvable"] and topk["candidate_compliant"] and topk["runtime_executable"]
     assert topk["authoritative_effect_coverage"] == 1
+    assert topk["model_estimated_field_rate"] == 0
 
     hybrid = evaluator.evaluate(
         scenario,
@@ -195,3 +200,40 @@ def test_real_runner_can_be_gated_with_fake_client_without_network() -> None:
     assert sum(row.get("provider_status") == "SUCCESS" for row in rows) == 6
     topk_rows = [row for row in rows if row["arm"] == ArchitectureArm.CATALOG_TOPK.value]
     assert all(row["executable"] for row in topk_rows)
+
+
+class _HTTPFailureFake:
+    def __init__(self) -> None:
+        self.last_metadata = DecisionResponseMetadata(
+            http_status=401,
+            http_error_code="invalid_api_key",
+            http_error_type="authentication",
+            http_error_param=None,
+            request_id="req-safe-1",
+            sanitized_error_message="invalid credential [REDACTED]",
+        )
+
+    async def complete(self, system_prompt: str, user_prompt: str) -> DecisionReply:
+        raise DecisionClientError("provider returned HTTP 401")
+
+
+def test_failed_rows_keep_only_safe_http_metadata_and_summary_counts() -> None:
+    fake = _HTTPFailureFake()
+    rows, summary = asyncio.run(
+        run_real_pilot(
+            fake,
+            build_synthetic_catalog(),
+            PilotConfig(repetitions=1, top_k=5, max_scenarios=1, attempt_id="attempt_2"),
+        )
+    )
+    assert len(rows) == 3
+    assert all(row["provider_status"] == "HTTP_ERROR" for row in rows)
+    assert all(row["http_status"] == 401 for row in rows)
+    assert all(row["http_error_code"] == "invalid_api_key" for row in rows)
+    assert all(row["http_error_type"] == "authentication" for row in rows)
+    assert all(row["request_id"] == "req-safe-1" for row in rows)
+    assert all("super-secret" not in str(row) for row in rows)
+    assert all("raw_prompt" not in row and "raw_completion" not in row for row in rows)
+    assert summary["http_error"] == 3
+    assert summary["http_status_counts"] == {"401": 3}
+    assert summary["http_error_code_counts"] == {"invalid_api_key": 3}

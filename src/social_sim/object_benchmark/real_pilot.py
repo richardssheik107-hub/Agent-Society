@@ -25,12 +25,15 @@ class PilotConfig:
     repetitions: int = 2
     top_k: int = 10
     max_scenarios: int | None = None
+    attempt_id: str = "attempt_2"
 
     def __post_init__(self) -> None:
         if self.repetitions <= 0 or self.top_k <= 0:
             raise ValueError("repetitions/top_k must be positive")
         if self.max_scenarios is not None and self.max_scenarios <= 0:
             raise ValueError("max_scenarios must be positive")
+        if not self.attempt_id or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for character in self.attempt_id):
+            raise ValueError("attempt_id must be a simple artifact-safe label")
 
 
 def pilot_schedule(config: PilotConfig) -> list[tuple[int, object, ArchitectureArm]]:
@@ -51,7 +54,7 @@ async def run_real_pilot(
     client: DecisionModelClient,
     catalog: ObjectCatalog,
     config: PilotConfig | None = None,
-) -> tuple[list[dict[str, object]], dict[str, dict[str, float | int]]]:
+) -> tuple[list[dict[str, object]], dict[str, object]]:
     cfg = config or PilotConfig()
     evaluator = ObjectChoiceEvaluator(catalog, top_k=cfg.top_k)
     rows: list[dict[str, object]] = []
@@ -72,6 +75,7 @@ async def run_real_pilot(
                 "provider_status": "TIMEOUT",
                 "latency_seconds": round(time.perf_counter() - started, 6),
             }
+            row.update(_safe_metadata_fields(client))
             rows.append(row)
             continue
         except Exception as exc:
@@ -84,6 +88,7 @@ async def run_real_pilot(
                 "provider_status": "HTTP_ERROR" if type(exc).__name__ == "DecisionClientError" else type(exc).__name__,
                 "latency_seconds": round(time.perf_counter() - started, 6),
             }
+            row.update(_safe_metadata_fields(client))
             rows.append(row)
             continue
         try:
@@ -100,6 +105,7 @@ async def run_real_pilot(
                 "raw_output_chars": len(reply.raw_text),
                 "provider_model": reply.provider_model,
             }
+            row.update(_safe_metadata_fields(client))
             rows.append(row)
             continue
         try:
@@ -127,9 +133,23 @@ async def run_real_pilot(
                 "error_type": type(exc).__name__,
                 "latency_seconds": round(time.perf_counter() - started, 6),
             }
+            row.update(_safe_metadata_fields(client))
         rows.append(row)
     successful = [row for row in rows if row.get("provider_status") == "SUCCESS"]
     return rows, summarize_pilot_rows(rows, successful)
+
+
+def _safe_metadata_fields(client: DecisionModelClient) -> dict[str, object]:
+    """Copy only redacted envelope metadata into a failed row."""
+    metadata = getattr(client, "last_metadata", None)
+    return {
+        "http_status": getattr(metadata, "http_status", None),
+        "http_error_code": getattr(metadata, "http_error_code", None),
+        "http_error_type": getattr(metadata, "http_error_type", None),
+        "http_error_param": getattr(metadata, "http_error_param", None),
+        "request_id": getattr(metadata, "request_id", None),
+        "sanitized_error_message": getattr(metadata, "sanitized_error_message", None),
+    }
 
 
 def summarize_pilot_rows(
@@ -140,6 +160,17 @@ def summarize_pilot_rows(
         row for row in rows if row.get("provider_status") == "SUCCESS"
     ]
     statuses = Counter(str(row.get("provider_status", "UNKNOWN")) for row in rows)
+    failed_rows = [row for row in rows if row.get("provider_status") != "SUCCESS"]
+    http_status_counts = Counter(
+        str(row["http_status"])
+        for row in failed_rows
+        if isinstance(row.get("http_status"), int)
+    )
+    http_error_code_counts = Counter(
+        str(row["http_error_code"])
+        for row in failed_rows
+        if isinstance(row.get("http_error_code"), str) and row.get("http_error_code")
+    )
     backend_models = Counter(
         str(row["provider_model"])
         for row in success_rows
@@ -245,12 +276,15 @@ def summarize_pilot_rows(
         "scheduled": len(rows),
         "success": len(success_rows),
         "timeout": statuses.get("TIMEOUT", 0),
+        "http_error": statuses.get("HTTP_ERROR", 0),
         "parse_error": sum(
             count for status, count in statuses.items()
             if status.startswith("INVALID_")
         ),
         "architecture_error": statuses.get("ARCHITECTURE_ERROR", 0),
         "status_counts": dict(sorted(statuses.items())),
+        "http_status_counts": dict(sorted(http_status_counts.items())),
+        "http_error_code_counts": dict(sorted(http_error_code_counts.items())),
         "backend_model_counts": dict(sorted(backend_models.items())),
         "arms": arm_metrics,
         "costs": costs,
