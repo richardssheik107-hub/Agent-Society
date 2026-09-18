@@ -107,8 +107,9 @@ coverage `-0.25`, and authoritative coverage `-1.00`. The smoke signal was
 
 Artifact: `run/evaluation/object_set_necessity/real_attempt_2_20260918T071513907540Z/`.
 
-Configuration was two repetitions over the full 90-case matrix (5 domains × 30
-states) and `top_k=10`, for 180 scheduled rows. Results:
+Configuration was two repetitions over the full 30-scenario matrix (5 domains
+× 6 fixed states) and `top_k=10`, for 180 scheduled rows (30 scenarios × 3
+arms × 2 repetitions). Results:
 
 * success: 162;
 * timeout: 18;
