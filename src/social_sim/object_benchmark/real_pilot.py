@@ -6,8 +6,12 @@ raw completions, credentials, or hidden reasoning text.
 
 from __future__ import annotations
 
+import asyncio
+from collections import Counter
 import time
 from dataclasses import dataclass
+
+import httpx
 
 from social_sim.decision.client import DecisionModelClient
 
@@ -58,7 +62,47 @@ async def run_real_pilot(
         try:
             reply = await client.complete(system, user)
             elapsed = time.perf_counter() - started
+        except (asyncio.TimeoutError, TimeoutError, httpx.TimeoutException):
+            row = {
+                "case_number": case_number,
+                "scenario_id": scenario.scenario_id,
+                "domain": scenario.domain.value,
+                "arm": arm.value,
+                "repetition": repetition,
+                "provider_status": "TIMEOUT",
+                "latency_seconds": round(time.perf_counter() - started, 6),
+            }
+            rows.append(row)
+            continue
+        except Exception as exc:
+            row = {
+                "case_number": case_number,
+                "scenario_id": scenario.scenario_id,
+                "domain": scenario.domain.value,
+                "arm": arm.value,
+                "repetition": repetition,
+                "provider_status": "HTTP_ERROR" if type(exc).__name__ == "DecisionClientError" else type(exc).__name__,
+                "latency_seconds": round(time.perf_counter() - started, 6),
+            }
+            rows.append(row)
+            continue
+        try:
             choice = parse_object_choice(reply.raw_text)
+        except ValueError as exc:
+            row = {
+                "case_number": case_number,
+                "scenario_id": scenario.scenario_id,
+                "domain": scenario.domain.value,
+                "arm": arm.value,
+                "repetition": repetition,
+                "provider_status": str(exc),
+                "latency_seconds": round(time.perf_counter() - started, 6),
+                "raw_output_chars": len(reply.raw_text),
+                "provider_model": reply.provider_model,
+            }
+            rows.append(row)
+            continue
+        try:
             row = evaluator.evaluate(scenario, arm, choice)
             row.update(
                 case_number=case_number,
@@ -72,16 +116,164 @@ async def run_real_pilot(
                 prompt_chars=len(system) + len(user),
                 raw_output_chars=len(reply.raw_text),
             )
-        except Exception as exc:  # provider/parse taxonomy is intentionally compact here
+        except Exception as exc:  # provider/architecture taxonomy is intentionally compact
             row = {
                 "case_number": case_number,
                 "scenario_id": scenario.scenario_id,
                 "domain": scenario.domain.value,
                 "arm": arm.value,
                 "repetition": repetition,
-                "provider_status": type(exc).__name__,
+                "provider_status": "ARCHITECTURE_ERROR",
+                "error_type": type(exc).__name__,
                 "latency_seconds": round(time.perf_counter() - started, 6),
             }
         rows.append(row)
     successful = [row for row in rows if row.get("provider_status") == "SUCCESS"]
-    return rows, summarize_rows(successful) if successful else {}
+    return rows, summarize_pilot_rows(rows, successful)
+
+
+def summarize_pilot_rows(
+    rows: list[dict[str, object]], successful: list[dict[str, object]] | None = None
+) -> dict[str, object]:
+    """Return safe status, backend, arm metrics, and matched-triple facts."""
+    success_rows = successful if successful is not None else [
+        row for row in rows if row.get("provider_status") == "SUCCESS"
+    ]
+    statuses = Counter(str(row.get("provider_status", "UNKNOWN")) for row in rows)
+    backend_models = Counter(
+        str(row["provider_model"])
+        for row in success_rows
+        if isinstance(row.get("provider_model"), str) and row.get("provider_model")
+    )
+    arm_metrics = summarize_rows(success_rows)
+    by_key: dict[tuple[str, int], dict[str, dict[str, object]]] = {}
+    for row in success_rows:
+        key = (str(row["scenario_id"]), int(row["repetition"]))
+        by_key.setdefault(key, {})[str(row["arm"])] = row
+    matched = [group for group in by_key.values() if set(group) == {arm.value for arm in ArchitectureArm}]
+    matched_rows = sum(len(group) for group in matched)
+
+    def matched_mean(arm: ArchitectureArm, field: str) -> float | None:
+        values = [
+            float(group[arm.value][field])
+            for group in matched
+            if isinstance(group[arm.value].get(field), (int, float))
+        ]
+        return round(sum(values) / len(values), 6) if values else None
+
+    matched_metrics = {
+        arm.value: {
+            field: matched_mean(arm, field)
+            for field in (
+                "runtime_executable",
+                "usable_effect_coverage",
+                "authoritative_effect_coverage",
+                "model_estimated_field_rate",
+                "latency_seconds",
+                "prompt_chars",
+                "input_tokens",
+            )
+        }
+        for arm in ArchitectureArm
+    }
+
+    def delta(field: str, left: ArchitectureArm, right: ArchitectureArm) -> float | None:
+        left_value = matched_metrics[left.value][field]
+        right_value = matched_metrics[right.value][field]
+        if left_value is None or right_value is None:
+            return None
+        return round(left_value - right_value, 6)
+
+    ab_deltas = {
+        field: delta(field, ArchitectureArm.LLM_ONLY, ArchitectureArm.CATALOG_TOPK)
+        for field in (
+            "runtime_executable",
+            "usable_effect_coverage",
+            "authoritative_effect_coverage",
+        )
+    }
+    if not matched:
+        necessity_signal = "UNRESOLVED"
+    elif any(
+        value is not None and value <= -0.15
+        for value in (ab_deltas["runtime_executable"], ab_deltas["usable_effect_coverage"])
+    ):
+        necessity_signal = "STRONG"
+    elif (
+        any(
+            value is not None and value <= -0.05
+            for value in (ab_deltas["runtime_executable"], ab_deltas["usable_effect_coverage"])
+        )
+        or (ab_deltas["authoritative_effect_coverage"] is not None
+            and ab_deltas["authoritative_effect_coverage"] <= -0.05)
+    ):
+        necessity_signal = "MODERATE"
+    else:
+        necessity_signal = "WEAK"
+    hybrid_success = [
+        row for row in success_rows if row.get("arm") == ArchitectureArm.HYBRID.value
+    ]
+    hybrid_signal = (
+        "SUPPORTED"
+        if matched
+        and matched_metrics[ArchitectureArm.HYBRID.value]["runtime_executable"] is not None
+        and matched_metrics[ArchitectureArm.CATALOG_TOPK.value]["runtime_executable"] is not None
+        and matched_metrics[ArchitectureArm.HYBRID.value]["runtime_executable"]
+        >= matched_metrics[ArchitectureArm.CATALOG_TOPK.value]["runtime_executable"] - 0.05
+        and any(bool(row.get("novel_created")) for row in hybrid_success)
+        else "UNRESOLVED"
+    )
+
+    def mean_for(arm_name: ArchitectureArm, field: str) -> float | None:
+        values = [
+            float(row[field])
+            for row in success_rows
+            if row.get("arm") == arm_name.value and isinstance(row.get(field), (int, float))
+        ]
+        return round(sum(values) / len(values), 6) if values else None
+
+    costs = {
+        arm.value: {
+            "mean_input_tokens": mean_for(arm, "input_tokens"),
+            "median_input_tokens": _median_for(success_rows, arm, "input_tokens"),
+            "mean_prompt_chars": mean_for(arm, "prompt_chars"),
+            "mean_latency_seconds": mean_for(arm, "latency_seconds"),
+        }
+        for arm in ArchitectureArm
+    }
+    return {
+        "scheduled": len(rows),
+        "success": len(success_rows),
+        "timeout": statuses.get("TIMEOUT", 0),
+        "parse_error": sum(
+            count for status, count in statuses.items()
+            if status.startswith("INVALID_")
+        ),
+        "architecture_error": statuses.get("ARCHITECTURE_ERROR", 0),
+        "status_counts": dict(sorted(statuses.items())),
+        "backend_model_counts": dict(sorted(backend_models.items())),
+        "arms": arm_metrics,
+        "costs": costs,
+        "matched_abc": len(matched),
+        "matched_rows": matched_rows,
+        "matched_metrics": matched_metrics,
+        "a_vs_b_deltas": ab_deltas,
+        "object_set_necessity_signal": necessity_signal,
+        "hybrid_open_world_signal": hybrid_signal,
+    }
+
+
+def _median_for(
+    rows: list[dict[str, object]], arm: ArchitectureArm, field: str
+) -> float | None:
+    values = sorted(
+        float(row[field])
+        for row in rows
+        if row.get("arm") == arm.value and isinstance(row.get(field), (int, float))
+    )
+    if not values:
+        return None
+    middle = len(values) // 2
+    if len(values) % 2:
+        return round(values[middle], 6)
+    return round((values[middle - 1] + values[middle]) / 2, 6)

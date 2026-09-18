@@ -14,7 +14,7 @@
 
 不给模型 Catalog。模型自由提出具体对象。
 
-优点是上下文最少、世界开放；风险是系统可能无法把模型给出的名称映射到唯一 canonical object，也就无法可靠计算价格、热量、时长、库存或长期进度。
+优点是上下文最少、世界开放。模型必须在同一个 JSON 响应中同时给出对象名和该 domain 的 simulator attributes；是否碰巧命中 catalog 只作为辅助指标，不再决定 A 的可执行性。
 
 ### B — Catalog + Top-K
 
@@ -29,9 +29,9 @@ Master Catalog 可以很大；Prompt Set 始终有严格上限。
 为了诚实区分“真实属性”和“估计属性”，Hybrid 的新对象会有：
 
 - usable effect coverage
-- exact effect coverage
+- authoritative effect coverage
 
-两个指标。模板默认值可以让系统继续执行，但不能冒充精确事实。
+两个指标。模型给出的属性可以让系统继续执行，但不能冒充 catalog 的 authoritative 事实。
 
 ## 当前 GitHub 实现
 
@@ -48,7 +48,8 @@ Master Catalog 可以很大；Prompt Set 始终有严格上限。
 - canonical ID / name / alias resolver
 - capability-based executability
 - exact / usable effect coverage
-- strict one-field object selection parser
+- strict `{object, attributes}` object-selection parser
+- deterministic bounded attribute plausibility validation
 - optional real-provider A/B/C runner
 
 整个 benchmark 与生产 RuleEngine 隔离，不修改 A2 reference profile。
@@ -71,7 +72,7 @@ PYTHONPATH=src python scripts/run_object_set_necessity_offline.py
 
 它用于验证：
 
-- A 中 unknown object 会失去 canonical resolution / effect coverage；
+- A 中即使 unknown object 也能用完整、合理的模型属性继续执行；catalog 偶然命中只单独记录；
 - B 中 Top-K 对象可唯一解析、可执行并具有精确属性；
 - C 中新对象可被实例化，但默认估计属性和精确属性被明确区分；
 - 大 Master Catalog 不会进入 prompt。
@@ -120,12 +121,13 @@ PYTHONPATH=src python scripts/run_object_set_necessity_real.py --repetitions 1 -
 
 第一轮重点：
 
-1. resolution_rate — 能否映射到唯一 canonical object；
-2. executable_rate — 能否直接交给确定性系统；
-3. usable_effect_coverage — 是否有足够属性继续计算后果；
-4. exact_effect_coverage — 后果属性是否来自明确对象记录而非模板估计；
-5. novel_creation_rate — Hybrid 需要创建新对象的比例；
-6. prompt/token cost — Catalog Top-K 的上下文代价。
+1. structured_object_rate — 是否得到统一结构化对象；
+2. runtime_executable_rate — 是否具备全部所需属性且通过 bounded validator；
+3. usable_effect_coverage — 所需字段中可用字段比例；
+4. authoritative_effect_coverage — 所需字段中来自 catalog authoritative record 的比例；
+5. model_estimated_field_rate — 所需字段中由模型提供的比例；
+6. candidate_compliance / novel_creation_rate — B/C 的候选遵循与 C 的新对象比例；
+7. prompt/token cost — Catalog Top-K 的上下文代价；resolution_rate 仅作辅助指标。
 
 后续连续性实验再加入：
 

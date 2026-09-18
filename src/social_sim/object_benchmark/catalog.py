@@ -89,19 +89,38 @@ class ObjectCatalog:
         candidates.sort(key=lambda item: (-score(item)[0], score(item)[1]))
         return tuple(candidates[:k])
 
-    def instantiate_novel(self, name: str, domain: ObjectDomain) -> CatalogObject:
+    def instantiate_novel(
+        self, name: str, domain: ObjectDomain, attributes: dict[str, object] | None = None
+    ) -> CatalogObject:
         clean = name.strip()
         if not clean:
             raise ValueError("novel object name must be nonempty")
-        defaults = dict(_DEFAULTS[domain])
+        normalized = dict(_DEFAULTS[domain] if attributes is None else attributes)
         return CatalogObject(
             canonical_id=f"novel:{domain.value.lower()}:{_slug(clean)}",
             name=clean,
             domain=domain,
             capabilities=frozenset({_CAPABILITY[domain]}),
-            attributes=defaults,
+            attributes=normalized,
             tags=frozenset({"llm_novel"}),
-            estimated_fields=frozenset(defaults),
+            estimated_fields=frozenset(normalized),
+        )
+
+    def instantiate_model_object(
+        self, name: str, domain: ObjectDomain, attributes: dict[str, object]
+    ) -> CatalogObject:
+        """Represent A's self-described object without consulting the catalog."""
+        clean = name.strip()
+        if not clean:
+            raise ValueError("model object name must be nonempty")
+        return CatalogObject(
+            canonical_id=f"model:{domain.value.lower()}:{_slug(clean)}",
+            name=clean,
+            domain=domain,
+            capabilities=frozenset({_CAPABILITY[domain]}),
+            attributes=dict(attributes),
+            tags=frozenset({"llm_described"}),
+            estimated_fields=frozenset(attributes),
         )
 
 

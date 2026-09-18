@@ -8,8 +8,8 @@ import json
 from social_sim.decision.client import DecisionReply
 from social_sim.object_benchmark import (
     ArchitectureArm,
-    ObjectCatalog,
     ObjectChoiceEvaluator,
+    ObjectDomain,
     build_choice_prompt,
     build_offline_probe_rows,
     build_scenarios,
@@ -17,6 +17,7 @@ from social_sim.object_benchmark import (
     parse_object_choice,
     summarize_rows,
 )
+from social_sim.object_benchmark.benchmark import validate_effect_attributes
 from social_sim.object_benchmark.real_pilot import PilotConfig, pilot_schedule, run_real_pilot
 
 
@@ -55,18 +56,73 @@ def test_arm_semantics_separate_resolution_executability_and_precision() -> None
     evaluator = ObjectChoiceEvaluator(catalog)
     candidate = catalog.retrieve(scenario, k=10)[0]
 
-    free_unknown = evaluator.evaluate(scenario, ArchitectureArm.LLM_ONLY, "totally unknown food")
-    assert not free_unknown["resolvable"] and not free_unknown["executable"]
-    assert free_unknown["usable_effect_coverage"] == 0
+    free_unknown = evaluator.evaluate(
+        scenario,
+        ArchitectureArm.LLM_ONLY,
+        {
+            "object": "croissant",
+            "attributes": {"price": 4.5, "calories": 300, "satiety": 0.35},
+        },
+    )
+    assert not free_unknown["resolvable"]
+    assert free_unknown["runtime_executable"]
+    assert free_unknown["authoritative_effect_coverage"] == 0
+    assert free_unknown["model_estimated_field_rate"] == 1
+    assert free_unknown["usable_effect_coverage"] == 1
 
-    topk = evaluator.evaluate(scenario, ArchitectureArm.CATALOG_TOPK, candidate.canonical_id)
-    assert topk["resolvable"] and topk["candidate_compliant"] and topk["executable"]
-    assert topk["exact_effect_coverage"] == 1
+    topk = evaluator.evaluate(
+        scenario,
+        ArchitectureArm.CATALOG_TOPK,
+        {"object": candidate.canonical_id, "attributes": {}},
+    )
+    assert topk["resolvable"] and topk["candidate_compliant"] and topk["runtime_executable"]
+    assert topk["authoritative_effect_coverage"] == 1
 
-    hybrid = evaluator.evaluate(scenario, ArchitectureArm.HYBRID, "NEW:handmade moon bread")
-    assert hybrid["resolvable"] and hybrid["executable"] and hybrid["novel_created"]
+    hybrid = evaluator.evaluate(
+        scenario,
+        ArchitectureArm.HYBRID,
+        {
+            "object": "NEW:handmade moon bread",
+            "attributes": {"price": 4.5, "calories": 300, "satiety": 0.35},
+        },
+    )
+    assert hybrid["resolvable"] and hybrid["runtime_executable"] and hybrid["novel_created"]
     assert hybrid["usable_effect_coverage"] == 1
-    assert hybrid["exact_effect_coverage"] == 0
+    assert hybrid["authoritative_effect_coverage"] == 0
+    assert hybrid["model_estimated_field_rate"] == 1
+
+
+def test_llm_only_missing_or_implausible_attributes_are_not_executable() -> None:
+    catalog = build_synthetic_catalog()
+    scenario = build_scenarios()[0]
+    evaluator = ObjectChoiceEvaluator(catalog)
+    missing = evaluator.evaluate(
+        scenario,
+        ArchitectureArm.LLM_ONLY,
+        {"object": "croissant", "attributes": {"price": 4.5, "calories": 300}},
+    )
+    assert not missing["runtime_executable"]
+    assert missing["missing_attribute_fields"] == ["satiety"]
+    invalid = evaluator.evaluate(
+        scenario,
+        ArchitectureArm.LLM_ONLY,
+        {"object": "croissant", "attributes": {"price": 4.5, "calories": 300, "satiety": 4}},
+    )
+    assert not invalid["runtime_executable"]
+    assert invalid["invalid_attribute_fields"] == ["satiety"]
+
+
+def test_attribute_validator_is_bounded_and_domain_specific() -> None:
+    valid, missing, invalid = validate_effect_attributes(
+        ObjectDomain.ASSET,
+        {"value": 10, "liquidity": 0.5, "currency": "USD"},
+    )
+    assert valid and not missing and not invalid
+    valid, _, invalid = validate_effect_attributes(
+        ObjectDomain.ASSET,
+        {"value": 10, "liquidity": 0.5, "currency": "usd"},
+    )
+    assert not valid and invalid == ("currency",)
 
 
 def test_prompt_never_exposes_master_catalog() -> None:
@@ -83,8 +139,16 @@ def test_prompt_never_exposes_master_catalog() -> None:
 
 
 def test_strict_choice_parser() -> None:
-    assert parse_object_choice('{"object":"game:strategy:0001"}') == "game:strategy:0001"
-    for value in ('{"object":"x","extra":1}', '{"object":3}', "not-json"):
+    assert parse_object_choice(
+        '{"object":"game:strategy:0001","attributes":{}}'
+    ) == {"object": "game:strategy:0001", "attributes": {}}
+    for value in (
+        '{"object":"x"}',
+        '{"object":"x","attributes":{},"extra":1}',
+        '{"object":3,"attributes":{}}',
+        '{"object":"x","attributes":{"price":[]}}',
+        "not-json",
+    ):
         try:
             parse_object_choice(value)
         except ValueError:
@@ -108,8 +172,19 @@ class _CandidateFake:
     async def complete(self, system_prompt: str, user_prompt: str) -> DecisionReply:
         for line in user_prompt.splitlines():
             if "|" in line and ":" in line:
-                return DecisionReply(json.dumps({"object": line.split("|", 1)[0]}), provider_request_count=0)
-        return DecisionReply('{"object":"unregistered free object"}', provider_request_count=0)
+                return DecisionReply(
+                    json.dumps({"object": line.split("|", 1)[0], "attributes": {}}),
+                    provider_request_count=0,
+                )
+        return DecisionReply(
+            json.dumps(
+                {
+                    "object": "unregistered free object",
+                    "attributes": {"price": 4, "calories": 300, "satiety": 0.4},
+                }
+            ),
+            provider_request_count=0,
+        )
 
 
 def test_real_runner_can_be_gated_with_fake_client_without_network() -> None:

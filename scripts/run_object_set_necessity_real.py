@@ -23,6 +23,22 @@ from social_sim.object_benchmark.catalog import build_synthetic_catalog
 from social_sim.object_benchmark.real_pilot import PilotConfig, run_real_pilot
 
 
+def smoke_gate(summary: dict[str, object], rows: list[dict[str, object]]) -> str:
+    """Return PASS only for the preregistered 15-request smoke conditions."""
+    if summary.get("scheduled") != 15 or int(summary.get("success", 0)) < 14:
+        return "FAIL"
+    if int(summary.get("architecture_error", 0)) != 0:
+        return "FAIL"
+    successful = [row for row in rows if row.get("provider_status") == "SUCCESS"]
+    b_rows = [row for row in successful if row.get("arm") == "B_CATALOG_TOPK"]
+    c_rows = [row for row in successful if row.get("arm") == "C_HYBRID"]
+    if not all(row.get("candidate_compliant") is True and row.get("runtime_executable") for row in b_rows):
+        return "FAIL"
+    if not all(row.get("novel_created") or row.get("candidate_compliant") for row in c_rows):
+        return "FAIL"
+    return "PASS"
+
+
 async def _run(args: argparse.Namespace) -> None:
     for name in ("OBJECT_BENCH_BASE_URL", "OBJECT_BENCH_API_KEY", "OBJECT_BENCH_MODEL"):
         if not os.getenv(name):
@@ -66,6 +82,8 @@ async def _run(args: argparse.Namespace) -> None:
     (output / "result.json").write_text(json.dumps(safe, ensure_ascii=False, indent=2), encoding="utf-8")
     print("OBJECT_SET_NECESSITY_REAL_COMPLETE")
     print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
+    if args.repetitions == 1 and args.max_scenarios == 5:
+        print(f"SMOKE_GATE={smoke_gate(summary, rows)}")
     print(f"ARTIFACT_DIR={output}")
 
 
