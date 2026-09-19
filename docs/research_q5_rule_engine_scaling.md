@@ -210,7 +210,54 @@ PYTHONPATH=src python scripts/run_rule_engine_scaling.py
 
 ## Result
 
-尚未由本地执行者运行正式 benchmark。GitHub Actions 只负责基础 correctness gate 和一个较小 query-count 的 10M smoke。
+### 本机环境
+
+- Windows host + Ubuntu WSL2 (`Linux 6.18.33.2-microsoft-standard-WSL2`, x86_64)
+- 24 vCPU，7.6 GiB visible memory
+- uv-managed CPython 3.12.14 environment from the pinned AgentSociety workspace
+- Integration branch: `research/rule-engine-scaling`
+- Starting commit: `afd9f9dc8ce80e3d793714d46e5d888a012dadb5`
+- No LLM, provider, or network request was made by the benchmark
+
+### Test and lint results
+
+- Focused Q5 tests: **11 passed**
+- Full regression: **508 passed, 3 existing warnings**
+- Ruff: **PASS** (`ruff check` on the Q5 rule-scaling package, runner, and focused tests)
+- Formal benchmark: **PASS**
+- Artifact (ignored by Git): `run/evaluation/rule_engine_scaling/q5_20260919T130054787068Z/summary.json`
+- Process peak RSS: 39,188 KiB
+
+The full regression was run from the pinned upstream uv workspace with the integration `src/`, repository root, and `smoke/` directories on `PYTHONPATH`; the additional `smoke/` entry resolves an existing top-level smoke-module import used by the historical tests. No source or test file was changed.
+
+### Formal benchmark results
+
+Configuration was unchanged: object counts `10K/100K/1M/10M`, `queries_per_size=1000`, `top_k=50`, `seed=2026`, and `explicit_materialize_max_objects=100000`.
+
+| objects | explicit relations | packed lower-bound bytes | target metadata bytes | target build s | p50 us | p95 us | candidate touches/query | object scans | target per-object edges | type→rule entries | capability→type entries | max object id | upper half |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|
+| 10,000 | 75,000 | 600,000 | 17,946 | 0.000020 | 28.679 | 34.669 | 50 | 0 | 0 | 21 | 28 | 9,999 | true |
+| 100,000 | 750,000 | 6,000,000 | 17,930 | 0.000025 | 28.315 | 34.268 | 50 | 0 | 0 | 21 | 28 | 99,998 | true |
+| 1,000,000 | 7,500,000 | 60,000,000 | 17,914 | 0.000026 | 28.946 | 36.406 | 50 | 0 | 0 | 21 | 28 | 999,936 | true |
+| 10,000,000 | 75,000,000 | 600,000,000 | 17,898 | 0.000021 | 28.625 | 34.809 | 50 | 0 | 0 | 21 | 28 | 9,999,914 | true |
+
+The four rows each executed 1,000 deterministic queries. The largest run therefore performed 50,000 candidate touches, never scanned the object space, and reached the upper half of the 10M virtual-id address space. `rule_matches_total` was 108,532 in each row, and the schema counts stayed at 10 types, 11 capabilities, 16 resources, and 11 rule templates.
+
+### Explicit graph estimate and target architecture
+
+The 10K and 100K explicit baselines were materialized. At 1M and 10M, the runner intentionally computed only the exact relation estimate and packed lower-bound bytes. The 10M explicit estimate is 75,000,000 relations and 600,000,000 packed bytes; this is an optimistic uint64 lower bound, not a claim about the memory required by a real Python object/tuple graph. The target path kept constant metadata (`target_metadata_bytes` about 17.9 KiB), zero per-object rule edges, and constant Type→Rule (`21`) and Capability→Type (`28`) index entries while matching only the Top-K candidates.
+
+Structural gate: **PASS**. Therefore:
+
+`RULE_ENGINE_SCALING_RESULT=CLOSED_ENGINEERING`
+
+For the current synthetic Type / Capability / Rule Template schema, the RuleGraph does not need to expand linearly with Object Count. Ten million virtual objects can share constant-scale rule templates and type indexes, with runtime matching restricted to Top-K candidates.
+
+### Limitations and engineering decision
+
+This result is limited to the synthetic schema and virtual integer object-id catalog. It does not validate a production 10M payload database, real search or vector-retrieval latency, distributed storage, multi-machine concurrency, a final ontology, all real actions/resources, or agent behavior quality. It also does not test Resource retrieval, Action Top-K, Activity Commitment, or a local model.
+
+Decision: keep the Type + Capability + Rule Template architecture and stop this phase. Do not interpret the packed baseline as real Python graph memory, and do not expand the conclusion to production database or distributed-search readiness.
 
 
 ## GitHub Actions preflight result
