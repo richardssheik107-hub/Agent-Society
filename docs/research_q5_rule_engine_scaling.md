@@ -211,3 +211,27 @@ PYTHONPATH=src python scripts/run_rule_engine_scaling.py
 ## Result
 
 尚未由本地执行者运行正式 benchmark。GitHub Actions 只负责基础 correctness gate 和一个较小 query-count 的 10M smoke。
+
+
+## GitHub Actions preflight result
+
+The branch-level GitHub Actions gate completed successfully on commit 37cd03c38bf037de707d4deb4508b547fd9696ea.
+
+Focused tests:
+
+11 passed.
+
+Scaling smoke:
+
+- 10K objects: 75,000 explicit relations; packed lower bound 600,000 bytes; p95 query 90.418 microseconds; scan 0; target per-object edges 0.
+- 100K objects: 750,000 explicit relations; packed lower bound 6,000,000 bytes; p95 query 89.355 microseconds; scan 0; target per-object edges 0.
+- 1M objects: 7,500,000 explicit relations; packed lower bound 60,000,000 bytes; p95 query 87.102 microseconds; scan 0; target per-object edges 0.
+- 10M objects: 75,000,000 explicit relations; packed lower bound 600,000,000 bytes; p95 query 88.074 microseconds; scan 0; target per-object edges 0.
+
+Preflight scaling result:
+
+CLOSED_ENGINEERING
+
+Interpretation boundary:
+
+This CI result verifies the structural rule-graph design and a 10M virtual object-id address space. It does not replace the executor's required local full regression, Ruff run, or default 1000-query benchmark, and it does not claim that a real 10M payload database has been solved.
