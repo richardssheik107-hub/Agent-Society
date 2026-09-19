@@ -1,0 +1,28 @@
+name: Rule Engine Scaling Gate
+
+on:
+  push:
+    branches:
+      - "research/rule-engine-scaling"
+  workflow_dispatch:
+
+jobs:
+  q5-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install focused dependencies
+        run: python -m pip install --upgrade pip pytest
+      - name: Run Q5 focused tests
+        env:
+          PYTHONPATH: src
+        run: pytest -q tests/test_rule_engine_scaling.py
+      - name: Run Q5 scaling benchmark
+        env:
+          PYTHONPATH: src
+        run: python scripts/run_rule_engine_scaling.py --queries 200 --top-k 50 --explicit-max 100000
+      - name: Compile runner
+        run: python -m py_compile scripts/run_rule_engine_scaling.py
