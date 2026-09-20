@@ -4,13 +4,16 @@
 
 Python 3.11+。从集成分支执行，先看 `git status --short`，不要 reset/clean 未提交工作。
 
+纯 Q6 代码使用 Python 标准库；只跑新增核心测试可以先安装 pytest。包括历史 Router 的全量回归需要固定上游和完整测试依赖：
+
 ```bash
-python -m pip install -r requirements-test.txt
+git submodule update --init --recursive third_party/AgentSociety
+python -m pip install -c requirements-as2-constraints.txt -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
 python -m pytest -q
 python -m ruff check src/social_sim/continuity tests/test_continuity*.py scripts/run_continuity*.py scripts/audit_repository.py
 ```
 
-Q6 默认只用 Python 标准库；旧实验测试还需要 requirements-test.txt 中的依赖。AS2 适配器是独立可选依赖，见下面专项命令。
+上游 `670c94` 使用 MCP v1 的 FastMCP 接口；无约束安装到 MCP v2 会导入失败。`requirements-as2-constraints.txt` 限定 `mcp<2`，不修改上游。依赖安装可以联网下载软件，测试与离线模拟不得向模型 provider 发请求。
 
 ## 2. 七天与三十天离线验收
 
@@ -24,7 +27,7 @@ python scripts/run_continuity.py
 
 应出现 `CONTINUITY_CONTRACT_PASS`。判断依据包括事件账本与余额/库存/热量一致，媒体进度合法，恢复前后最终状态哈希和事件数相同。
 
-本轮本地验证：47 项新增核心测试通过；7 天恢复 561 次、重复命令 560 次；30 天恢复 2401 次、重复命令 2400 次；两档均与不停机运行一致。观察上下文最大分别 1011、1017 字符。所有值只是这组脚本的结果，最终 CI 可能增加适配器专项测试数量。
+本轮本地验证：47 项新增核心测试通过；7 天恢复 561 次、重复命令 560 次；30 天恢复 2401 次、重复命令 2400 次；两档均与不停机运行一致。观察上下文最大分别 1011、1017 字符。所有值只是这组脚本的结果，完整远端回归以 CI 结果为准。
 
 曾有一次本地 40 秒执行窗口在 30 天恢复测试中截断。随后优化了全账本校验频率：每个模拟日及终态校验，不再每一小步重读全部历史；未修改世界语义。重新运行于独立目录并完成，不把中断结果标记为成功。
 
@@ -33,12 +36,10 @@ python scripts/run_continuity.py
 ## 3. AS2 薄适配专项
 
 ```bash
-git submodule update --init --recursive third_party/AgentSociety
-python -m pip install -e third_party/AgentSociety/packages/agentsociety2
 python scripts/check_continuity_as2.py
 ```
 
-专项直接实例化真实上游 EnvBase/Router 路径并验证 workspace 恢复，不调用 PersonAgent 或外部模型。导入上游可能需要符合其配置检查的环境变量；CI 使用本地无服务地址和占位 key，绝不能向该地址发送真实决策请求。
+使用上面安装的真实固定上游，专项直接实例化 EnvBase/Router 路径并验证 workspace 恢复，不调用 PersonAgent 或外部模型。CI 使用本地无服务地址和占位 key，并禁止 socket 连接。
 
 ## 4. 小预算真实模型入口（本轮未执行）
 

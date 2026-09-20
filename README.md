@@ -30,11 +30,11 @@ python scripts/run_continuity.py
 
 ```bash
 git submodule update --init --recursive third_party/AgentSociety
-python -m pip install -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
+python -m pip install -c requirements-as2-constraints.txt -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
 python -m pytest -q
 ```
 
-默认没有模型调用。真实 provider 必须显式授权，见 [运行手册](docs/current/runbook.md)。
+默认没有模型调用。真实 provider 必须显式授权，见 [运行手册](docs/current/runbook.md)。兼容约束只用于当前固定上游版本，不修改上游源码。
 
 ## 不混淆证据
 
