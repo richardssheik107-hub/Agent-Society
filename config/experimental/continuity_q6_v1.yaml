@@ -1,0 +1,27 @@
+# Q6 小世界参数说明。执行真值来自 models.RuleParameters / ObjectDefinition。
+# 此文件用于审阅与出处记录，不声称是自动加载的配置入口。
+experiment: Q6_CONTINUITY_CONTRACT
+status: EXPERIMENTAL
+source: SYNTHETIC_FIXTURE
+state_store: sqlite_transactional
+clock_unit: simulation_minute
+money_unit: integer_cent
+need_unit: integer_milli_0_to_1000
+rule_parameters:
+  version: q6_v1
+  travel_minutes: 15
+  hunger_per_minute: 1
+  awake_energy_cost_per_minute: 1
+  sleep_energy_gain_per_minute: 2
+  work_pay_cents_per_minute: 10
+modes:
+  default: SCRIPTED_NO_NETWORK
+  opt_in_real: BOUNDED_PROVIDER_PILOT
+validation_days: [7, 30]
+real_request_default: 4
+real_request_hard_limit: 12
+claims:
+  deterministic_state_consistency: TESTED
+  full_day_model_autonomy: NOT_TESTED
+  human_behavior_distribution: NOT_TESTED
+  local_8b: NOT_TESTED

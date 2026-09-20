@@ -1,0 +1,73 @@
+name: 长期状态与仓库回归
+on:
+  push:
+    branches: [main, 'integration/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -q pytest ruff httpx
+      - name: 长期状态与仓库专项
+        run: python -m pytest -q tests/test_continuity*.py tests/test_repository_quality.py --junitxml=run/evaluation/ci/core.xml
+      - name: 基础静态检查（E4/E7/E9/F/B）
+        run: python -m ruff check src/social_sim/continuity tests/test_continuity*.py tests/test_repository_quality.py tests/conftest.py scripts/run_continuity*.py scripts/check_continuity_as2.py scripts/audit_repository.py
+      - name: 文档与原文归档检查
+        run: |
+          python scripts/audit_repository.py --check > audit-result.json
+          python -c "import json; r=json.load(open('audit-result.json')); print('AUDIT_STATUS='+r['status']); print('ARCHIVED_COUNT='+str(r['archived_count'])); print('TRACKED_FILES='+str(r['tracked_files']))"
+      - name: 七天与三十天工程验证
+        run: python scripts/run_continuity.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: continuity-core-evidence
+          path: |
+            audit-result.json
+            run/evaluation/ci/core.xml
+            run/evaluation/continuity/**/summary.json
+            run/evaluation/continuity/**/报告.md
+          if-no-files-found: ignore
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements-test.txt
+            requirements-as2-constraints.txt
+            third_party/AgentSociety/packages/agentsociety2/pyproject.toml
+      - run: python -m pip install -q -c requirements-as2-constraints.txt -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
+      - name: 全库回归（缺失历史语料单独报告）
+        run: python -m pytest -q -rs --junitxml=run/evaluation/ci/regression.xml
+      - name: 实际固定上游适配器与断点恢复（零模型）
+        run: python scripts/check_continuity_as2.py
+      - name: 依赖版本和上游版本留痕
+        run: |
+          python -m pip freeze > run/evaluation/ci/dependencies.txt
+          git rev-parse HEAD:third_party/AgentSociety > run/evaluation/ci/upstream.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: continuity-regression-evidence
+          path: run/evaluation/ci/
+          if-no-files-found: ignore

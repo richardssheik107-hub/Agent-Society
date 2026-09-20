@@ -1,0 +1,28 @@
+experiment: q5_rule_engine_scaling
+version: q5_v1
+base_branch: research/resource-set-size
+base_commit: 9aa5d96b4339aac6affbb783a913c2f4a366c3ac
+object_counts:
+  - 10000
+  - 100000
+  - 1000000
+  - 10000000
+top_k: 50
+queries_per_size: 1000
+explicit_materialize_max_objects: 100000
+seed: 2026
+schema:
+  object_types: 10
+  resources: 16
+  rule_templates: 11
+target_design:
+  - type_index
+  - capability_index
+  - action_rule_templates
+  - runtime_rule_matching
+  - top_k_before_rule_matching
+forbidden_design:
+  - per_object_rule_edges
+  - full_object_scan_per_query
+  - materialize_explicit_graph_above_safety_cap
+claim_scope: rule graph and index scaling only
