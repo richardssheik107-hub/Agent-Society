@@ -1,0 +1,51 @@
+name: Repository inventory
+on:
+  push:
+    branches: [integration/continuity-cleanup]
+    paths: [.github/workflows/repository-audit.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read-only inventory
+        run: |
+          python - <<'PY'
+          import ast, collections, hashlib, json, pathlib, subprocess
+          root=pathlib.Path('.')
+          files=subprocess.check_output(['git','ls-files'],text=True).splitlines()
+          imports=collections.Counter(); docs=[]; scripts=[]; refs=[]
+          for name in files:
+              p=root/name
+              if not p.is_file(): continue
+              if name.endswith('.py'):
+                  text=p.read_text(); tree=ast.parse(text)
+                  for node in ast.walk(tree):
+                      if isinstance(node,ast.Import):
+                          imports.update(x.name.split('.')[0] for x in node.names)
+                      elif isinstance(node,ast.ImportFrom) and node.module and not node.level:
+                          imports.update([node.module.split('.')[0]])
+                  if name.startswith(('scripts/','smoke/')): scripts.append(name)
+                  if name.startswith('tests/'):
+                      for line in text.splitlines():
+                          if any(s in line for s in ('docs/','smoke/','scripts/','sys.path','sys.modules','\.venv','\.env','agentsociety2')):
+                              refs.append([name,line.strip()[:240]])
+              if name.startswith('docs/'):
+                  text=p.read_text(); docs.append({'path':name,'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'headings':[x for x in text.splitlines() if x.startswith('#')][:12]})
+          print('FILE_COUNT',len(files))
+          print('IMPORTS',json.dumps(imports.most_common()))
+          print('SCRIPTS',json.dumps(scripts))
+          print('DOCS',json.dumps(docs,ensure_ascii=False))
+          print('TEST_REFERENCES',json.dumps(refs,ensure_ascii=False))
+          print('ROOT_FILES',json.dumps([x for x in files if '/' not in x]))
+          print('MODULES',json.dumps(sorted({x.split('/')[2] for x in files if x.startswith('src/social_sim/')})))
+          print('SUBMODULE',subprocess.check_output(['git','ls-tree','HEAD','third_party/AgentSociety'],text=True).strip())
+          PY
