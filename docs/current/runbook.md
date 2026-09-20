@@ -1,60 +1,86 @@
 # 运行与验收
 
-## 1. 环境
+## 1. 从这里开始
 
-Python 3.11+。从集成分支执行，先看 `git status --short`，不要 reset/clean 未提交工作。
-
-纯 Q6 代码使用 Python 标准库；只跑新增核心测试可以先安装 pytest。包括历史 Router 的全量回归需要固定上游和完整测试依赖：
-
-```bash
-git submodule update --init --recursive third_party/AgentSociety
-python -m pip install -c requirements-as2-constraints.txt -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
-python -m pytest -q
-python -m ruff check src/social_sim/continuity tests/test_continuity*.py scripts/run_continuity*.py scripts/audit_repository.py
-```
-
-上游 `670c94` 使用 MCP v1 的 FastMCP 接口；无约束安装到 MCP v2 会导入失败。`requirements-as2-constraints.txt` 限定 `mcp<2`，不修改上游。依赖安装可以联网下载软件，测试与离线模拟不得向模型 provider 发请求。
-
-## 2. 七天与三十天离线验收
+使用 Python 3.11+，切到 `integration/continuity-cleanup`。先检查 `git status --short`，不要 reset/clean 未提交工作。纯 Q6 脚本只需要标准库：
 
 ```bash
 python scripts/run_continuity.py
 ```
 
-默认分别执行 7、30 天，每档各跑一次不停机基线和一次反复关闭/恢复并重复提交命令的版本。新建唯一输出目录，不覆盖旧试验。
+包括历史 Router 的全库回归需要固定上游及测试依赖：
 
-产物在 `run/evaluation/continuity/q6_<时间>/`：`summary.json`、中文 `报告.md`、增量 `progress.jsonl`、不停机与恢复版本的 SQLite 世界。
+```bash
+git submodule update --init --recursive third_party/AgentSociety
+python -m pip install -c requirements-as2-constraints.txt -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
+python -m pytest -q -rs
+```
 
-应出现 `CONTINUITY_CONTRACT_PASS`。判断依据包括事件账本与余额/库存/热量一致，媒体进度合法，恢复前后最终状态哈希和事件数相同。
+上游 `670c94` 使用 MCP v1 FastMCP 接口。兼容文件限定 `mcp<2`，不修改上游源码。安装依赖会联网下载软件；离线测试和模拟不向模型 provider 发请求。
 
-本轮本地验证：47 项新增核心测试通过；7 天恢复 561 次、重复命令 560 次；30 天恢复 2401 次、重复命令 2400 次；两档均与不停机运行一致。观察上下文最大分别 1011、1017 字符。所有值只是这组脚本的结果，完整远端回归以 CI 结果为准。
+## 2. 全库回归不等于完整历史实证复现
 
-曾有一次本地 40 秒执行窗口在 30 天恢复测试中截断。随后优化了全账本校验频率：每个模拟日及终态校验，不再每一小步重读全部历史；未修改世界语义。重新运行于独立目录并完成，不把中断结果标记为成功。
+有 8 项原有测试直接读取未入库的真人日记产物。新 checkout 缺少以下文件时，逐测试明确 SKIP，不生成假语料、不删除旧测试、不把跳过算作通过：
 
-**这些结果不是 7/30 天真实模型自主行为结果。**
+```text
+run/calibration/neutral_day_v1/calibration_manifest.json
+run/calibration/neutral_day_v1/behavior_days_core7_candidate.jsonl
+```
 
-## 3. AS2 薄适配专项
+它们只涉及 `test_a2_final.py`、`test_behavior_prior_context.py`、`test_behavior_prior_index.py` 中登记的 8 项，其他测试仍执行。真实文件存在时，原 loader 继续检查 hash、7341 份成人日记和 3215 份在职工作日日记；文件错误仍然失败，不会跳过。
+
+已准备原真实产物的本机使用：
+
+```bash
+python -m pytest -q --require-historical-data
+```
+
+该开关在缺文件时直接失败，禁止静默跳过。不能把普通 CI 的绿色结果写成“已复现全部历史语料结果”。
+
+## 3. 长期状态与持久化
+
+```bash
+python -m pytest -q tests/test_continuity*.py tests/test_repository_quality.py
+python scripts/run_continuity.py
+```
+
+默认分别执行 7、30 天，每档各跑不停机基线和反复关闭/恢复、重复提交命令的版本。新建唯一目录，不覆盖旧试验。
+
+产物在 `run/evaluation/continuity/q6_<时间>/`：`summary.json`、中文 `报告.md`、`progress.jsonl`，以及两个版本的 SQLite 世界。程序输出 `CONTINUITY_RESULT`，含实际天数、重启数、重复命令数、状态哈希、上下文长度与最终等价性，最后才输出 `CONTINUITY_CONTRACT_PASS`。
+
+验收范围是余额、库存、热量、媒体进度与活动生命周期的一致性。脚本安排这些活动，**不是模型自主生活实验**。CI 在 Actions artifact 中保留 JSON、中文报告和测试记录；具体数字以对应提交实测为准。
+
+## 4. AS2 真实代码适配专项
 
 ```bash
 python scripts/check_continuity_as2.py
 ```
 
-使用上面安装的真实固定上游，专项直接实例化 EnvBase/Router 路径并验证 workspace 恢复，不调用 PersonAgent 或外部模型。CI 使用本地无服务地址和占位 key，并禁止 socket 连接。
+直接实例化固定上游的 EnvBase/Router 路径并验证 workspace 恢复，不调用 PersonAgent、CodeGenRouter 或模型。使用无服务本地地址和占位配置，并禁止 socket 连接。此专项不是完整 Ray 社会、多机并发或 distributed replay 验收。
 
-## 4. 小预算真实模型入口（本轮未执行）
+## 5. 代码和清理审计
 
-仅在操作者明确批准真实调用后，从安全环境映射 `CONTINUITY_BASE_URL`、`CONTINUITY_MODEL`、`CONTINUITY_API_KEY`，不把 key 写进命令或文档。
+```bash
+python -m ruff check src/social_sim/continuity tests/test_continuity*.py tests/test_repository_quality.py tests/conftest.py scripts/run_continuity*.py scripts/check_continuity_as2.py scripts/audit_repository.py
+python scripts/audit_repository.py --check
+```
+
+基础静态检查集合在 `pyproject.toml` 明示为 E4/E7/E9/F/B，避免 Ruff 升级改变默认规则口径。这不是所有 Ruff 规则或完整安全审计。原始 CI 曾因新版默认风格/接口检查报错，失败记录保留。归档检查逐文件比对冻结提交，校验历史代码、其他成员 delivery 文件和上游版本未被意外覆盖。
+
+## 6. 小预算真实模型入口（本轮未执行）
+
+从安全环境映射 `CONTINUITY_BASE_URL`、`CONTINUITY_MODEL`、`CONTINUITY_API_KEY`，不把 key 写进命令或文档。只有明确批准真实调用后执行：
 
 ```bash
 python scripts/run_continuity_real.py --allow-provider --max-decisions 4
 ```
 
-每次高层决策最多一个客户端调用；活动微步骤不调用模型。整个 await 有硬墙钟超时。请求开始前写持久 attempt，失败/中断不自动重试；默认不续跑旧实验。CLI 最多允许 12 次请求，缺 key 或没有 opt-in 时为零请求。
+每次高层决策最多一个客户端调用；活动微步骤不调用模型。CLI 最多 12 次；预算在 SQLite 事务里核对，多个 runner 不能使用各自旧计数超发。调用开始先记持久 attempt，超时、取消、无效输出不自动重试。HTTP 超时与输出契约错误分别分类，未知 token 保持 null。
 
-结果含已解析意图、token 数、模型标识、安全 HTTP 状态和终止原因，不保存原始 prompt/completion、隐藏推理或 key。真实接口尚未在本轮验证，不把 fake client 测试标成真实模型成功。
+产物只保存经过解析的意图、安全元数据和执行结果，不保存原始 prompt/completion、隐藏推理或密钥。活动后续步骤失败也会停止并记录 `COMMITMENT_FAILED`，不只检查模型是否返回了 JSON。
 
-## 5. 故障解释
+## 7. 失败含义
 
-`ALREADY_COMPLETED` 不是禁止正常重看：宿主可以明确提交 rewatch。`COMMITMENT_FAILED` 表示已接纳活动但某阶段不可执行，必须读 failure_reason。`STALE_STATE` 表示提案基于过期事实。`PROVIDER_TIMEOUT` 与行为性 idle 分开，不能让脚本替模型补动作。
+`ALREADY_COMPLETED` 表示不能将已看集数伪装成新完成，明确 rewatch 仍可重看；`STALE_STATE` 表示提案依据过期状态；`REQUEST_ID_REUSE` 表示同一 ID 被换参数；`PROVIDER_TIMEOUT` 不能算行为性 idle。
 
-模型失败不回滚此前合法完成的世界事实；未提交事务失败不能留下半扣款或半更新进度。SQLite 单写者与真实多机并发是不同层级，本轮没有分布式一致性结论。
+未提交事务失败不会留下半扣款。宏活动已经完成的步骤是事实，例如到餐厅后没钱买饭，会保留移动但不声称吃完。SQLite 单机事务不是对真实外部交易或多机一致性的保证。

@@ -5,3 +5,8 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.ruff.lint]
+# 固定检查范围，避免 Ruff 升级后默认规则集改变验收口径。
+# E/F 为基础正确性检查，B 增加常见错误模式；不声称完成全部风格/性能审计。
+select = ["E4", "E7", "E9", "F", "B"]
