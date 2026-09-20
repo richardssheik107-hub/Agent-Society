@@ -191,3 +191,82 @@ LONG_HORIZON_HUMAN_BEHAVIOR = SOLVED
 ~~~
 
 若失败，按 PROVIDER、MODEL_OUTPUT、RULE、COMMITMENT、STATE_FEEDBACK 或 ARCHITECTURE 归因。Q6.1 完成后再决定：修复状态反馈、进入 Relevant Resource Projection，或在短链稳定时由人工批准扩展到 12 次；本阶段不提前实现 P2。
+
+## 14. 本次真实 pilot 实际结果（2026-09-20）
+
+本次按一次性授权启动了真实入口，使用既有火山引擎兼容配置（模型别名：`ark-code-latest`）。启动前确认：
+
+~~~text
+BRANCH = research/q6-real-continuity-pilot
+EXECUTION_COMMIT = 1fe4ba06893d862342bca63fd3868d3ac4e9a8b4
+WORKTREE = CLEAN
+~~~
+
+入口在构造 provider client 前即触发 `ARCHITECTURE_ERROR`：
+
+~~~text
+ImportError: cannot import name `OpenAICompatibleDecisionClient`
+from `social_sim.continuity.decision`
+~~~
+
+实际实现位于 `social_sim.decision.client`。因此没有创建客户端、没有发出网络请求，也没有生成包含决策行的真实 artifact；本次按停止条件结束，不进行修复、重试或补跑。
+
+~~~text
+PILOT_INVOCATION = YES
+REAL_PROVIDER_EXECUTED = NO
+APPLICATION_CALLS = 0
+PROVIDER_REQUESTS = 0
+STOP_REASON = ARCHITECTURE_ERROR
+FAILURE_ATTRIBUTION = ARCHITECTURE
+~~~
+
+### Decision 1–4
+
+~~~text
+Decision 1 = NOT RUN due to ARCHITECTURE_ERROR before provider client construction
+Decision 2 = NOT RUN
+Decision 3 = NOT RUN
+Decision 4 = NOT RUN
+~~~
+
+### 实际指标
+
+由于没有完成任何 decision，以下连续性指标均为 `NOT MEASURED`：
+
+~~~text
+STATE_FEEDBACK_VISIBLE = NOT MEASURED
+STATE_FEEDBACK_CHANGED = NOT MEASURED
+MEDIA_CONTINUITY_EXERCISED = NOT MEASURED
+MEDIA_PROGRESS_MONOTONIC = NOT MEASURED
+OWNERSHIP_CONTINUITY_EXERCISED = NOT MEASURED
+OWNERSHIP_CONSISTENT = NOT MEASURED
+INVENTORY_CONSISTENT = NOT MEASURED
+MONEY_CONSISTENT = NOT MEASURED
+NO_DUPLICATE_EFFECT = NOT MEASURED
+NO_TIME_REVERSAL = NOT MEASURED
+IMMEDIATE_ACTIVITY_REPEAT = NOT MEASURED
+IMMEDIATE_MEAL_REPEAT = NOT MEASURED
+IMMEDIATE_WATCH_REPEAT = NOT MEASURED
+RULE_REJECTION_COUNT = 0
+COMMITMENT_FAILURE_COUNT = 0
+PROVIDER_FAILURE_COUNT = 0
+INVALID_OUTPUT_COUNT = 0
+~~~
+
+### 离线复核
+
+~~~text
+Q6.1 focused tests = 15 passed
+Continuity/repository tests = 55 passed
+Ruff = PASS
+Repository audit = PASS
+AS2 smoke = AS2_CONTINUITY_ADAPTER_PASS (LLM_CALLS=0, PROVIDER_REQUESTS=0)
+~~~
+
+结论：
+
+~~~text
+SHORT_HORIZON_STATE_CONTINUITY = INSUFFICIENT_EVIDENCE
+~~~
+
+本次没有原始 prompt、completion、reasoning、Authorization header 或 API key 被写入 artifact 或报告。修复导入路径属于后续代码变更；在得到新的明确授权前，本报告不自动补跑真实 provider。
