@@ -64,7 +64,7 @@ async def run(args: argparse.Namespace) -> int:
     if output.exists():
         raise SystemExit(f"artifact 目录已存在，拒绝覆盖：{output}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    from social_sim.continuity.decision import OpenAICompatibleDecisionClient
+    from social_sim.decision import OpenAICompatibleDecisionClient
 
     client = OpenAICompatibleDecisionClient(
         base_url=os.environ[names[0]],

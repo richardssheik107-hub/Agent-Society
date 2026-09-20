@@ -277,3 +277,75 @@ def test_real_entrypoint_rejects_more_than_four_without_extension():
 
     with pytest.raises(SystemExit):
         main(["--allow-provider", "--max-decisions", "5"])
+
+
+def test_public_decision_client_import_and_construction_without_network():
+    from social_sim.decision import OpenAICompatibleDecisionClient
+
+    transport = httpx.MockTransport(
+        lambda request: pytest.fail("real transport must not be called")
+    )
+    client = OpenAICompatibleDecisionClient(
+        base_url="http://offline.test/v1",
+        model="offline-model",
+        api_key="dummy",
+        timeout_seconds=1,
+        minimal_request=True,
+        transport=transport,
+    )
+    try:
+        assert client.call_count == 0
+        assert client.provider_request_count == 0
+    finally:
+        asyncio.run(client.aclose())
+
+
+def test_real_entrypoint_constructs_client_through_public_export_without_network(
+    monkeypatch, tmp_path, capsys
+):
+    import scripts.run_q6_1_real_continuity as entrypoint
+
+    constructed = []
+
+    class ConstructionProbe:
+        def __init__(self, **kwargs):
+            constructed.append(kwargs)
+
+        async def aclose(self):
+            return None
+
+    class PilotProbe:
+        def __init__(self, world, client, **kwargs):
+            assert client.__class__ is ConstructionProbe
+            self.world = world
+            self.client = client
+            self.kwargs = kwargs
+
+        async def run(self):
+            return ({
+                "application_calls": 0,
+                "provider_requests": 0,
+                "provider_failures": 0,
+                "invalid_outputs": 0,
+                "commitment_failures": 0,
+                "final_invariants": {"invariants": "PASS"},
+                "STATE_FEEDBACK_VISIBLE": True,
+                "STATE_FEEDBACK_CHANGED": True,
+                "termination_reason": "BUDGET_COMPLETED",
+            }, [])
+
+    monkeypatch.setenv("CONTINUITY_BASE_URL", "http://offline.test/v1")
+    monkeypatch.setenv("CONTINUITY_MODEL", "offline-model")
+    monkeypatch.setenv("CONTINUITY_API_KEY", "dummy")
+    monkeypatch.setattr("social_sim.decision.OpenAICompatibleDecisionClient", ConstructionProbe)
+    monkeypatch.setattr(entrypoint, "Q61PilotRunner", PilotProbe)
+    monkeypatch.setattr(entrypoint, "write_artifacts", lambda *args: None)
+    args = entrypoint.parser().parse_args([
+        "--allow-provider", "--max-decisions", "1", "--output", str(tmp_path / "artifact")
+    ])
+
+    assert asyncio.run(entrypoint.run(args)) == 0
+    assert len(constructed) == 1
+    assert constructed[0]["base_url"] == "http://offline.test/v1"
+    assert constructed[0]["model"] == "offline-model"
+    assert capsys.readouterr().out.count("REAL_PROVIDER_EXECUTED=YES") == 1
