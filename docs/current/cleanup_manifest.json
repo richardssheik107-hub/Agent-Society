@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "date": "2026-09-20",
+  "research_base": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a",
+  "main_base": "bbebaf6720e8fadf25e4de0ee5b62021ae84c358",
+  "archive_directories": [{"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "docs", "archive": "docs/archive/2026-09-20"}],
+  "archive_files": [
+    {"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "README.md", "archive": "docs/archive/2026-09-20/README_before_cleanup.md"},
+    {"ref": "bbebaf6720e8fadf25e4de0ee5b62021ae84c358", "source": "docs/meeting_2026-09-18_world_model_architecture_notes_zh.md", "archive": "docs/archive/2026-09-20/meeting_2026-09-18_world_model_architecture_notes_zh.md"},
+    {"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "smoke/behavior_prior_corpus_resume_remaining.py", "archive": "archive/legacy_tools/behavior_prior_corpus_resume_remaining.py"},
+    {"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "smoke/behavior_prior_corpus_finalize_existing.py", "archive": "archive/legacy_tools/behavior_prior_corpus_finalize_existing.py"}
+  ],
+  "protected_base_prefixes": ["src/", "tests/", "scripts/", "config/", "smoke/"],
+  "allowed_legacy_changes": ["smoke/behavior_prior_corpus_resume_remaining.py", "smoke/behavior_prior_corpus_finalize_existing.py"],
+  "protected_main_files": ["delivery.sequences.jsonl", "delivery.stream.jsonl"],
+  "upstream_gitlink": "670c94fff7c64c4f79b632125f2ccf968155e746",
+  "note": "原文从冻结提交读取并逐文件校验 SHA256；新文件不属于历史受保护范围。未删除任何旧研究结果或测试。"
+}

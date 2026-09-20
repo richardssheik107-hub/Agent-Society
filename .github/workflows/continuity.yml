@@ -1,0 +1,51 @@
+name: 长期状态与仓库回归
+on:
+  push:
+    branches: [main, 'integration/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-test.txt
+      - name: 全量回归（默认禁止网络）
+        run: python -m pytest -q
+      - name: 新代码静态检查
+        run: python -m ruff check src/social_sim/continuity tests/test_continuity*.py tests/conftest.py scripts/run_continuity*.py scripts/check_continuity_as2.py scripts/audit_repository.py
+      - name: 文档与归档检查
+        run: python scripts/audit_repository.py --check
+      - name: 七天与三十天工程验证
+        run: python scripts/run_continuity.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: continuity-evidence
+          path: |
+            run/evaluation/continuity/**/summary.json
+            run/evaluation/continuity/**/报告.md
+          if-no-files-found: ignore
+  agentsociety-adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e third_party/AgentSociety/packages/agentsociety2
+      - name: 真实上游适配器与断点恢复（零模型）
+        run: python scripts/check_continuity_as2.py
