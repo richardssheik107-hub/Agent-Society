@@ -9,16 +9,17 @@ permissions:
 jobs:
   regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -r requirements-test.txt
+      - run: python -m pip install -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
       - name: 全量回归（默认禁止网络）
         run: python -m pytest -q
       - name: 新代码静态检查
@@ -37,7 +38,7 @@ jobs:
           if-no-files-found: ignore
   agentsociety-adapter:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:

@@ -20,10 +20,18 @@
 
 ## 直接运行
 
+Q6 离线工程验收只需 Python 3.11+ 标准库：
+
 ```bash
-python -m pip install -r requirements-test.txt
-python -m pytest -q
 python scripts/run_continuity.py
+```
+
+包括历史 Router 的全量回归需要固定的上游依赖：
+
+```bash
+git submodule update --init --recursive third_party/AgentSociety
+python -m pip install -r requirements-test.txt -e third_party/AgentSociety/packages/agentsociety2
+python -m pytest -q
 ```
 
 默认没有模型调用。真实 provider 必须显式授权，见 [运行手册](docs/current/runbook.md)。
