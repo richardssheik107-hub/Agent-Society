@@ -1,0 +1,26 @@
+{
+  "record_type": "verified_ci_summary",
+  "date": "2026-09-20",
+  "source_commit": "86ee0492a3f159450f56dd0ba2afa0a9f6da38c0",
+  "workflow_run_id": 35484529816,
+  "workflow_url": "https://github.com/richardssheik107-hub/Agent-Society/actions/runs/35484529816",
+  "focused_tests_passed": 55,
+  "regression_passed": 555,
+  "regression_skipped_missing_historical_corpus": 8,
+  "full_historical_data_reproduction": false,
+  "lint_scope": ["E4", "E7", "E9", "F", "B"],
+  "lint_status": "PASS",
+  "archive_status": "PASS",
+  "archive_originals_verified": 32,
+  "as2_adapter_status": "PASS",
+  "upstream_commit": "670c94fff7c64c4f79b632125f2ccf968155e746",
+  "provider_requests": 0,
+  "benchmark_mode": "SCRIPTED_CONTRACT_TEST",
+  "autonomous_behavior_proven": false,
+  "rows": [
+    {"days": 7, "completed_days": 7, "recovery_equivalent": true, "restarts": 561, "duplicate_commands_checked": 560, "max_observation_chars": 1011, "events": 933, "state_hash": "4c0730740ae2f9efc8f062368a0859c75609afc183e1a14d51cdb86e5f12501f"},
+    {"days": 30, "completed_days": 30, "recovery_equivalent": true, "restarts": 2401, "duplicate_commands_checked": 2400, "max_observation_chars": 1017, "events": 3992, "state_hash": "fbf75fbc080f0ff14e4c2e93eaee35f1d5fc14cc9fdc31820a7295fdddb5ea92"}
+  ],
+  "artifact_ids": {"core": 10596562993, "regression": 10596788523},
+  "note": "这是已核对的指定 CI 提交摘要，不是新的真实模型运行。"
+}
