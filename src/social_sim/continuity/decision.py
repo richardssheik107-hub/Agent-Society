@@ -49,6 +49,9 @@ class ActivityDecisionRunner:
         status = getattr(source, "http_status", None)
         if isinstance(status, int) and 100 <= status <= 599:
             output["http_status"] = status
+        finish_reason = getattr(source, "finish_reason", None)
+        if isinstance(finish_reason, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", finish_reason):
+            output["finish_reason"] = finish_reason
         model = getattr(source, "provider_model", None)
         if (isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,80}", model)
                 and not model.startswith(("sk-", "ark-"))
