@@ -1,209 +1,147 @@
-# Research Q3 — Object Set Necessity: Real Experiment Attempt 2
+# 研究 Q3 —— 对象集必要性：真实实验 Attempt 2
 
-Status: complete for the bounded real-pilot objective; no long-term claim is made.
+状态：针对有界真实 pilot 的目标已完成；不做长期结论。
 
-## 1. Scope and decision rule
+## 1. 研究范围与判定规则
 
-This report records the second provider-backed attempt at the Q3 object-set
-necessity experiment. The question is deliberately narrow:
+本报告记录 Q3 对象集必要性实验第二次接入真实 provider 的尝试。问题被有意限定得很窄：
 
-> Does a canonical object set improve single-step object selection
-> executability and effect-field authority compared with unconstrained model
-> naming, and does a hybrid open-world arm preserve the benefit while allowing
-> novel objects?
+> 与不受约束地让模型自行命名对象相比，规范化对象集是否能提高单步对象选择的可执行性和效果字段的权威性？同时，一个允许开放世界新对象的混合方案，能否在允许新对象的同时保留上述收益？
 
-The experiment compares three arms on the same deterministic scenario cases:
+实验在相同的确定性场景上比较三个实验臂：
 
-* **A — LLM_ONLY:** the model sees no catalog and names any concrete object.
-* **B — CATALOG_TOPK:** the model chooses one of the retrieved catalog
-  candidates.
-* **C — HYBRID:** the model chooses a retrieved candidate or emits `NEW:<name>`
-  with the complete required effect attributes.
+* **A — LLM_ONLY：** 模型看不到目录，可以自行命名任意具体对象。
+* **B — CATALOG_TOPK：** 模型必须从检索出的目录候选中选择一个对象。
+* **C — HYBRID：** 模型可以选择检索出的候选，也可以输出 `NEW:<name>`，但必须同时给出完整的必要效果属性。
 
-The protocol is one structured decision per row:
-`{"object":"...","attributes":{...}}`. There is no fuzzy repair or second
-model call. Catalog attributes are authoritative; model-supplied attributes
-for A and C-NEW are explicitly marked estimated and are only checked by a
-bounded plausibility validator.
+每一行实验只允许进行一次结构化决策：
+`{"object":"...","attributes":{...}}`。不做模糊修复，也不进行第二次模型调用。目录中的属性被视为权威字段；A 和 C-NEW 中由模型给出的属性会明确标记为“模型估计”，并且只通过一个有界合理性校验器进行检查。
 
-This is an engineering acceptance experiment, not a statistical population
-study. The signal labels below use the existing benchmark thresholds and do not
-mean statistical significance.
+这是一个工程验收实验，不是统计总体研究。下文中的信号标签沿用既有 benchmark 阈值，并不表示统计显著性。
 
-## 2. Provenance and preservation
+## 2. 来源与保留策略
 
-* Branch: `research/object-set-necessity`
-* Starting remote commit: `25db38f4306b68d79fe3db160a60e1189763b7a9`
-* Attempt 1 was not reused or overwritten. Its 15-row HTTP-error artifact and
-  its report remain at:
-  `run/evaluation/object_set_necessity/real_20260918T033858277073Z/` and
-  `docs/research_q3_object_set_necessity_real_result.md`.
-* Attempt 2 uses a distinct `attempt_id=attempt_2` and writes under
-  `run/evaluation/object_set_necessity/real_attempt_2_<timestamp>/`.
-* No RuleEngine, WorldState, ActionType, A2 profile, upstream AgentSociety, or
-  other production core behavior was changed.
+* 分支：`research/object-set-necessity`
+* 起始远端提交：`25db38f4306b68d79fe3db160a60e1189763b7a9`
+* Attempt 1 没有被复用或覆盖。其 15 行 HTTP 错误 artifact 和报告仍保留在：
+  `run/evaluation/object_set_necessity/real_20260918T033858277073Z/` 与
+  `docs/research_q3_object_set_necessity_real_result.md`。
+* Attempt 2 使用独立的 `attempt_id=attempt_2`，结果写入
+  `run/evaluation/object_set_necessity/real_attempt_2_<timestamp>/`。
+* RuleEngine、WorldState、ActionType、A2 profile、上游 AgentSociety 以及其他生产核心行为均未修改。
 
-## 3. Provider and safe diagnostics
+## 3. Provider 与安全诊断
 
-The preflight connectivity probe used the existing secure `.env` source in
-memory and the same minimal request contract as the pilot. It returned HTTP
-200 from backend model `glm-5.3` in 1.54 seconds (22 input tokens, 13 output
-tokens, 10 reasoning tokens) and returned the expected `OK` response. The
-provider endpoint and secret value are intentionally not reproduced here.
+预检连通性探针使用现有安全 `.env` 来源，仅在内存中读取，并采用与 pilot 相同的最小请求契约。它在 1.54 秒内从后端模型 `glm-5.3` 得到 HTTP 200（22 个输入 token、13 个输出 token、10 个 reasoning token），并返回预期的 `OK`。provider endpoint 与 secret 值有意不在此处复现。
 
-Attempt 2 records only sanitized provider metadata on failure rows:
-`http_status`, error code/type/parameter, request id, and a sanitized error
-message. Raw prompts, raw completions, hidden reasoning, API keys, and other
-credential material are not stored.
+Attempt 2 在失败行中只记录脱敏后的 provider 元数据：
+`http_status`、错误 code/type/parameter、request id，以及脱敏后的错误消息。原始 prompt、原始 completion、隐藏 reasoning、API key 及其他凭证材料均不存储。
 
-In the smoke run there were no HTTP errors, so status/error-code maps are empty.
-The full run likewise had no HTTP errors. Successful responses identify
-`glm-5.3`; timed-out requests have no invented backend attribution.
+smoke 运行中没有 HTTP 错误，因此 status/error-code 映射为空。完整运行同样没有 HTTP 错误。成功响应标识后端模型为 `glm-5.3`；超时请求不会被人为补写后端模型归属。
 
-## 4. Offline capability gate
+## 4. 离线能力门槛
 
-The offline capability probe passed before the real run:
+真实运行前，离线能力探针已经通过：
 
-* catalog size: 1,000 objects;
-* generated rows: 180;
-* A/B/C structured protocol and bounded attribute validation executed without
-  network access;
-* output marker: `OBJECT_SET_NECESSITY_OFFLINE_OK`;
-* note: `SYSTEM_CAPABILITY_PROBE_NOT_MODEL_BEHAVIOR`.
+* 目录规模：1,000 个对象；
+* 生成行数：180；
+* A/B/C 三种结构化协议和有界属性校验均在无网络条件下执行完成；
+* 输出标记：`OBJECT_SET_NECESSITY_OFFLINE_OK`；
+* 说明：`SYSTEM_CAPABILITY_PROBE_NOT_MODEL_BEHAVIOR`。
 
-The offline probe is a system-capability check only and is not included as model
-behavior evidence.
+离线探针只检查系统能力，不计入模型行为证据。
 
-## 5. Smoke gate (Attempt 2)
+## 5. Smoke 门槛（Attempt 2）
 
-Artifact: `run/evaluation/object_set_necessity/real_attempt_2_20260918T061537054924Z/`.
+Artifact：`run/evaluation/object_set_necessity/real_attempt_2_20260918T061537054924Z/`。
 
-The smoke scheduled 15 rows. Fourteen completed successfully and one timed out;
-there were zero HTTP errors, parse errors, or architecture errors. Successful
-rows used `glm-5.3`. The arm counts were A=5, B=4, C=5, with four matched ABC
-scenario cases (12 matched rows).
+smoke 共调度 15 行，其中 14 行成功完成，1 行超时；HTTP 错误、解析错误、架构错误均为 0。成功行使用 `glm-5.3`。各臂数量为 A=5、B=4、C=5，其中 4 组 ABC 场景同时匹配成功（12 行 matched rows）。
 
-The smoke gate passed: success rate met the gate, architecture errors were
-zero, every successful B row was candidate-compliant and executable, and every
-successful C row was either candidate-compliant or a valid NEW object.
+smoke gate 通过：成功率达到门槛，架构错误为 0；所有成功的 B 行都满足候选约束且可执行；所有成功的 C 行要么满足候选约束，要么是合法的 NEW 对象。
 
-Because the evaluator was tightened after this smoke to ensure that B never
-counts catalog fields as model-estimated, the corrected, network-free summary
-is recorded in `posthoc_summary.json` beside the original result. No provider
-request was replayed and the original result is preserved.
+由于 smoke 之后收紧了 evaluator，以确保 B 中来自目录的字段绝不会被误计为模型估计字段，因此修正后的无网络 summary 被写在原始结果旁的 `posthoc_summary.json` 中。没有重放任何 provider 请求，原始结果完整保留。
 
-| Arm | rows | runtime executable | usable effect coverage | authoritative coverage | model-estimated field rate | plausible attrs |
+| 实验臂 | 行数 | 运行时可执行率 | 可用效果字段覆盖率 | 权威字段覆盖率 | 模型估计字段率 | 属性合理率 |
 |---|---:|---:|---:|---:|---:|---:|
 | A | 5 | 0.200000 | 0.733334 | 0.000000 | 1.000000 | 0.200000 |
 | B | 4 | 1.000000 | 1.000000 | 1.000000 | 0.000000 | 1.000000 |
 | C | 5 | 0.800000 | 0.933333 | 0.200000 | 0.800000 | 0.800000 |
 
-Matched smoke deltas (A minus B) were runtime `-0.75`, usable effect
-coverage `-0.25`, and authoritative coverage `-1.00`. The smoke signal was
-`object_set_necessity_signal=STRONG`; the hybrid signal remained
-`UNRESOLVED`.
+matched smoke 中，A 减 B 的差值分别为：运行时可执行率 `-0.75`、可用效果字段覆盖率 `-0.25`、权威字段覆盖率 `-1.00`。smoke 信号为 `object_set_necessity_signal=STRONG`；混合方案信号仍为 `UNRESOLVED`。
 
-## 6. Full real pilot
+## 6. 完整真实 Pilot
 
-Artifact: `run/evaluation/object_set_necessity/real_attempt_2_20260918T071513907540Z/`.
+Artifact：`run/evaluation/object_set_necessity/real_attempt_2_20260918T071513907540Z/`。
 
-Configuration was two repetitions over the full 30-scenario matrix (5 domains
-× 6 fixed states) and `top_k=10`, for 180 scheduled rows (30 scenarios × 3
-arms × 2 repetitions). Results:
+配置为完整 30 场景矩阵（5 个领域 × 6 个固定状态）重复两次，且 `top_k=10`，因此总共调度 180 行（30 场景 × 3 个实验臂 × 2 次重复）。结果：
 
-* success: 162;
-* timeout: 18;
-* HTTP error: 0;
-* parse error: 0;
-* architecture error: 0;
-* successful backend model: `glm-5.3` (162 rows);
-* matched ABC cases: 43 (129 matched rows).
+* success：162；
+* timeout：18；
+* HTTP error：0；
+* parse error：0；
+* architecture error：0；
+* 成功响应的后端模型：`glm-5.3`（162 行）；
+* matched ABC cases：43（共 129 行 matched rows）。
 
-### 6.1 Per-arm results
+### 6.1 各实验臂结果
 
-| Arm | successful rows | structured | runtime executable | usable effect coverage | authoritative coverage | model-estimated field rate | plausible attrs | candidate compliance | NEW rate |
+| 实验臂 | 成功行数 | 结构化有效率 | 运行时可执行率 | 可用效果字段覆盖率 | 权威字段覆盖率 | 模型估计字段率 | 属性合理率 | 候选合规率 | NEW 比例 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | A — LLM_ONLY | 60 | 1.000000 | 0.283333 | 0.700000 | 0.000000 | 1.000000 | 0.283333 | 0.000000 | 0.000000 |
 | B — CATALOG_TOPK | 51 | 1.000000 | 1.000000 | 1.000000 | 1.000000 | 0.000000 | 1.000000 | 1.000000 | 0.000000 |
 | C — HYBRID | 51 | 1.000000 | 0.901961 | 0.967320 | 0.411765 | 0.588235 | 0.901961 | 0.411765 | 0.588235 |
 
-The full matched-ABC metrics are:
+完整 matched-ABC 指标如下：
 
-| Arm | runtime executable | usable effect coverage | authoritative coverage | model-estimated field rate |
+| 实验臂 | 运行时可执行率 | 可用效果字段覆盖率 | 权威字段覆盖率 | 模型估计字段率 |
 |---|---:|---:|---:|---:|
 | A | 0.302326 | 0.728682 | 0.000000 | 1.000000 |
 | B | 1.000000 | 1.000000 | 1.000000 | 0.000000 |
 | C | 0.883721 | 0.961240 | 0.418605 | 0.581395 |
 
-Matched A-minus-B deltas were runtime `-0.697674`, usable effect coverage
-`-0.271318`, and authoritative coverage `-1.000000`.
+matched A 减 B 的差值分别为：运行时 `-0.697674`、可用效果覆盖 `-0.271318`、权威覆盖 `-1.000000`。
 
-For the direct B-versus-C hybrid comparison, B minus C was runtime `+0.116279`,
-usable coverage `+0.038760`, and authoritative coverage `+0.581395`. Thus C
-does allow novel objects, but it does not yet preserve the B runtime level.
+在直接比较 B 与 C 时，B 减 C 的差值为：运行时 `+0.116279`、可用覆盖 `+0.038760`、权威覆盖 `+0.581395`。因此，C 确实允许新对象，但它尚未保持 B 的运行时水平。
 
-### 6.2 Cost and latency
+### 6.2 成本与延迟
 
-| Arm | mean input tokens | median input tokens | mean prompt chars | mean latency (s) |
+| 实验臂 | 平均输入 token | 输入 token 中位数 | 平均 prompt 字符数 | 平均延迟（秒） |
 |---|---:|---:|---:|---:|
 | A | 121.566667 | 123.0 | 495.3 | 8.156149 |
 | B | 366.901961 | 365.0 | 1041.568627 | 16.464719 |
 | C | 382.019608 | 380.0 | 1124.098039 | 19.174707 |
 
-The 18 timeouts are provider/runtime reliability observations for this run,
-not parse or architecture failures. There was no retry in the pilot.
+18 次 timeout 是本次运行中的 provider/runtime 可靠性观测，不属于解析错误或架构错误。pilot 中没有 retry。
 
-## 7. Interpretation
+## 7. 结果解释
 
-### Object-set necessity
+### 对象集必要性
 
-The result is an engineering-level **STRONG** signal for the narrow
-single-step question. Against the same matched cases, unconstrained A had a
-0.697674 lower runtime-executable rate and a 0.271318 lower usable effect
-coverage than catalog-constrained B. A also had zero authoritative effect
-coverage, while B had 1.0. The canonical set therefore supplies both
-resolvability and trusted effect fields in this benchmark.
+对于这个狭窄的单步问题，结果给出工程层面的 **STRONG** 信号。在相同 matched cases 上，不受约束的 A 相比目录约束的 B，运行时可执行率低 0.697674，可用效果覆盖率低 0.271318。A 的权威效果字段覆盖率为 0，而 B 为 1.0。因此，在本 benchmark 中，规范化对象集同时提供了对象可解析性与可信效果字段。
 
-This does not prove that a catalog is necessary for every agent task, nor does
-it establish a causal or population-level effect beyond this synthetic pilot.
+这并不证明目录对所有 agent 任务都必不可少，也不能把这个合成 pilot 的结果扩展为因果结论或总体层面结论。
 
-### Hybrid open-world status
+### 混合开放世界方案状态
 
-The hybrid arm is **UNRESOLVED**, not accepted. It created/model-described
-novel objects on 58.8235% of matched successful rows, but its matched runtime
-rate was 0.883721 versus B's 1.0, a gap of 0.116279 and therefore above the
-configured acceptance tolerance. The experiment supports continuing to treat
-open-world creation as a separate engineering problem.
+混合实验臂目前是 **UNRESOLVED**，而不是已接受。它在 matched successful rows 中有 58.8235% 创建/描述了新对象，但 matched runtime rate 为 0.883721，而 B 为 1.0，差距 0.116279，高于预先配置的接受容差。因此，该实验支持继续把开放世界对象创建视为一个独立的工程问题。
 
-### Meaning of attribute metrics
+### 属性指标的含义
 
-“Authoritative” means the field came from the catalog record. “Model-estimated”
-means it came from A or C-NEW. “Plausible” means only that the value passed the
-bounded type/range validator; it is not a factual validation of the model's
-claim. The synthetic catalog is intentionally deterministic and cannot stand in
-for a real-world knowledge base.
+“权威”表示字段来自目录记录。“模型估计”表示字段来自 A 或 C-NEW。“合理”只表示该值通过了有界类型/范围验证器，并不代表模型陈述已获得事实验证。该合成目录是有意构造为确定性的，不能替代真实世界知识库。
 
-## 8. Limitations and stop condition
+## 8. 局限与停止条件
 
-The pilot has one provider, two repetitions, a single structured decision per
-row, five object domains, and a synthetic 1,000-object catalog. It does not test
-20-step identity/inventory/progress continuity, duplicate replay, long-horizon
-state mutation, multi-agent interactions, or statistical uncertainty. Timeout
-rows also do not identify a backend model. These limits prevent a long-term
-necessity claim.
+该 pilot 只包含一个 provider、两次重复、每行一次结构化决策、五个对象领域，以及一个 1,000 对象的合成目录。它没有测试 20 步身份/库存/进度连续性、重复重放、长期状态变更、多 Agent 交互或统计不确定性。超时行也无法确定后端模型。因此不能据此做长期必要性结论。
 
-The current engineering decision is **STOP** for Q3 Attempt 2: preserve the
-artifacts and report the result; do not launch Q5/R8 or infer long-term agent
-behavior from this pilot. A future continuation would need a separately scoped
-continuity experiment and an explicit hybrid acceptance criterion.
+当前工程决策是：对 Q3 Attempt 2 **STOP**。保留 artifact 和报告，不继续启动 Q5/R8，也不从该 pilot 推断长期 Agent 行为。未来若继续，应另行定义连续性实验，并给出明确的 hybrid acceptance criterion。
 
-## 9. Verification and safety checklist
+## 9. 验证与安全检查清单
 
-* Focused Q3 tests: 11 passed.
-* Full regression: 485 passed, 3 existing deprecation warnings.
-* Ruff: passed.
-* Offline capability probe: passed.
-* Attempt 1 artifact/report: preserved.
-* Raw prompt/completion/hidden reasoning: not stored.
-* Secrets/API keys: not printed or committed.
-* Production core/upstream changes: none.
+* Q3 focused tests：11 passed。
+* 全量回归：485 passed，3 个既有 deprecation warnings。
+* Ruff：passed。
+* 离线能力探针：passed。
+* Attempt 1 artifact/report：已保留。
+* 原始 prompt/completion/hidden reasoning：未存储。
+* Secrets/API keys：未打印、未提交。
+* 生产核心/上游代码变更：无。
