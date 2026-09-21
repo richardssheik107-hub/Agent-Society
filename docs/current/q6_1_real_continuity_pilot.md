@@ -270,3 +270,128 @@ SHORT_HORIZON_STATE_CONTINUITY = INSUFFICIENT_EVIDENCE
 ~~~
 
 本次没有原始 prompt、completion、reasoning、Authorization header 或 API key 被写入 artifact 或报告。修复导入路径属于后续代码变更；在得到新的明确授权前，本报告不自动补跑真实 provider。
+
+## 15. Attempt 2 实际结果（2026-09-21）
+
+本节记录后续明确授权的独立 Attempt 2。第 12 节为初始准备状态，第 14 节为 Attempt 1 的历史记录，均按原文保留；它们不代表 Attempt 2 的结果。
+
+### 执行版本与配置
+
+~~~text
+BRANCH = research/q6-real-continuity-pilot
+ATTEMPT_1_EXECUTION_COMMIT = 1fe4ba06893d862342bca63fd3868d3ac4e9a8b4
+ATTEMPT_1_RESULT_COMMIT = d8e7ec0b61ae4d3c22648f5f1988eee5103f5265
+ATTEMPT_1_RESULT = ARCHITECTURE_ERROR
+ATTEMPT_1_PROVIDER_REQUESTS = 0
+FIX_COMMIT = 50371b139afe18e94ab9b2594f1a9030d34ff360
+ATTEMPT_2_EXECUTION_COMMIT = 50371b139afe18e94ab9b2594f1a9030d34ff360
+WORKTREE_BEFORE_ATTEMPT_2 = CLEAN
+AGENTSOCIETY_SUBMODULE_COMMIT = 670c94fff7c64c4f79b632125f2ccf968155e746
+PROVIDER = Volcengine OpenAI-compatible Coding Plan
+CONTINUITY_BASE_URL = https://ark.cn-beijing.volces.com/api/coding/v3
+REQUESTED_MODEL = ark-code-latest
+BASE_URL_SET = YES
+MODEL_SET = YES
+API_KEY_SET = YES
+MAX_DECISIONS = 4
+~~~
+
+独立修复提交只修正真实入口的 public import，并加入离线 CLI/client-construction regression test。没有修改 provider client、prompt、初始状态、activity logic、Q6.1 metrics、预算或固定上游子模块。启动前 focused tests 为 17 passed，针对修改文件的 Ruff 为 PASS。
+
+执行进程读取既有火山引擎配置，将 API key 注入 `CONTINUITY_API_KEY`，未打印或提交凭据。真实入口仅启动一次，参数为 `--allow-provider --max-decisions 4`；实际使用 WSL Python 3.12.14 与本机已有缓存依赖。
+
+### 原始 artifact 与请求计数边界
+
+~~~text
+ARTIFACT_DIR = run/evaluation/q6_1_real_continuity/20260921T025935532829Z/
+REAL_PROVIDER_EXECUTED = YES
+APPLICATION_CALLS = 1
+PROVIDER_REQUESTS = 1
+COMPLETED_DECISIONS = 0
+ACCEPTED_DECISIONS = 0
+STOP_REASON = PROVIDER_ERROR
+PROCESS_EXIT_CODE = 1
+~~~
+
+`REAL_PROVIDER_EXECUTED = YES` 严格依据本实验规定的 `provider_request_count >= 1`：`summary.json` 和 Decision 1 都记录了 1 次。客户端在调用 HTTP POST 之前递增该计数，所以它证明的是客户端请求尝试，**不能证明服务端收到请求或模型完成推理**。本次没有 HTTP 状态、响应模型、token 使用量或 proposal 可供核验，不据此认定火山引擎服务端故障。
+
+配置的模型别名为 `ark-code-latest`。原始 `summary.json`、`environment.json` 和 decision row 中 `provider_model` 均为 `null`；现有安全元数据过滤器会排除以 `ark-` 开头的字符串。本次保留原始字段，不修改过滤器或补写 artifact。
+
+artifact 写入后，`client.aclose()` 的 `httpx/httpcore/anyio` 清理路径另报本地依赖错误：`ImportError: cannot import name 'sentinel' from 'typing_extensions'`。这属于本次进程的环境/清理异常，不是第二次实验；原始决策停止原因仍为 `PROVIDER_ERROR`。现有 artifact 未保存首次请求异常的细节，故不把清理 traceback 当作已确认的首次失败根因。
+
+未 retry、rerun、JSON repair、fallback WAIT、补动作、修改 prompt/初始状态后补跑或扩展到 12 calls。Decision 1 触发停止条件后，Decision 2–4 均未执行。
+
+### Decision 1–4
+
+| Decision | 实际结果 | provider requests | 确定性执行与状态 |
+| --- | --- | --- | --- |
+| 1 | `PROVIDER_ERROR`；request_id=`q6_1:1`；HTTP/model/proposal 均无有效记录 | 1 | commitment 无；micro steps=0；新增 events=0；模拟分钟 0→0；state version 0→0 |
+| 2 | `NOT RUN`：Decision 1 已触发停止条件 | 0 | 无 |
+| 3 | `NOT RUN`：Decision 1 已触发停止条件 | 0 | 无 |
+| 4 | `NOT RUN`：Decision 1 已触发停止条件 | 0 | 无 |
+
+Decision 1 记录的延迟为 0.038139 秒。observation 长度为 866 字符，前后摘要相同：`81e7437378979937f05ef11c307df2f71e3028c5be17fccaa52e07577f439238`。余额 300000→300000，饥饿 800→800，精力 700→700，位置 home→home，库存差异 `{}`，series_a 下一集 1→1，game_a 游玩分钟 0→0。
+
+### 全部 continuity markers
+
+以下是原始 summary 的值；`null` 表示没有可衡量的跨决策反馈。未发生活动时的 `true` 一致性指标只表明初始状态没有被破坏，不构成模型连续决策成功的证据。
+
+~~~text
+STATE_FEEDBACK_VISIBLE = null (NOT MEASURED)
+STATE_FEEDBACK_CHANGED = false
+MEDIA_CONTINUITY_EXERCISED = false
+MEDIA_PROGRESS_MONOTONIC = true
+OWNERSHIP_CONTINUITY_EXERCISED = false
+OWNERSHIP_CONSISTENT = true
+INVENTORY_CONSISTENT = true
+MONEY_CONSISTENT = true
+NO_DUPLICATE_EFFECT = true
+NO_TIME_REVERSAL = true
+IMMEDIATE_ACTIVITY_REPEAT = false
+IMMEDIATE_MEAL_REPEAT = false
+IMMEDIATE_WATCH_REPEAT = false
+REPEATED_OWNERSHIP_CONFLICT = false
+RULE_REJECTION_COUNT = 0
+COMMITMENT_FAILURE_COUNT = 0
+PROVIDER_FAILURE_COUNT = 1
+INVALID_OUTPUT_COUNT = 0
+FINAL_INVARIANTS = PASS
+FINAL_SIMULATION_MINUTE = 0
+FINAL_EVENT_COUNT = 1
+FINAL_STATE_HASH = b51280a21758ab18749da2324e97ea1b3c8f1c2d68c64847f2f85a07b778aca1
+~~~
+
+最终唯一事件为初始 seed，没有决策产生的世界事件。
+
+### Attempt 2 结束后的离线回归
+
+~~~text
+Q6.1 focused tests = 17 passed
+Continuity/repository tests = 55 passed
+Full regression = 580 passed, 3 warnings, 0 skipped
+Ruff (scripts/run_q6_1_real_continuity.py, tests/test_q6_1_real_continuity.py) = PASS
+Repository audit = PASS
+AS2 smoke = AS2_CONTINUITY_ADAPTER_PASS (LLM_CALLS=0, PROVIDER_REQUESTS=0)
+~~~
+
+首次离线检查所选解释器未包含 `httpx`/`agentsociety2`，分别导致 collection/import error。随后仅调整测试进程的缓存依赖路径：focused/continuity 使用 `uv run --offline --no-project --with httpx --with pytest`；AS2/full regression 使用缓存包、固定上游源码路径及兼容的 `typing_extensions 4.16.0`。三条 warning 均为 SWIG 类型缺少 `__module__` 的弃用提示。依赖解析与测试保持离线，未修改业务代码或子模块，未再次启动真实 pilot。
+
+### 证据完整性与结论
+
+原始 artifact 保留在上述本地目录（`run/` 按仓库规则不入 Git）；本报告提交关键事实与哈希，不覆盖 artifact：
+
+| 文件 | SHA-256 |
+| --- | --- |
+| summary.json | `0c73c1028eb03646c8dc43ba9d5175debb20dc90e23a3177bcf3932daeae0e50` |
+| decisions.jsonl | `c63172f969e4a7ceeb0727ebc23c14b2da38326962173ed3ae2116281ad484a9` |
+| events.jsonl | `1ce86d972f5a1e08bf42a65817ef96f46ea7186c36797b8f19b16daf20bd5e88` |
+| final_state.json | `0ad5de1ea06a906cf77d7eafc445a0e56ed25656d34249f25aa37d27e97eccbb` |
+| environment.json | `d9ce0fc718d72528fb042d5e1a4db9014e8996f210cb89f989ebdc2d5cdc76e1` |
+| report_zh.md | `0f8511f4cd2f7d9eeed4016386362555bcece7634a5c927d53e72c1088dd6481` |
+
+~~~text
+SHORT_HORIZON_STATE_CONTINUITY = INSUFFICIENT_EVIDENCE
+RUNNER_RAW_CONTINUITY_RESULT = UNRESOLVED
+~~~
+
+没有完成真实模型 proposal 或任何 activity，也没有产生 state→observation→next decision 链路，因而无法支持短链连续性成立，亦不能据此判断其不成立。离线回归通过不改变这次真实 pilot 的失败结果。不声称长期行为或人类相似性得到证明；任何下一次真实实验都需要新的明确授权。
