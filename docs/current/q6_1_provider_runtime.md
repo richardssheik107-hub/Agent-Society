@@ -1,45 +1,54 @@
 # Q6.1：独立运行时预检与 Attempt 3
 
-本页是 Attempt 2 之后的执行入口。原 [Q6.1 实验报告](q6_1_real_continuity_pilot.md) 与 Attempt 1/2 数字不修改。本轮只补齐运行环境、诊断、预检和串行门禁，不改变提示、初始世界或业务规则。
+当前交付状态：**代码及离线验收已完成，真实预检和 Attempt 3 未执行**。准确测试结果、代码版本与 CI 链接见 [本轮验收记录](q6_1_provider_runtime_acceptance.md)。原 [Q6.1 报告](q6_1_real_continuity_pilot.md) 中 Attempt 1/2 保留原样。
 
-## 1. 为什么加这一层
+## 1. 为什么增加这一步
 
-Attempt 2 只记录到一次客户端请求尝试，没有 HTTP 响应或模型提案；关闭客户端时另有 `typing_extensions.sentinel` 导入错误。它提示本地依赖可能混用，但不是已确认的首次失败根因。需要分别检查：环境导入、真实 HTTP 栈、provider 响应、关闭客户端。
+Attempt 2 只得到一次客户端请求尝试，没有 HTTP 响应或模型提案；关闭客户端时另有 typing_extensions.sentinel 导入错误。它提示依赖可能混用，但不等于已证实首次失败原因。
 
-旧的 `provider_request_count` 在调用 HTTP POST 之前递增。本轮保留其语义，明确标注为“客户端尝试”；不能凭这个计数证明服务器已收到请求。
+现在分别检查：单一环境导入、客户端构造/关闭、本机真实 HTTP 栈、火山服务的真实响应。首次失败和清理失败分别保存，不再只有一个没有解释的 PROVIDER_ERROR。
 
-## 2. 已写好的代码
+## 2. 已有脚本及职责
 
-- `scripts/setup_q6_1_runtime.sh`：创建或使用父仓库的 `.venv-q61-runtime`，不使用多个 uv 缓存路径，不改官方子模块；安装要求并执行 `pip check`，记录解析后的精确版本。
-- `scripts/check_q6_1_local_transport.py`：只对 127.0.0.1 的模拟服务执行一次完整 HTTP POST、读取与关闭，验证实际 httpx/httpcore/anyio 路径。不是火山请求，不能冒充鉴权通过。
-- `scripts/check_q6_1_provider_runtime.py`：默认不发请求；可执行环境检查、单次真实预检，或额外授权预检通过后的一次四决策 Attempt 3。
-- `social_sim.provider_runtime`：安全异常类名、阶段分类、环境来源检查、结果落盘、首次异常与清理异常分开保存。
-- `ActivityDecisionRunner`：仅增加安全异常类型及响应元数据诊断，不改变决策或状态规则。
+| 文件 | 职责 | 是否调用火山 |
+|---|---|---|
+| `scripts/setup_q6_1_runtime.sh` | 创建父仓库独立 venv、安装已验收依赖、pip check、离线生命周期检查 | 否 |
+| `scripts/check_q6_1_local_transport.py` | 对 127.0.0.1 完成一次实际 HTTP POST、读取与关闭 | 否 |
+| `scripts/check_q6_1_provider_runtime.py --check-only` | 检查依赖来源与客户端构造/关闭 | 否 |
+| `scripts/check_q6_1_provider_runtime.py --allow-provider ...` | 一次真实预检 | 最多一次 |
+| 同上加 `--with-pilot` | 预检成功后进入一次四决策 Attempt 3 | 总计最多五次 |
 
-## 3. Windows / WSL 最省事的操作
+正式部分仍使用原 Q61PilotRunner、原行为提示、原 seed_demo 和确定性世界规则。没有新增行为先验、脚本替代或模型修复请求。
 
-不要再把 Bash 的 `$(...)` 包在容易被 PowerShell 提前展开的命令里，也不要把 uv 的多个 cache 目录拼接到 PYTHONPATH。直接打开 WSL 后执行脚本，或从 PowerShell 直接传脚本路径。
+## 3. 安装及零凭据本机验证
+
+先在正确父仓库切到 `research/q6-real-continuity-pilot` 并正常拉取；工作区有改动时不要 reset/clean。不要在官方子模块中查找项目分支。
+
+在 WSL 中执行：
+
+```bash
+cd /home/fergeson/projects/agent-society
+bash scripts/setup_q6_1_runtime.sh
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python scripts/check_q6_1_local_transport.py
+```
+
+安装步骤允许从软件源下载依赖，但不读取密钥、不发模型请求。Python 的 venv 组件缺失或包安装失败时修复环境，不拼接 uv 缓存目录。
+
+在 PowerShell 里也可以直接把完整脚本路径交给 WSL，避免 `$(...)` 被外层展开：
 
 ```powershell
 wsl.exe -d Ubuntu -- bash /home/fergeson/projects/agent-society/scripts/setup_q6_1_runtime.sh
 ```
 
-该命令只安装依赖和检查环境，不读取 API key，不发送模型请求。先确保父仓库已切到并拉取本 PR 分支。
+环境应显示 result=PASS，回环应显示 loopback_http_stack=PASS、remote_provider_requests=0。实际 import 路径必须位于同一 `.venv-q61-runtime`，而不是多个 uv archive。单个正确环境通过安装使用缓存没有问题，禁止的是手工把多个版本加入 PYTHONPATH。
 
-接下来在 WSL 中进行一次本机网络栈验证：
+## 4. 真正调用前：只选择一种模式，执行一次
 
-```bash
-cd /home/fergeson/projects/agent-society
-env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python scripts/check_q6_1_local_transport.py
-```
+配置可以来自现有 CONTINUITY_BASE_URL/MODEL/API_KEY，或明确指定的受保护 `.env`。加载采用只读 dotenv 解析、不执行 shell、不插值、不修改原文件、不回显 key。缺少 CONTINUITY_API_KEY 时可从 AGENTSOCIETY_LLM_API_KEY 映射。
 
-应输出 `loopback_http_stack=PASS`、`remote_provider_requests=0`。如果失败，只修环境，不启动正式 pilot。
+地址和模型固定为此前约定的 Coding Plan 地址与 `ark-code-latest`。不自动换 endpoint、模型或凭据测试。官方子模块本身不修改。
 
-## 4. 真正调用火山时，只选下面一种方式执行一次
-
-已有三个 CONTINUITY 环境变量时，不传 `--env-file`。若使用现有子模块中的受保护 `.env`，以下命令只读解析，不执行 `.env` 里的 shell 内容，也不输出密钥。优先用现有 `CONTINUITY_*`，缺少 key 时可从 `AGENTSOCIETY_LLM_API_KEY` 映射；地址和模型仅使用已约定的 Coding Plan 地址/别名，不自动尝试其他 endpoint。
-
-**只授权一次真实预检，不运行 Attempt 3：**
+**模式一：只做一次真实预检，不运行正式 pilot。**
 
 ```bash
 env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
@@ -47,7 +56,7 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   --session-id q61-runtime-01 --env-file third_party/AgentSociety/.env
 ```
 
-**授权一次预检，并在通过后自动进行一次四决策 Attempt 3：**
+**模式二：授权一次预检，只有通过后才运行一次四决策 Attempt 3。**
 
 ```bash
 env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
@@ -55,49 +64,60 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   --session-id q61-runtime-01 --env-file third_party/AgentSociety/.env
 ```
 
-上面两条是互斥选择，不是先后依次执行。第二条总预算上限为 **预检 1 次 + 正式 pilot 4 次 = 5 次客户端尝试**。不提供扩展到 12 次的入口。
+两条是互斥选择，不是先后依次执行。模式二的总预算是 **1 次独立预检 + 最多 4 次正式决策**。活动微步骤零模型调用，没有扩到 12 次的选项。
 
-同一个 session ID 已有目录时一律拒绝重跑；不同 ID 也有进程独占锁，防止并发误启动。发生中断后，不自动续跑，不自动生成新 ID，不删除旧目录。先检查既有 session、请求日志和 SQLite，再由操作者决定新尝试。请求开始标记不代表已收到响应。
+相对 `--env-file` 路径始终基于父仓库。直接使用环境变量时可以省略该参数。
 
-## 5. PASS 的含义
+## 5. 门禁与失败处理
 
-预检必须同时满足：一个实际客户端尝试、HTTP 200、有效响应契约、严格二字段 JSON 与指定 SLEEP 提案一致、客户端关闭无异常。HTTP 200 但 JSON 不合法，仍不通过。正确响应后 close 失败，也不会启动 Attempt 3。
+默认没有 `--allow-provider` 时不构造真实客户端，不读取凭据，不发请求。
 
-异常分类包括 PYTHON_ENVIRONMENT、CLIENT_CONSTRUCTION、NETWORK_RUNTIME、HTTP_ERROR、PROVIDER_CONTRACT、MODEL_OUTPUT、UNKNOWN_TRANSPORT、CLIENT_CLEANUP。只记录白名单异常类名，不记录 `str(error)`、堆栈、原始响应或隐藏推理。首次失败与 `cleanup_exception_type` 分开保存。
+真实运行要求正确父仓库、干净工作树、固定上游和通过的独立环境检查。全新会话目录以排他方式创建，已有 ID 拒绝重复启动；进程锁还限制不同 ID 的并发启动。
 
-正式 pilot 复用 Q61PilotRunner、相同提示和 seed_demo。每项活动中不再请求模型；逐步打印安全状态并保存进度。少于四次完整决策、清理失败或没有跨决策反馈均不能标为 SUPPORTED。已知不变量失败或反馈不一致单独标记；其他不足为 INSUFFICIENT_EVIDENCE。
+预检要求：恰好一次客户端尝试、HTTP 200、有效响应契约、严格二字段 JSON、指定 SLEEP 提案、关闭客户端无异常。工具调用或拒绝响应即使同时有合法 JSON，也不能通过。正确响应后的 close 失败会保留响应证据，但不会开始正式 pilot。
 
-`SUPPORTED` 只表示本次短链状态与观察相容，不证明模型在因果意义上依赖了某个字段，也不证明七天/三十天生活正常。未覆盖的媒体/所有权情境不计为成功证据。
+只有明确 `--with-pilot` 且预检 PASS，才在相同配置和 Python 进程中进入四步。交接前重新检查 HEAD、工作树和代码指纹；中途代码变化会停止。
 
-## 6. 产物与历史
+超时、输出错误、规则拒绝、活动失败或不变量失败会停止，不 retry、不补动作、不改 prompt 后补跑。发生中断后不能直接假定没有发送请求；先核对本次目录和日志，不删除目录、不自动换 ID。
 
-新产物统一位于：
+安全分类包括 PYTHON_ENVIRONMENT、CLIENT_CONSTRUCTION、NETWORK_RUNTIME、HTTP_ERROR、PROVIDER_CONTRACT、MODEL_OUTPUT、UNKNOWN_TRANSPORT、CLIENT_CLEANUP。只记录白名单异常类名与允许的响应元数据，不记录错误正文、原始提示、原始响应、堆栈或隐藏推理。
+
+## 6. 计数与结论的含义
+
+provider_requests 沿用现有客户端“准备调用 HTTP POST 时递增”的语义，因此表示客户端尝试，不保证服务器已经收到。没有 HTTP 响应时 server_receipt=UNKNOWN，不能据此断言服务端故障。
+
+requested_model 保存公开请求别名，provider_model / observed_backend_models 保存实际返回的模型标识，二者不混淆。token 未知时为 null，不伪装成零。
+
+正式结果只有四次决策全部完成、跨决策观察正确反映变化、终态不变量通过且清理正常时，才允许 SUPPORTED。部分运行或未形成反馈链为 INSUFFICIENT_EVIDENCE；明确反馈/不变量失败分别记录。没有触发的媒体或所有权场景不计为已验证。
+
+即使 SUPPORTED，也只支持本次短链状态一致，不证明模型因果使用了每个状态字段，更不证明自主正常生活七天或三十天。
+
+## 7. 产物
 
 ```text
 run/evaluation/q6_1_provider_runtime/<session-id>/
   environment.json
   session.json
   report_zh.md
-  preflight/summary.json
-  preflight/progress.jsonl
-  preflight/report_zh.md
-  attempt_3/world.sqlite3
-  attempt_3/request_progress.jsonl
-  attempt_3/progress.jsonl
-  attempt_3/summary.json
-  attempt_3/decisions.jsonl
-  attempt_3/events.jsonl
-  attempt_3/final_state.json
-  attempt_3/environment.json
-  attempt_3/report_zh.md
+  preflight/
+    summary.json
+    progress.jsonl
+    report_zh.md
+  attempt_3/
+    world.sqlite3
+    request_progress.jsonl
+    progress.jsonl
+    execution_status.json
+    summary.json
+    decisions.jsonl
+    events.jsonl
+    final_state.json
+    environment.json
+    report_zh.md
 ```
 
-Attempt 3 子目录仅在预检通过且另有 `--with-pilot` 授权时创建。新路径不覆盖 Attempt 1/2。单机日志和事务可追溯，不声称断电/跨机 exactly-once；输出磁盘本身损坏时应读已有进度，不重发请求。
+只有预检通过并有额外授权才创建 attempt_3。每个请求开始和每个决策结束增量记录；首次结果先落盘，再处理客户端关闭。严重中断可能只有部分产物，应据实审计，不把缺少完整 summary 当成零请求。
 
-## 7. 本轮执行状态与后续
+运行时版本清单保存在 `run/evaluation/q6_1_runtime_environment/`。本轮 CI 不读取 GitHub secrets、不发火山请求；MockTransport 与回环只是离线证据。
 
-本页初版的状态是：代码与离线验收准备中，**真实 provider 预检和 Attempt 3 尚未执行**。以随后验收记录和 CI 为准，不填造 HTTP 200 或模型结果。
-
-仓库 CI 只跑 MockTransport 和本机回环，不读取 GitHub secrets，不发火山请求。真实环境使用单独 venv，不需要为了这个 1+4 pilot 重新安装整个 AS2/Ray 依赖。原有 AS2 和全量测试继续使用原 CI。
-
-参考接口：[Python venv](https://docs.python.org/3/library/venv.html)、[HTTPX transports](https://www.python-httpx.org/advanced/transports/)。MockTransport 的通过不等于 DNS/TLS/鉴权已通过，因此保留独立真实预检。
+参考：[Python venv](https://docs.python.org/3/library/venv.html)、[HTTPX transports](https://www.python-httpx.org/advanced/transports/)。实际完成情况见 [验收记录](q6_1_provider_runtime_acceptance.md)。
