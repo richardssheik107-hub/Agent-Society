@@ -1,7 +1,11 @@
-# Q6.1 独立运行环境；不依赖 AS2/Ray。安装后写 pip freeze 清单，并运行 pip check。
-# 直接依赖固定；typing_extensions 下限避开已观测的 sentinel 缺失。
+# Q6.1 专用 Python 3.11+ 环境。不安装 AS2/Ray，不与其他环境共用 PYTHONPATH。
+# 以下是 CI 35581316254 实际安装且通过回环、生命周期及105项离线测试的组合。
+# 冻结直接与传递运行依赖；安全/兼容升级另开提交重新验收。
 httpx==0.28.1
 httpcore==1.0.9
-anyio>=4.9,<5
-typing_extensions>=4.16,<5
+anyio==4.15.1
+typing_extensions==4.16.0
 python-dotenv==1.1.1
+certifi==2026.7.22
+h11==0.16.0
+idna==3.20

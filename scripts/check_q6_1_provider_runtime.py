@@ -26,7 +26,7 @@ def main(argv=None) -> int:
     p.add_argument("--allow-provider", action="store_true", help="授权一次 provider 预检")
     p.add_argument("--with-pilot", action="store_true", help="额外授权预检通过后一次 4-call Attempt 3")
     p.add_argument("--session-id", help="唯一人工命名的会话 ID；已有 ID 一律不重跑")
-    p.add_argument("--env-file", type=Path, help="只读本地受保护 .env，不执行 shell 内容")
+    p.add_argument("--env-file", type=Path, help="只读本地受保护 .env；相对路径基于父仓库")
     args = p.parse_args(argv)
     if args.check_only and (args.allow_provider or args.with_pilot):
         p.error("--check-only 不可与真实运行授权混用")
@@ -42,7 +42,6 @@ def main(argv=None) -> int:
     info = repository_info(ROOT)
     output_root = ROOT / "run/evaluation/q6_1_provider_runtime"
     output_root.mkdir(parents=True, exist_ok=True)
-    # 不同 ID 也不能并发跑；同 ID 的目录在失败/中断后不删除、不自动恢复。
     import fcntl
     with (output_root / ".runtime.lock").open("a", encoding="utf-8") as lock:
         try:
@@ -67,7 +66,10 @@ def main(argv=None) -> int:
             print("RUNTIME_OR_REPOSITORY_GATE_FAILED\nPROVIDER_REQUESTS=0")
             return 1
         try:
-            config = load_provider_config(args.env_file)
+            env_file = args.env_file
+            if env_file is not None and not env_file.is_absolute():
+                env_file = ROOT / env_file
+            config = load_provider_config(env_file)
             environment["code_fingerprint"] = code_fingerprint(ROOT)
             environment["configured_model"] = config["model"]
             write_json(directory / "environment.json", environment)
@@ -76,14 +78,17 @@ def main(argv=None) -> int:
                 "exception_type": exception_type(error), "provider_requests": 0, "attempt_3_executed": False})
             print("PROVIDER_CONFIG_FAILED\nPROVIDER_REQUESTS=0")
             return 1
-        # 不回显配置值或开启 httpx DEBUG 日志。
         for name in ("httpx", "httpcore", "anyio"):
             logging.getLogger(name).setLevel(logging.CRITICAL)
+        def unchanged():
+            current = repository_info(ROOT)
+            return (current["git_commit"] == info["git_commit"] and current["worktree_clean"]
+                    and code_fingerprint(ROOT) == environment["code_fingerprint"])
         try:
             from social_sim.provider_runtime.workflow import execute_session
-            summary = asyncio.run(execute_session(directory, config, environment, with_pilot=args.with_pilot))
+            summary = asyncio.run(execute_session(directory, config, environment,
+                with_pilot=args.with_pilot, before_pilot=unchanged))
         except Exception as error:
-            # 不覆盖已保存的首次异常和部分结果。客户端计数未知时保留 UNKNOWN。
             write_json(directory / "orchestration_failure.json", {"exception_type": exception_type(error),
                 "provider_requests": None, "request_receipt": "UNKNOWN", "automatic_retry": False})
             print("ORCHESTRATION_ERROR_REVIEW_EXISTING_ARTIFACTS")

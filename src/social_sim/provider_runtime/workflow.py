@@ -59,6 +59,10 @@ async def run_preflight(directory: Path, config: dict, *, factory=real_client,
         append_event(directory / "progress.jsonl", {"stage": "REQUEST_STARTED", "attempt": 1})
         reply = await asyncio.wait_for(client.complete(PREFLIGHT_SYSTEM, PREFLIGHT_USER), timeout=timeout)
         summary.update(metadata(client))
+        from social_sim.decision import ProviderContractError
+        envelope = getattr(client, "last_metadata", None)
+        if getattr(envelope, "tool_calls_count", 0) or getattr(envelope, "refusal_chars", 0):
+            raise ProviderContractError("NON_DECISION_ENVELOPE", envelope)
         phase = "MODEL_OUTPUT"
         from social_sim.continuity.context import parse_proposal
         proposal = parse_proposal(reply.raw_text)
@@ -82,9 +86,11 @@ async def run_preflight(directory: Path, config: dict, *, factory=real_client,
         summary["latency_seconds"] = round(time.monotonic() - started, 6)
         summary["application_calls"] = counter(getattr(client, "call_count", 0)) or 0
         summary["provider_requests"] = counter(getattr(client, "provider_request_count", 0)) or 0
-        # 先保存首次失败/响应；关闭客户端的第二次异常不能覆盖它。
-        write_json(directory / "summary.json", summary)
-        summary["cleanup_exception_type"] = await close_client(client)
+        # 即使落盘失败也关闭客户端；首次失败/响应不被第二次清理异常覆盖。
+        try:
+            write_json(directory / "summary.json", summary)
+        finally:
+            summary["cleanup_exception_type"] = await close_client(client)
     if summary["http_status"] is not None:
         summary["server_receipt"] = "HTTP_RESPONSE_OBSERVED"
     if summary["cleanup_exception_type"] and summary["failure_stage"] is None:
@@ -118,7 +124,7 @@ def continuity_result(summary: dict, rows: list[dict], *, cleanup_error: str | N
 async def run_pilot(directory: Path, config: dict, environment: dict, *, factory=real_client,
                     mode: str = "REAL_PROVIDER_PILOT") -> dict:
     """复用 Q61PilotRunner；重置的是新实验世界，不是四个决策之间的状态。"""
-    from social_sim.continuity import ContinuityWorld
+    from social_sim.continuity import ContinuityWorld, validate_world
     from social_sim.continuity.benchmark import seed_demo
     from social_sim.continuity.q6_1 import Q61PilotRunner, write_artifacts
     directory.mkdir(parents=True, exist_ok=False)
@@ -131,12 +137,16 @@ async def run_pilot(directory: Path, config: dict, environment: dict, *, factory
                "short_horizon_state_continuity": "INSUFFICIENT_EVIDENCE"}
 
     class ObservedRunner(Q61PilotRunner):
+        def _execute_commitment(self, request_id):
+            result = super()._execute_commitment(request_id)
+            validate_world(self.world)
+            return result
+
         def _row_base(self, *args, **kwargs):
             row = super()._row_base(*args, **kwargs)
             current = next((item for item in reversed(self.decision_runner.records)
                             if item.get("request_id") == row["request_id"]), {})
             row["exception_type"] = current.get("exception_type")
-            # success Reply 不含 HTTP 状态/finish_reason；从同一请求的 envelope 获取。
             row.update(metadata(self.client))
             append_event(directory / "progress.jsonl", {"stage": "DECISION_FINISHED", **row})
             print(f"decision={row['decision_index']} status={row['decision_status']} "
@@ -145,7 +155,6 @@ async def run_pilot(directory: Path, config: dict, environment: dict, *, factory
 
     with ContinuityWorld(directory / "world.sqlite3") as world:
         seed_demo(world)
-        runner = None
         try:
             client = factory(config)
             runner = ObservedRunner(world, client, max_decisions=4, hard_timeout_seconds=60)
@@ -156,9 +165,10 @@ async def run_pilot(directory: Path, config: dict, environment: dict, *, factory
         finally:
             summary["application_calls"] = counter(getattr(client, "call_count", 0)) or 0
             summary["provider_requests"] = counter(getattr(client, "provider_request_count", 0)) or 0
-            # 状态/请求已另存 SQLite；先落停止摘要，再处理 close。
-            write_json(directory / "execution_status.json", summary)
-            cleanup = await close_client(client)
+            try:
+                write_json(directory / "execution_status.json", summary)
+            finally:
+                cleanup = await close_client(client)
         summary.update(mode=mode, attempt_id="attempt_3", source_commit=environment["repository"]["git_commit"],
                        requested_model=atom(config["model"], config["api_key"]),
                        observed_backend_models=sorted({r["provider_model"] for r in rows if r.get("provider_model")}),
@@ -173,7 +183,7 @@ async def run_pilot(directory: Path, config: dict, environment: dict, *, factory
 
 
 async def execute_session(directory: Path, config: dict, environment: dict, *, with_pilot: bool,
-                          factory=real_client, mode: str = "REAL") -> dict:
+                          factory=real_client, mode: str = "REAL", before_pilot=None) -> dict:
     """directory 必须由 CLI 独占创建；先验收 close，再允许正式 4-call。"""
     write_json(directory / "environment.json", environment)
     summary = {"session_id": directory.name, "mode": mode, "preflight": "NOT_RUN",
@@ -184,6 +194,10 @@ async def execute_session(directory: Path, config: dict, environment: dict, *, w
     summary.update(preflight=preflight["result"], total_provider_request_attempts=preflight["provider_requests"])
     write_json(directory / "session.json", summary)
     if preflight["result"] == "PASS" and with_pilot:
+        if before_pilot is not None and not before_pilot():
+            summary["termination_reason"] = "EXECUTION_FINGERPRINT_CHANGED"
+            write_json(directory / "session.json", summary)
+            return summary
         summary["attempt_3_invoked"] = True
         write_json(directory / "session.json", summary)
         pilot = await run_pilot(directory / "attempt_3", config, environment, factory=factory,

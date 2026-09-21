@@ -27,10 +27,10 @@ jobs:
           .venv-q61-runtime/bin/python -m pip check
           .venv-q61-runtime/bin/python -m pip freeze > run/evaluation/q6_1_runtime_environment/test-resolved-requirements.txt
       - name: 真实客户端的离线传输与连续性测试
-        run: env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python -m pytest -q tests/test_q6_1_provider_runtime.py tests/test_q6_1_real_continuity.py tests/test_continuity*.py tests/test_repository_quality.py --junitxml=run/evaluation/q6_1_runtime_environment/tests.xml
+        run: env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python -m pytest -q tests/test_q6_1*.py tests/test_continuity*.py tests/test_repository_quality.py --junitxml=run/evaluation/q6_1_runtime_environment/tests.xml
       - name: 静态检查与历史保护审计
         run: |
-          .venv-q61-runtime/bin/python -m ruff check src/social_sim/provider_runtime src/social_sim/continuity/decision.py scripts/check_q6_1_provider_runtime.py scripts/check_q6_1_local_transport.py tests/test_q6_1_provider_runtime.py
+          .venv-q61-runtime/bin/python -m ruff check src/social_sim/provider_runtime src/social_sim/continuity/decision.py scripts/check_q6_1_provider_runtime.py scripts/check_q6_1_local_transport.py tests/test_q6_1_provider_runtime.py tests/test_q6_1_runtime_hardening.py scripts/audit_repository.py
           .venv-q61-runtime/bin/python scripts/audit_repository.py --check > run/evaluation/q6_1_runtime_environment/audit.json
       - uses: actions/upload-artifact@v4
         if: always()

@@ -35,12 +35,21 @@ def audit() -> dict:
                 relative = Path(source).relative_to(group['source'])
                 pairs.append({'ref': group['ref'], 'source': source,
                               'archive': str(Path(group['archive']) / relative)})
+        overrides = data.get('archive_original_overrides', {})
+        known = {entry['archive'] for entry in pairs}
+        if set(overrides) - known:
+            errors.append('原文映射含未知条目')
         for entry in pairs:
-            p = ROOT / entry['archive']
+            original_path = entry['archive']
+            selected = overrides.get(original_path, original_path)
+            p = (ROOT / selected).resolve()
+            if not p.is_relative_to(ROOT.resolve()):
+                errors.append('原文映射越出仓库: ' + original_path)
+                continue
             expected = sha(git('show', entry['ref'] + ':' + entry['source']))
             if not p.is_file() or sha(p.read_bytes()) != expected:
-                errors.append('归档原文变化: ' + entry['archive'])
-            checked.append({'archive': entry['archive'], 'sha256': expected})
+                errors.append('归档原文变化: ' + selected)
+            checked.append({'archive': selected, 'reading_path': original_path, 'sha256': expected})
         original = git('ls-tree', '-r', '--name-only', data['research_base']).decode().splitlines()
         for source in original:
             if source in data['allowed_legacy_changes']:
