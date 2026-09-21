@@ -1,0 +1,40 @@
+name: Q6.1 独立运行时离线验收
+on:
+  push:
+    branches: [research/q6-real-continuity-pilot]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  runtime-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 单一隔离环境（不装 Ray，不读密钥）
+        run: bash scripts/setup_q6_1_runtime.sh
+      - name: 实际 HTTP 栈，仅允许本机回环
+        run: env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python scripts/check_q6_1_local_transport.py
+      - name: 安装测试工具并记录精确版本
+        run: |
+          .venv-q61-runtime/bin/python -m pip install pytest ruff
+          .venv-q61-runtime/bin/python -m pip check
+          .venv-q61-runtime/bin/python -m pip freeze > run/evaluation/q6_1_runtime_environment/test-resolved-requirements.txt
+      - name: 真实客户端的离线传输与连续性测试
+        run: env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python -m pytest -q tests/test_q6_1_provider_runtime.py tests/test_q6_1_real_continuity.py tests/test_continuity*.py tests/test_repository_quality.py --junitxml=run/evaluation/q6_1_runtime_environment/tests.xml
+      - name: 静态检查与历史保护审计
+        run: |
+          .venv-q61-runtime/bin/python -m ruff check src/social_sim/provider_runtime src/social_sim/continuity/decision.py scripts/check_q6_1_provider_runtime.py scripts/check_q6_1_local_transport.py tests/test_q6_1_provider_runtime.py
+          .venv-q61-runtime/bin/python scripts/audit_repository.py --check > run/evaluation/q6_1_runtime_environment/audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: q61-runtime-offline-evidence
+          path: run/evaluation/q6_1_runtime_environment/
+          if-no-files-found: ignore

@@ -10,6 +10,7 @@ from pathlib import Path
 import httpx
 
 from social_sim.decision.client import ProviderContractError
+from social_sim.provider_runtime.safety import exception_type
 
 from .context import decision_prompt, observe
 from .context import parse_proposal
@@ -92,29 +93,35 @@ class ActivityDecisionRunner:
         started = time.perf_counter()
         row = {"request_id": request_id, "application_calls": 1,
                "input_tokens": None, "output_tokens": None, "reasoning_tokens": None,
-               "provider_model": None, "http_status": None}
+               "provider_model": None, "http_status": None, "exception_type": None}
         cancelled = False
         try:
             reply = await asyncio.wait_for(self.client.complete(system, user), timeout=self.timeout)
-        except (TimeoutError, httpx.TimeoutException):
+        except (TimeoutError, httpx.TimeoutException) as error:
             row["status"] = "PROVIDER_TIMEOUT"
+            row["exception_type"] = exception_type(error)
         except asyncio.CancelledError:
             row["status"] = "REQUEST_CANCELLED"
+            row["exception_type"] = "CancelledError"
             cancelled = True
         except ProviderContractError as error:
             row["status"] = "PROVIDER_CONTRACT_ERROR"
+            row["exception_type"] = exception_type(error)
             if re.fullmatch(r"[A-Z0-9_]{1,64}", error.category):
                 row["failure_category"] = error.category
             row.update(self._safe_metadata(error.metadata))
-        except Exception:
+        except Exception as error:
             row["status"] = "PROVIDER_ERROR"
+            row["exception_type"] = exception_type(error)
             row.update(self._safe_metadata(getattr(self.client, "last_metadata", None)))
         else:
+            row.update(self._safe_metadata(getattr(self.client, "last_metadata", None)))
             row.update(self._safe_metadata(reply))
             try:
                 proposal = parse_proposal(reply.raw_text)
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, TypeError, AttributeError) as error:
                 row["status"] = "INVALID_MODEL_OUTPUT"
+                row["exception_type"] = exception_type(error)
             else:
                 target = proposal["target"]
                 allowed = {item["id"] for item in observe(self.world, actor_id)["objects"]}
@@ -125,8 +132,9 @@ class ActivityDecisionRunner:
                     try:
                         result = self.world.start(request_id, actor_id, proposal["activity"], target,
                                                   expected_version=version)
-                    except Exception:
+                    except Exception as error:
                         row["status"] = "ARCHITECTURE_ERROR"
+                        row["exception_type"] = exception_type(error)
                     else:
                         status = "DECISION_ACCEPTED" if result["accepted"] else "RULE_REJECTED"
                         if result.get("commitment_status") == "FAILED":

@@ -1,0 +1,7 @@
+# Q6.1 独立运行环境；不依赖 AS2/Ray。安装后写 pip freeze 清单，并运行 pip check。
+# 直接依赖固定；typing_extensions 下限避开已观测的 sentinel 缺失。
+httpx==0.28.1
+httpcore==1.0.9
+anyio>=4.9,<5
+typing_extensions>=4.16,<5
+python-dotenv==1.1.1
