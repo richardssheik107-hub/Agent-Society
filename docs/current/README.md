@@ -22,7 +22,7 @@
 6. [基础运行与验收](runbook.md)：AS2 依赖与基础测试。
 7. [Q6.1 原协议与 Attempt 1–3](q6_1_real_continuity_pilot.md)：失败历史不覆盖。
 8. [Q6.1 运行时协议](q6_1_provider_runtime.md)与[验收](q6_1_provider_runtime_acceptance.md)。
-9. [Q6.2 可执行活动投影](q6_2_action_projection.md)：代码、离线回放、测试和边界。
+9. [Q6.2 可执行活动投影](q6_2_action_projection.md)与[本轮实际验收](q6_2_acceptance.md)：代码、离线回放、测试和边界。
 10. [优先级与实施计划](plan.md)：后续工作顺序。
 
 ## 证据边界
