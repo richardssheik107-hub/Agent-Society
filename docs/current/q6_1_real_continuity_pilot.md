@@ -395,3 +395,46 @@ RUNNER_RAW_CONTINUITY_RESULT = UNRESOLVED
 ~~~
 
 没有完成真实模型 proposal 或任何 activity，也没有产生 state→observation→next decision 链路，因而无法支持短链连续性成立，亦不能据此判断其不成立。离线回归通过不改变这次真实 pilot 的失败结果。不声称长期行为或人类相似性得到证明；任何下一次真实实验都需要新的明确授权。
+
+
+## 16. Python 3.12 Runtime 修复与 Attempt 3（2026-09-22）
+
+本节追加记录，不改写 Attempt 1、Attempt 2 或先前的 Python 环境失败记录。
+
+PYTHON_RUNTIME_FIX_COMMIT = 54ed48f93f452718e59bda1368e15737f173084c
+SYSTEM_PYTHON = 3.14.4
+SELECTED_RUNTIME_PYTHON = 3.12.14
+RUNTIME = .venv-q61-runtime
+TYPING_EXTENSIONS_SENTINEL = true
+PIP_CHECK = PASS
+LOCAL_HTTP_LOOPBACK = PASS
+LOCAL_LOOPBACK_REMOTE_PROVIDER_REQUESTS = 0
+
+Provider Runtime Preflight: session q61-runtime-01；提交 54ed48f；provider requests 1；HTTP 200；requested model ark-code-latest；provider model glm-5.3；strict JSON PASS；cleanup PASS；proposal activity SLEEP, target null。
+
+Attempt 3 使用同一 runtime、配置、prompt、fixture 和规则，共 4 次 application-level 请求。Decision 1 TRAVEL to restaurant，接受并完成，minute 0→15。Decision 2 MEAL food_meal，接受并完成，minute 15→45，余额 300000→298000。Decision 3 MEAL food_meal，接受并完成，minute 45→75，余额 298000→296000。Decision 4 PLAY game_a，RULE_REJECTED / ITEM_NOT_OWNED，状态不再推进，后续停止。
+
+REAL_PROVIDER_EXECUTED = YES
+APPLICATION_CALLS = 4
+PROVIDER_REQUESTS = 4
+COMPLETED_DECISIONS = 3
+ACCEPTED_DECISIONS = 3
+RULE_REJECTION_COUNT = 1
+COMMITMENT_FAILURE_COUNT = 0
+PROVIDER_FAILURE_COUNT = 0
+INVALID_OUTPUT_COUNT = 0
+FINAL_INVARIANTS = PASS
+STATE_FEEDBACK_VISIBLE = true
+STATE_FEEDBACK_CHANGED = true
+MEDIA_CONTINUITY_EXERCISED = false
+OWNERSHIP_CONTINUITY_EXERCISED = false
+INVENTORY_CONSISTENT = true
+MONEY_CONSISTENT = true
+NO_DUPLICATE_EFFECT = true
+NO_TIME_REVERSAL = true
+IMMEDIATE_ACTIVITY_REPEAT = true
+IMMEDIATE_MEAL_REPEAT = true
+IMMEDIATE_WATCH_REPEAT = false
+SHORT_HORIZON_STATE_CONTINUITY = INSUFFICIENT_EVIDENCE
+
+离线专项测试 113 passed，Python Ruff PASS，shell 语法 PASS，repository audit PASS。全库回归在 AS2 相关测试收集阶段因缺少 litellm 产生 2 个 collection errors；AS2 smoke 同样阻塞。真实 artifact 位于 run/evaluation/q6_1_provider_runtime/q61-runtime-01/，不含 secret、Authorization、原始 prompt、原始 completion 或 hidden reasoning。

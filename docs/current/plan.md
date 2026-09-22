@@ -45,3 +45,8 @@ Attempt 1 的入口导入失败、Attempt 2 的请求尝试和清理异常均保
 ## 执行纪律
 
 安装依赖可以联网；离线测试不请求真实 provider。真实请求必须显式 opt-in，增量留痕。原始实验不补写成功、不覆盖失败；指标修订有独立版本。规则不接受模型任意代码或自造状态。阶段报告只记录实测，不强行 CLOSED。
+
+
+## Q6.1 本地真实 session 结果（2026-09-22）
+
+Python 3.12 runtime 修复后，独立依赖检查和本机 HTTP loopback 均通过。固定 session q61-runtime-01 完成一次预检与条件性 Attempt 3：预检 1 次请求通过；Attempt 3 使用 4 次请求，在前三次接受后于第四次因 ITEM_NOT_OWNED 规则拒绝停止。状态反馈、账本、库存和时间不变量均通过，但未覆盖媒体和 ownership，完整四步接受链未完成，因此短链结论保持 INSUFFICIENT_EVIDENCE。本次不补跑、不扩展预算。

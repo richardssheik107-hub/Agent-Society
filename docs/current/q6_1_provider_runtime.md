@@ -121,3 +121,8 @@ run/evaluation/q6_1_provider_runtime/<session-id>/
 运行时版本清单保存在 `run/evaluation/q6_1_runtime_environment/`。本轮 CI 不读取 GitHub secrets、不发火山请求；MockTransport 与回环只是离线证据。
 
 参考：[Python venv](https://docs.python.org/3/library/venv.html)、[HTTPX transports](https://www.python-httpx.org/advanced/transports/)。实际完成情况见 [验收记录](q6_1_provider_runtime_acceptance.md)。
+
+
+## 8. 本地执行结果（2026-09-22）
+
+提交 54ed48f93f452718e59bda1368e15737f173084c 修复 setup，使其显式选择 Python 3.12。独立 runtime 为 Python 3.12.14，固定依赖全部来自 .venv-q61-runtime，typing_extensions.sentinel 可用，pip check 和本机 HTTP loopback 均通过。固定 session q61-runtime-01 已执行一次：预检 1 次请求通过，Attempt 3 使用 4 次请求，在第四次 PLAY game_a 因 ITEM_NOT_OWNED 规则拒绝停止。已有 session ID 不可重复执行。

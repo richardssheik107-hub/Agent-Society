@@ -85,3 +85,21 @@ SHORT_HORIZON_STATE_CONTINUITY_REAL_EVIDENCE = INSUFFICIENT_EVIDENCE
 ```
 
 本轮已解决可在 GitHub 直接完成的代码和离线验证工作。用户 WSL 的实际 DNS/TLS、账户权限、provider 可用性及真实模型反馈必须由本地新会话验证。即使四步以后通过，也只支持受测短链，不证明模型因果利用了每个字段或能长期像真人生活。
+
+
+## 7. 本地真实执行补充（2026-09-22）
+
+此前“真实 Provider Runtime Preflight 尚未运行”属于交接前状态，保留其历史含义。本次提交 54ed48f93f452718e59bda1368e15737f173084c 使用 Python 3.12.14 独立 runtime 完成一次真实 session。
+
+PYTHON_RUNTIME = PASS
+LOCAL_HTTP_LOOPBACK = PASS
+PROVIDER_RUNTIME_PREFLIGHT = PASS
+PREFLIGHT_PROVIDER_REQUESTS = 1
+PREFLIGHT_HTTP_STATUS = 200
+PREFLIGHT_PROVIDER_MODEL = glm-5.3
+ATTEMPT_3_EXECUTED = YES
+ATTEMPT_3_PROVIDER_REQUESTS = 4
+ATTEMPT_3_TERMINATION = RULE_REJECTED
+SHORT_HORIZON_STATE_CONTINUITY = INSUFFICIENT_EVIDENCE
+
+离线专项为 113 passed；Ruff、repository audit 通过。全库回归在 AS2 测试收集阶段因缺少 litellm 产生 2 个 collection errors；AS2 smoke 同样因该依赖缺失而阻塞。没有重跑真实 session。
