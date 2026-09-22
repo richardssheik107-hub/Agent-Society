@@ -6,6 +6,7 @@ import json
 import re
 import time
 from pathlib import Path
+from collections.abc import Callable
 
 import httpx
 
@@ -20,12 +21,14 @@ from .models import identity, integer
 
 class ActivityDecisionRunner:
     def __init__(self, world: ContinuityWorld, client, *, max_calls: int = 4,
-                 hard_timeout_seconds: float = 60, journal_path: str | Path | None = None):
+                 hard_timeout_seconds: float = 60, journal_path: str | Path | None = None,
+                 prompt_builder: Callable[[ContinuityWorld, int], tuple[str, str]] | None = None):
         integer(max_calls, "max_calls", 1, 100)
         if not 0 < hard_timeout_seconds <= 120:
             raise ValueError("invalid timeout")
         self.world, self.client = world, client
         self.max_calls, self.timeout = max_calls, hard_timeout_seconds
+        self.prompt_builder = prompt_builder
         self.journal = Path(journal_path) if journal_path is not None else None
         self.calls = self._call_count()
         self.records = []
@@ -74,8 +77,14 @@ class ActivityDecisionRunner:
         if attempt:
             return {"status": "ALREADY_ATTEMPTED", "previous_status": attempt[0],
                     "application_calls": 0}
-        system, user = decision_prompt(self.world, actor_id)
-        version = store.actor(actor_id)["version"]
+        if self.prompt_builder is None:
+            system, user = decision_prompt(self.world, actor_id)
+            version = store.actor(actor_id)["version"]
+        else:
+            # 新的 opt-in 投影与提交用版本必须来自同一快照；不在 await 时持锁。
+            with store.read_snapshot():
+                system, user = self.prompt_builder(self.world, actor_id)
+                version = store.actor(actor_id)["version"]
         # 在同一事务内重查预算与请求 ID；多个 runner 不能用各自旧计数超发请求。
         with store.transaction():
             self.calls = self._call_count()
