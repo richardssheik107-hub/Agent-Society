@@ -292,6 +292,10 @@ def test_report_replay_is_not_claimed_to_be_original_or_new_model_evidence(tmp_p
     assert [r["choice_in_projected_options"] for r in rows] == [True, True, True, False]
     assert rows[2]["immediate_meal_repeat"]
     assert rows[3]["chosen_preview"]["reason"] == "ITEM_NOT_OWNED"
+    assert rows[3]["raw_target_object_present"]
+    assert rows[3]["RAW_PROPOSAL_EXECUTABLE"] is False
+    assert rows[3]["PROJECTED_CANDIDATE_PRESENT"] is False
+    assert rows[3]["RULE_RESULT"] == "ITEM_NOT_OWNED"
     assert result["short_horizon_state_continuity"] == "NOT_RETESTED"
 
 
@@ -328,6 +332,22 @@ def test_source_state_mismatch_is_reported_not_accepted(tmp_path):
     assert result["result"] == "SOURCE_REPLAY_MISMATCH"
     assert not result["source_artifact_verified"]
     assert result["comparison_mismatches"][0]["fields"] == ["money_after"]
+    assert "money_after" in result["comparison_mismatches"][0]["expected_sha256"]
+    assert "money_after" in result["comparison_mismatches"][0]["actual_sha256"]
+
+
+def test_source_inventory_and_media_are_compared_at_each_step(tmp_path):
+    source = synthetic_source(tmp_path)
+    path = source / "decisions.jsonl"
+    rows = [json.loads(s) for s in path.read_text().splitlines()]
+    rows[1]["inventory_delta"] = {"food_meal": 99}
+    rows[2]["media_progress_after"] = {"series_a": {"watched": [99]}}
+    path.write_text("\n".join(json.dumps(r) for r in rows))
+    result = replay(tmp_path / "mismatch", source_artifact=source)
+    assert not result["source_artifact_verified"]
+    assert [m["decision_index"] for m in result["comparison_mismatches"]] == [2, 3]
+    assert result["comparison_mismatches"][0]["fields"] == ["inventory_delta"]
+    assert result["comparison_mismatches"][1]["fields"] == ["media_progress_after"]
 
 
 def test_raw_source_extras_are_not_copied_to_output(tmp_path):

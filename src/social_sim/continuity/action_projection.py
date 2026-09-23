@@ -14,6 +14,34 @@ OBJECT_ACTIVITIES = ("MEAL", "WATCH", "PLAY")
 DESTINATIONS = ("home", "restaurant", "office", "park")
 
 
+def canonical_options(options: list[dict]) -> list[dict]:
+    """Stable activity/target ordering; order is not a preference ranking."""
+    pairs = []
+    for option in options:
+        if not isinstance(option, dict):
+            raise ValueError("invalid candidate")
+        activity, target = option.get("activity"), option.get("target")
+        if not isinstance(activity, str) or (target is not None and not isinstance(target, str)):
+            raise ValueError("invalid candidate")
+        pairs.append({"activity": activity, "target": target})
+    return sorted(pairs, key=lambda pair: (pair["activity"], pair["target"] or ""))
+
+
+def candidate_fingerprint(options: list[dict]) -> str:
+    """Digest of the current feasible set, independent of discovery order."""
+    return digest(canonical_options(options))
+
+
+def proposal_in_feasible_set(proposal: object, projection: dict) -> bool:
+    """Audit membership without substituting a model proposal."""
+    if not isinstance(proposal, dict):
+        return False
+    activity, target = proposal.get("activity"), proposal.get("target")
+    if not isinstance(activity, str) or (target is not None and not isinstance(target, str)):
+        return False
+    return {"activity": activity, "target": target} in projection["executable_options"]
+
+
 def project_actions(world: ContinuityWorld, actor_id: int = 1, *, limit: int = 5) -> dict:
     """仅检查与原 observation 相同的有限对象候选，不扫描所有对象×规则。
 
@@ -30,6 +58,7 @@ def project_actions(world: ContinuityWorld, actor_id: int = 1, *, limit: int = 5
         assessments = [world.preview_activity(actor_id, **candidate) for candidate in candidates]
         options = [candidate for candidate, check in zip(candidates, assessments, strict=True)
                    if check["executable_now"]]
+        options = canonical_options(options)
         return {
             "schema": "Q62_ACTION_PROJECTION_V1",
             "observation_digest": digest(observation),
@@ -38,6 +67,8 @@ def project_actions(world: ContinuityWorld, actor_id: int = 1, *, limit: int = 5
             "object_candidates": len(observation["objects"]),
             "pairs_checked": len(candidates),
             "executable_options": options,
+            "candidate_count": len(options),
+            "candidate_digest": candidate_fingerprint(options),
             "assessments": assessments,
             "scope": "CURRENT_SNAPSHOT_NO_EXTERNAL_CHANGES",
             "preference_ranking": False,

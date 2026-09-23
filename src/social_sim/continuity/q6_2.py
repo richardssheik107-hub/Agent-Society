@@ -30,8 +30,11 @@ COMPARE_KEYS = (
     "state_version_after", "money_before", "money_after", "hunger_before", "hunger_after",
     "energy_before", "energy_after", "location_before", "location_after",
     "observation_digest_before", "observation_digest_after", "decision_status",
+    "inventory_delta", "media_progress_before", "media_progress_after",
+    "play_minutes_before", "play_minutes_after",
 )
 INT_KEYS = frozenset(COMPARE_KEYS[:10])
+STRUCTURE_KEYS = frozenset(COMPARE_KEYS[-5:])
 KNOWN_STATUSES = frozenset({"DECISION_ACCEPTED", "RULE_REJECTED", "COMMITMENT_FAILED"})
 
 
@@ -80,6 +83,9 @@ def load_source(directory: Path) -> tuple[list[dict], list[dict], dict]:
                         raise ValueError
                 elif key.startswith("location"):
                     if value not in {"home", "restaurant", "office", "park"}:
+                        raise ValueError
+                elif key in STRUCTURE_KEYS:
+                    if not isinstance(value, dict):
                         raise ValueError
                 elif value not in KNOWN_STATUSES:
                     raise ValueError
@@ -144,6 +150,15 @@ def replay(output: Path, *, source_artifact: Path | None = None) -> dict:
                 "state_before": before, "state_after": after,
                 "projection": projection, "chosen_preview": preview,
                 "choice_in_projected_options": proposal in projection["executable_options"],
+                "RAW_PROPOSAL_EXECUTABLE": preview["executable_now"],
+                "PROJECTED_CANDIDATE_PRESENT": proposal in projection["executable_options"],
+                "PROPOSAL_IN_FEASIBLE_SET": proposal in projection["executable_options"],
+                "RULE_RESULT": result["reason"],
+                "raw_target_object_present": any(
+                    obj["id"] == proposal["target"] for obj in json.loads(a_user)["observation"]["objects"]
+                ),
+                "candidate_count": projection["candidate_count"],
+                "candidate_digest": projection["candidate_digest"],
                 "a_prompt_chars": len(a_system + a_user), "b_prompt_chars": len(b_system + b_user),
                 "a_prompt_digest": digest([a_system, a_user]),
                 "b_prompt_digest": digest([b_system, b_user]),
@@ -153,12 +168,25 @@ def replay(output: Path, *, source_artifact: Path | None = None) -> dict:
                                 ("energy", "energy_milli"), ("location", "location")):
                 row[name + "_before"] = before[field]
                 row[name + "_after"] = after[field]
+            row["inventory_delta"] = {
+                key: after["inventory"].get(key, 0) - value
+                for key, value in before["inventory"].items()
+                if after["inventory"].get(key, 0) != value
+            }
+            row["media_progress_before"] = before["media_progress"]
+            row["media_progress_after"] = after["media_progress"]
+            row["play_minutes_before"] = before["play_minutes"]
+            row["play_minutes_after"] = after["play_minutes"]
             row["immediate_meal_repeat"] = (index > 1 and proposal["activity"] == "MEAL"
                                             and rows[-1]["proposal_activity"] == "MEAL")
             if expected is not None:
                 differences = [key for key in COMPARE_KEYS if row[key] != expected[index - 1][key]]
                 if differences:
-                    mismatches.append({"decision_index": index, "fields": differences})
+                    mismatches.append({
+                        "decision_index": index, "fields": differences,
+                        "expected_sha256": {key: digest(expected[index - 1][key]) for key in differences},
+                        "actual_sha256": {key: digest(row[key]) for key in differences},
+                    })
             rows.append(row)
             with (output / "replay_rows.jsonl").open("a", encoding="utf-8") as stream:
                 stream.write(canonical_json(row) + "\n")
@@ -171,7 +199,9 @@ def replay(output: Path, *, source_artifact: Path | None = None) -> dict:
             mismatches.append({"fields": ["REPLAY_STOPPED_BEFORE_SOURCE_END"]})
         final = world.store.snapshot()
         if expected is not None and digest(final) != provenance["final_state_digest"]:
-            mismatches.append({"fields": ["FINAL_STATE_MISMATCH"]})
+            mismatches.append({"fields": ["FINAL_STATE_MISMATCH"],
+                               "expected_sha256": provenance["final_state_digest"],
+                               "actual_sha256": digest(final)})
         final_validation = validate_world(world)
         source_verified = expected is not None and not mismatches
         summary = {
@@ -199,13 +229,14 @@ def render_report(summary: dict, rows: list[dict]) -> str:
              f"模式：`{summary['mode']}`。原始本地 artifact 已核对：`{summary['source_artifact_verified']}`。",
              "本轮模型调用为 0；回放意图来自既有报告或明确传入的历史文件，不是新的模型样本。",
              "A/B 只比较同一状态的提示与候选；不报告虚构的模型效果提升。", "",
-             "| 步骤 | 固定意图 | 饥饿值前→后 | 金额前→后（分） | 投影保留 | 旧执行结果 |",
-             "|---|---|---|---|---|---|"]
+             "| 步骤 | 固定意图 | 饥饿值前→后 | 金额前→后（分） | 原提案可执行 | 投影保留 | RuleEngine 结果 |",
+             "|---|---|---|---|---|---|---|"]
     for row in rows:
         lines.append(f"| {row['decision_index']} | {row['proposal_activity']} / {row['proposal_target']} | "
                      f"{row['hunger_before']}→{row['hunger_after']} | "
                      f"{row['money_before']}→{row['money_after']} | "
-                     f"{row['choice_in_projected_options']} | {row['decision_status']} |")
+                     f"{row['RAW_PROPOSAL_EXECUTABLE']} | "
+                     f"{row['PROJECTED_CANDIDATE_PRESENT']} | {row['RULE_RESULT']} |")
     lines += ["", "## 解释边界",
               "可执行性不等于行为合理性：刚吃过饭不自动禁止再吃。",
               "在冻结参数的报告序列回放中，第一次餐食后饥饿为 245/1000，尚未归零；不能仅凭连吃两次认定模型遗忘。",
