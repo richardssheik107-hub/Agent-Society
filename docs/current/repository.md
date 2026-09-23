@@ -1,42 +1,40 @@
-# 仓库地图与清理记录
+# 仓库地图：研究问题对应哪些代码和文档
 
-## 整理基线
+盘点范围：父仓库跟踪文件、main 与 Q6 研究分支、文档引用、历史报告和验收记录。没有逐行证明全部业务代码正确，也没有读取用户本机被忽略的密钥/数据。
 
-2026-09-20 核对到：main=`bbebaf6720e8fadf25e4de0ee5b62021ae84c358`，Q3=`20f5f0c0e6f1aa830075981dc87f9852d356460d`，Q4=`9aa5d96b4339aac6affbb783a913c2f4a366c3ac`，Q5=`7e537cef22fca73c7e1cc6be22d55a829aed6d9a`。Q5 继承 Q4/Q3；main 另有会议记录和其他成员的两份 delivery 文件。
+## 代码检索地图
 
-本次在 `integration/continuity-cleanup` 整合这些内容，不改写原研究分支，不 force push，不自动合并到 main。上游固定为 `670c94fff7c64c4f79b632125f2ccf968155e746`。
+以下目录均相对 `src/social_sim/`。
 
-清理前对 267 个跟踪条目完成清单与 Python AST 导入扫描；这是仓库盘点，不表示逐行证明了全部代码正确。
+| 模块 | 对应阶段/作用 | 中文入口 |
+|---|---|---|
+| world、actions、rules、effects、reducer、execution、events | 原确定性世界及逐动作闭环 | [基础阶段](../stages/00_foundation.md) |
+| router、context、decision | 只读观察、紧凑上下文、安全客户端 | [架构](architecture.md) |
+| daily、evaluation、a2_final、a2_closure | 中性日、轨迹、先验选择及发呆审计 | [A 系列](../stages/01_idle_context.md) |
+| human_data、calibration、behavior_prior | 真人日记 ETL、映射、时长及先验 | [B 系列](../stages/02_behavior_data.md) |
+| object_benchmark | Q3 三方案单步对照 | [Q3](../studies/q3_object_set.md) |
+| resource_benchmark | Q4 状态可见性 | [Q4](../studies/q4_resource_visibility.md) |
+| rule_scaling | Q5 虚拟对象规则索引 | [Q5](../studies/q5_rule_scaling.md) |
+| continuity | Q6 状态与活动控制器；main 已有基础 | [Q6](../studies/q6_continuity.md) |
+| provider_runtime；continuity 中 q6_1/q6_2/action_projection | Q6.1/Q6.2 分支新增，尚非 main 业务代码 | [Q6.1](../studies/q61_real_pilot.md)、[Q6.2](../studies/q62_action_projection.md) |
 
-## 模块定位
+`tests/` 保留旧回归，`config/` 保留冻结实验参数，`scripts/` 按阶段运行；`smoke/` 的历史入口不等于现行任务。两个写死旧 A2 实验 ID 的工具仍保持停用，原代码留在 `archive/legacy_tools/`，本轮不删除业务复现代码。
 
-| 路径 | 现在的定位 |
-|---|---|
-| `src/social_sim/continuity/` | 新的长期状态与活动运行层，当前重点 |
-| `world/ actions/ effects/ rules/ reducer/ execution/ events/ closed_loop.py` | 原有确定性世界和逐动作闭环，保留兼容与回归 |
-| `router/ context/ decision/` | 原有确定性观察、短上下文及安全客户端，按需复用 |
-| `daily/ evaluation/ a2_final/ a2_closure/` | 已完成阶段的实验与审计实现，不视为废代码直接删除 |
-| `human_data/ calibration/ behavior_prior/` | 日记 ETL、标定和先验，保留原数据分割 |
-| `object_benchmark/ resource_benchmark/ rule_scaling/` | Q3/Q4/Q5 冻结基准，不与 Q6 实际领域执行混称 |
-| `scripts/run_continuity*.py` | 当前离线/显式授权真实运行入口 |
-| `scripts/audit_repository.py` | 只读仓库与文档引用检查 |
-| `smoke/` | 历史阶段入口；见该目录说明，不按旧计划自动补跑 |
-| `archive/legacy_tools/` | 已完成、写死旧 experiment ID 的一次性脚本原文 |
-| `docs/current/` | 当前中文说明与计划的唯一入口 |
-| `docs/archive/2026-09-20/` | 旧报告原文，内容哈希保留 |
-| `third_party/AgentSociety/` | 未修改的上游子模块 |
-| `delivery.*.jsonl` | 其他成员上传数据，原样保留 |
+## 新文档结构
 
-## 本次清理动作
+```text
+docs/
+  README.md       总目录
+  current/        当前状态、唯一计划、架构和运行说明
+  stages/         按阶段回顾基础、A 系列、B 系列
+  studies/        按问题保存 Q3—Q6.2 的实验档案
+  reports/        可直接用于汇报的材料
+  review/         人工审核、备选方案与决策记录
+  reference/      术语、来源、清理映射、导航目录
+```
 
-- 替换仍声称“Phase 0、规则尚未实现”的 README。
-- 将原根目录 README 和全部旧 docs 原文归档；旧 docs 路径保留简短中文跳转，避免外部链接失效。研究证据没有被删除。
-- 将写死 `real_20260917T085445574770Z` 的 A2-Fast 补跑、回填脚本移入 legacy_tools。原入口改为明确退出的停用说明，避免重新调用 provider 或覆盖旧结果。
-- 不批量删除旧 Python 包、测试、校准配置和历史失败，因为它们仍用于复核和回归；未被导入也不代表 CLI 无用。
-- 加入当前测试依赖、中文执行手册、有界真实请求入口、CI 和只读盘点工具。
+## 本轮保护范围
 
-机器可读清单位于 `docs/current/cleanup_manifest.json`。只读审计从冻结 Git 提交读取原始内容并核对 SHA256；受保护代码、delivery 文件与上游 gitlink 也会核对，不读取凭据或原始模型响应。
+不改 `src/`、实验配置、原测试、业务 runner、上游子模块和两份 `delivery.*.jsonl`。只改文档、文档审计与新增文档测试/工作流。没有调用真实模型、没有重算历史实验结果。
 
-## 当前仍需注意
-
-旧实验的数据目录 `run/` 和外部语料不在 Git 里。本轮未读取用户电脑上的隐藏运行产物，不填造它们的内容。历史 508 个测试与新增测试是否全通过，以最后 CI/运行记录为准。
+过时跳转和旧阶段计划从当前树删除，不再搬一份重复档案；原始报告保留在固定 Git 提交，可从[证据登记](../reference/evidence.md)恢复。删除映射见[清理记录](../reference/cleanup.md)。

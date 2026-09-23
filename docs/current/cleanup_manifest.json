@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "date": "2026-09-20",
+  "version": 2,
+  "date": "2026-09-23",
   "research_base": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a",
   "main_base": "bbebaf6720e8fadf25e4de0ee5b62021ae84c358",
   "archive_directories": [{"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "docs", "archive": "docs/archive/2026-09-20"}],
@@ -10,9 +10,14 @@
     {"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "smoke/behavior_prior_corpus_resume_remaining.py", "archive": "archive/legacy_tools/behavior_prior_corpus_resume_remaining.py"},
     {"ref": "7e537cef22fca73c7e1cc6be22d55a829aed6d9a", "source": "smoke/behavior_prior_corpus_finalize_existing.py", "archive": "archive/legacy_tools/behavior_prior_corpus_finalize_existing.py"}
   ],
+  "document_retirement": {
+    "policy": "PINNED_GIT_HISTORY_FOR_DOCS_ONLY",
+    "mapping": "docs/reference/cleanup_map.json",
+    "reason": "用户要求删除过时文档；30 份文档原字节从固定 Git 提交核验及恢复，两个工具仍逐字节比对工作树。不是关闭历史保护。"
+  },
   "protected_base_prefixes": ["src/", "tests/", "scripts/", "config/", "smoke/"],
   "allowed_legacy_changes": ["smoke/behavior_prior_corpus_resume_remaining.py", "smoke/behavior_prior_corpus_finalize_existing.py"],
   "protected_main_files": ["delivery.sequences.jsonl", "delivery.stream.jsonl"],
   "upstream_gitlink": "670c94fff7c64c4f79b632125f2ccf968155e746",
-  "note": "原文从冻结提交读取并逐文件校验 SHA256；新文件不属于历史受保护范围。未删除任何旧研究结果或测试。"
+  "note": "旧32项来源不改。文档由工作树副本保护迁移为不可变Git历史保护；正文归纳为中文。业务代码、数据与上游保护不放宽。"
 }

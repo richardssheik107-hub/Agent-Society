@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "language": "zh-CN",
+  "root": "docs/README.md",
+  "groups": {
+    "总目录": ["docs/README.md"],
+    "当前工作": ["docs/current/README.md", "docs/current/research_status.md", "docs/current/plan.md", "docs/current/acceptance.md"],
+    "汇报": ["docs/reports/README.md", "docs/reports/meeting_brief.md", "docs/current/three_core_questions_experiment_summary.md"],
+    "人工审核": ["docs/review/README.md", "docs/review/decisions.md"],
+    "阶段": ["docs/stages/README.md", "docs/stages/00_foundation.md", "docs/stages/01_idle_context.md", "docs/stages/02_behavior_data.md"],
+    "研究问题": ["docs/studies/q3_object_set.md", "docs/studies/q4_resource_visibility.md", "docs/studies/q5_rule_scaling.md", "docs/studies/q6_continuity.md", "docs/studies/q61_real_pilot.md", "docs/studies/q62_action_projection.md"],
+    "工程参考": ["docs/current/architecture.md", "docs/current/repository.md", "docs/current/runbook.md", "docs/current/branches.md"],
+    "术语与追溯": ["docs/reference/glossary.md", "docs/reference/evidence.md", "docs/reference/cleanup.md"]
+  },
+  "review_ids": ["d-01", "d-02", "d-03", "d-04", "d-05", "d-06", "d-07", "d-08"],
+  "source_refs": {
+    "main_before_cleanup": "2351b8159fe1d0767d1377741590c36b00cd20a0",
+    "research_snapshot": "51cdf5c8b1bb0d0618dba41c6b1d9511fd6ba624",
+    "upstream": "670c94fff7c64c4f79b632125f2ccf968155e746"
+  }
+}
