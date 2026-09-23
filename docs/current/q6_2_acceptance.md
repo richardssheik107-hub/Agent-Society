@@ -81,4 +81,6 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 本轮加入候选数量、稳定摘要和提案 membership 指标，以及独立 A/B world、固定 `AB`/`BA` 顺序、每臂四次/总计八次请求上限、失败停止和不可覆盖的 session 产物。离线 dry-run `q62-ab-dry-20260923` 已在轻量 runtime 运行：`Q6_2_REAL_AB_EXECUTED=NO`、`PROVIDER_REQUESTS=0`。真实 A/B 未运行，效果差异为 `NOT_TESTED`。具体冻结协议见 [Q6.2 小预算真实 A/B 预注册协议](q6_2_real_ab_protocol.md)。
 
-本轮本地新旧 Q6.2 focused 测试为 **57 passed**，新增/改动代码的 Ruff PASS。GitHub CI 完整回归结果应以本次提交后 PR #4 的 workflow 为准，不能沿用上面前一提交的 660 passed 作为新提交的验收结论。
+本轮本地新旧 Q6.2 focused 测试为 **57 passed**，联合 Q6.1/continuity/仓库专项 **129 passed**，新增/改动代码的 Ruff PASS。
+
+本次代码与协议提交对应的 [GitHub Actions 35842428974](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/35842428974) 已完成：core-contract **129 passed**，Ruff、原文/受保护文件审计、报告序列离线回放、A/B dry-run、七天/三十天工程脚本均 PASS；regression **670 passed、8 skipped**；实际固定上游 AS2 适配器为 `AS2_CONTINUITY_ADAPTER_PASS`，`LLM_CALLS=0`、`PROVIDER_REQUESTS=0`。八项跳过仍因未入库的历史真人语料，不计作通过。这是本轮新提交的验收，不沿用上面前一提交的 660 passed。
