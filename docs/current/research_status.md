@@ -1,18 +1,18 @@
 # 按问题检索：研究状态与结论边界
 
-更新：2026-09-23。会议三个重点是 **Q3、Q4、Q5**；早期“为什么发呆、真人规则从哪来”对应 A/B 系列；Q6 是随后补上的连续性问题。编号沿用历史，不补造 Q1/Q2 实验。
+更新：2026-09-23，研究分支核对至 `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1`。会议三问为 Q3、Q4、Q5；早期发呆与数据来源是 A/B 系列；Q6 补连续性。编号沿用历史，不补造 Q1/Q2 实验。
 
 | 问题 | 实验证据与当前回答 | 状态 | 中文详解 | 人工讨论 |
 |---|---|---|---|---|
-| 对象能否完全由模型自由生成？ | Q3 的 43 组共同成功案例中，A/B/C 可执行率为 13/43、43/43、38/43；以 Catalog + Top-K 为工程参考 | 受测单步支持；Hybrid 未收口 | [Q3 对象集](../studies/q3_object_set.md) | [D-03 对象边界](../review/decisions.md#d-03) |
-| 每次需要让模型看多少状态？ | R8/R16/R32/R64 固定真值、改变可见字段；没有一档满足全部最小集合门槛 | 部分解决，最小值未知 | [Q4 可见状态](../studies/q4_resource_visibility.md) | [D-04 字段与评价](../review/decisions.md#d-04) |
-| 千万对象是否需要巨型显式规则图？ | 固定合成结构中，类型—规则 21 项、能力—类型 28 项不随虚拟对象数增长 | 规则索引结构门槛通过；非真实数据库完成 | [Q5 规则扩展](../studies/q5_rule_scaling.md) | [D-06 规模边界](../review/decisions.md#d-06) |
-| 发呆与频繁重新决策来自哪里？ | 动作缺失、时长、拒绝循环、先验与世界不匹配、即时动作链和服务截断需分开 | 有分解与局部证据；未证明全天正常 | [A 系列](../stages/01_idle_context.md) | [D-05 行为标准](../review/decisions.md#d-05) |
-| 真人日记是否值得引入？ | Core5→Core7 的全成人分钟覆盖 82.17%→93.00%；用于校准，不决定物理/交易合法性 | 结构校准有依据；当代代表性有限 | [B 系列](../stages/02_behavior_data.md) | [D-07 数据适用性](../review/decisions.md#d-07) |
-| 是否记得看到第几集、拥有什么？ | 持久状态、事务、幂等和 7/30 天脚本恢复验收 | 受测工程机制通过 | [Q6 长期事实](../studies/q6_continuity.md) | [D-05 行为标准](../review/decisions.md#d-05) |
-| 真实模型是否能继续利用更新后的状态？ | Q6.1 三次活动完成，第四次被规则拒绝；观察链一致不等于因果利用 | 原结论仍为证据不足；研究分支 | [Q6.1 真实短链](../studies/q61_real_pilot.md) | [D-01 原产物与方案冻结](../review/decisions.md#d-01) |
-| 提前给可执行候选是否有用？ | Q6.2 只读投影及离线回放通过；真实 A/B 未运行 | 工程可用，模型收益待测；研究分支 | [Q6.2 活动投影](../studies/q62_action_projection.md) | [D-02 采购语义](../review/decisions.md#d-02) |
+| 对象能否完全由模型自由生成？ | 43 组共同案例 A/B/C=13/43、43/43、38/43；Catalog + Top-K 为参考 | 受测单步支持，Hybrid 未收口 | [Q3 对象集](../studies/q3_object_set.md) | [D-03](../review/decisions.md#d-03) |
+| 每次需要看多少状态？ | R8/R16/R32/R64 固定真值、改变可见字段，没有一档满足全部最小门槛 | 最小值未知 | [Q4 可见状态](../studies/q4_resource_visibility.md) | [D-04](../review/decisions.md#d-04) |
+| 千万对象需要显式规则图吗？ | 类型—规则21、能力—类型28项不随虚拟对象数增长 | 结构门槛通过，非真实数据库完成 | [Q5 规则扩展](../studies/q5_rule_scaling.md) | [D-06](../review/decisions.md#d-06) |
+| 为什么发呆、频繁决策？ | 动作缺失、时长、拒绝、即时动作链、先验与服务截断分开 | 有分解与局部证据，非全天正常 | [A 系列](../stages/01_idle_context.md) | [D-05](../review/decisions.md#d-05) |
+| 真人日记值得引入吗？ | Core5→Core7 全成人分钟覆盖82.17%→93.00%，不取代交易合法性 | 结构校准有据，代表性有限 | [B 系列](../stages/02_behavior_data.md) | [D-07](../review/decisions.md#d-07) |
+| 能记住进度和拥有物吗？ | 持久状态、事务、幂等与7/30天脚本验收 | 受测工程机制通过 | [Q6](../studies/q6_continuity.md) | [D-05](../review/decisions.md#d-05) |
+| 真实模型能继续用更新状态吗？ | Q6.1三次完成、一次规则拒绝；观察一致不等于因果利用 | 原结论证据不足；分支 | [Q6.1](../studies/q61_real_pilot.md) | [D-01](../review/decisions.md#d-01) |
+| 提前给合法候选有用吗？ | Q6.2投影、原产物核验、八请求上限的A/B入口及dry-run已准备 | 原产物核验通过；真实A/B未运行；分支 | [Q6.2](../studies/q62_action_projection.md) | [D-01](../review/decisions.md#d-01)、[D-02](../review/decisions.md#d-02) |
 
-证据按报告/代码提交冻结，见[验收账本](acceptance.md)和[证据登记](../reference/evidence.md)。测试数量、真实请求数量、成功活动数量不可互换。
+证据按报告和代码提交冻结，见[验收账本](acceptance.md)与[证据登记](../reference/evidence.md)。测试数、请求数、成功活动数不能互换。
 
-只读一份：[三个会议问题的完整实验说明](three_core_questions_experiment_summary.md)。按时间回顾：[阶段索引](../stages/README.md)。
+只读一份：[三问综合稿](three_core_questions_experiment_summary.md)。按路线回顾：[阶段索引](../stages/README.md)。

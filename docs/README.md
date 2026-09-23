@@ -1,6 +1,6 @@
 # 中文文档总目录
 
-整理基准：2026-09-23。主线内容基于 `2351b8159fe1d0767d1377741590c36b00cd20a0`；Q6.1/Q6.2 分支内容核对至 `51cdf5c8b1bb0d0618dba41c6b1d9511fd6ba624`。后续提交不自动视为已验收。
+整理日期：2026-09-23。主线整理基于 `2351b8159fe1d0767d1377741590c36b00cd20a0`，文档 PR #5 已合并；收尾同步研究分支新推送 `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1` 的报告。研究业务 PR #4 仍未合并，不把分支能力冒充主线代码。
 
 ## 四种检索方式
 
@@ -20,16 +20,16 @@
 | 人工审核 | [待决事项总表](review/README.md)、[讨论单与决策记录](review/decisions.md) |
 | 前置阶段 | [基础闭环](stages/00_foundation.md)、[发呆与最小上下文](stages/01_idle_context.md)、[真人日记与行为校准](stages/02_behavior_data.md) |
 | 三个会议问题 | [Q3 对象集](studies/q3_object_set.md)、[Q4 可见状态](studies/q4_resource_visibility.md)、[Q5 规则扩展](studies/q5_rule_scaling.md) |
-| 持续运行 | [Q6 长期事实](studies/q6_continuity.md)、[Q6.1 真实短链](studies/q61_real_pilot.md)、[Q6.2 可执行活动投影](studies/q62_action_projection.md) |
+| 持续运行 | [Q6 长期事实](studies/q6_continuity.md)、[Q6.1 真实短链](studies/q61_real_pilot.md)、[Q6.2 可执行活動投影](studies/q62_action_projection.md) |
 | 工程参考 | [架构职责](current/architecture.md)、[仓库模块地图](current/repository.md)、[运行手册](current/runbook.md)、[分支状态](current/branches.md) |
 | 查词与追溯 | [术语及指标](reference/glossary.md)、[证据登记](reference/evidence.md)、[删除与迁移记录](reference/cleanup.md) |
 
 ## 怎样理解状态标签
 
-“主线已有”是代码位置，不等于行为已证明；“分支已验证”必须同时写提交和测试范围；“报告记载”不等于本轮重跑；“待验证”不能改写成工程结论；“待人工确认”不是已批准。
+主线已有是代码位置，不等于行为已证明；分支已验证必须同时写提交和测试范围；报告记载不等于本轮重跑；待验证不能改写成工程结论；待人工确认不是已批准。最新 Q6.2 原产物核验与 A/B 准备已完成，但真实 A/B 仍未执行。
 
-所有正常阅读链接都指向中文说明。英文类名、变量名和机器标签保留以便搜代码。旧英文报告不再作为阅读必经路径，其原始字节通过证据登记中的固定提交追溯。
+正常阅读链接均指向中文说明。英文类名、变量名和机器标签保留以便搜代码。旧英文报告不再作为阅读必经路径，其原始字节通过证据登记中的固定提交追溯。
 
 ## 快速定位代码
 
-按问题用 `Q3`、`Q4`、`Q5`、`Q6.1`、`Q6.2` 搜文档；按故障用 `ITEM_NOT_OWNED`、`MAX_DECISIONS`、`PROVIDER_ERROR`；按机制用“幂等”“只读投影”“人物—对象状态”。每份问题文档都列出相关模块，详见[仓库地图](current/repository.md)。
+按问题用 Q3、Q4、Q5、Q6.1、Q6.2 搜文档；按故障用 ITEM_NOT_OWNED、MAX_DECISIONS、PROVIDER_ERROR；按机制用幂等、只读投影、人物—对象状态。每份问题文档列出对应模块，详见[仓库地图](current/repository.md)。

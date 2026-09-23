@@ -1,16 +1,16 @@
 # 运行手册：先看分支，再选环境
 
-本页不是新的模型调用授权。所有付费实验必须另行确认预算和停止条件；不要为检查配置再次运行已用过的 session。
+本页不是付费调用授权。真实实验需另行批准预算和停止条件，不能为检查配置再运行已用过的session。
 
-## 主线能做什么
+## 主线可运行的工程验收
 
-main 现有 Q6 脚本验收只需 Python 标准库：
+Q6脚本只需Python标准库，模型调用为0：
 
 ```bash
 python scripts/run_continuity.py
 ```
 
-它验证工程状态，不请求模型。完整仓库测试需要固定 AS2 依赖，不能在轻量 provider 环境缺依赖时把收集错误称为业务失败。
+完整回归需要固定AS2和测试依赖，在独立全栈环境安装，不混入轻量provider环境：
 
 ```bash
 git submodule update --init --recursive third_party/AgentSociety
@@ -18,15 +18,13 @@ python -m pip install -c requirements-as2-constraints.txt -r requirements-test.t
 python -m pytest -q -rs
 ```
 
-这是安装测试环境的说明；不要在未经确认的本机全局环境盲目执行。优先使用独立全栈回归环境。八项历史语料依赖缺失应显示 SKIP，实际有语料可用 `--require-historical-data` 严格核验。
+执行前确认所用Python及独立环境；不要在系统全局环境盲目安装。历史真人数据缺失显示SKIP，真正有数据可用 `--require-historical-data` 严格检查。
 
-## Q6.1/Q6.2 分支能做什么
+## Q6.2研究分支：已核验原文件，不需要默认重复
 
-研究代码在 `research/q6-real-continuity-pilot`，不是只拉 main 就能运行。父仓库为 `/home/fergeson/projects/agent-society`，不要在官方子模块里切研究分支。先看 `git status --short`，有未提交内容不 reset/clean。
+业务代码仍在 `research/q6-real-continuity-pilot`。父仓库 `/home/fergeson/projects/agent-society`，不是官方子模块。先看工作树状态，有改动不reset/clean。已有Python3.12.14的 `.venv-q61-runtime` 不因文档更新重建，不拼uv缓存。
 
-本机已经成功建立 `.venv-q61-runtime`（Python 3.12.14），不需要因文档更新再次重建，也不拼接 uv cache。运行时安装/预检已经通过的历史见[Q6.1](../studies/q61_real_pilot.md)。
-
-在原产物确实存在且新离线脚本可用的研究分支，只读核验命令：
+原artifact核验已有成功报告。需要再次独立复核时可在有真实文件的研究分支运行：
 
 ```bash
 env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
@@ -34,13 +32,22 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   --source-artifact run/evaluation/q6_1_provider_runtime/q61-runtime-01
 ```
 
-该入口读取 `attempt_3/summary.json`、`decisions.jsonl` 和 `final_state.json`，输出新目录，模型请求 0。不存在原文件时不能标记 verified；有差异不能自动修原数据。
+它只读原 `attempt_3/` 文件、写新目录，不调用模型。新报告不覆盖已有原文件和历史失败。
 
-## 当前不要执行什么
+## A/B入口已准备，默认只能dry-run
 
-不要重跑 `q61-runtime-01` 真实预检，不自动换 session，不自动授权十二次，不因模型未选 WATCH 就插入观看动作。新的真实 A/B 先完成[人工 D-01](../review/decisions.md#d-01)。
+研究分支 `e2d85c6` 已有 `scripts/run_q6_2_real_ab.py`。无凭据dry-run示例：
 
-## 文档本身怎么检查
+```bash
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_real_ab.py --session-id <新的dry-run唯一ID> --schedule AB
+```
+
+尖括号为需要替换的占位，不要原样执行。已有dry-run产物可直接审阅，不必重复建设。默认provider请求0、真实A/B未执行；真实调用的allow-provider选项在本页不启用。现有每臂四次/总八次的代码上限不是新增授权。[人工D-01](../review/decisions.md#d-01)
+
+不要重跑q61-runtime-01真实预检，不自动切换模型/endpoint，不插WATCH/MEAL，不因失败换ID补跑。
+
+## 文档检查
 
 ```bash
 python scripts/audit_repository.py --check
@@ -48,4 +55,4 @@ python scripts/audit_documentation.py --check
 python -m pytest -q tests/test_documentation_navigation.py
 ```
 
-完整历史检查需要 `fetch-depth: 0` 的克隆；浅克隆缺 Git 对象应明确失败而不是忽略。审计只读，不下载密钥、不调用模型。历史文件查找见[清理映射](../reference/cleanup.md)。
+需要完整Git历史；浅克隆缺对象必须报告不能完成，不忽略。审计只读、零模型。旧文件查找见[清理映射](../reference/cleanup.md)。

@@ -15,7 +15,8 @@
   "review_ids": ["d-01", "d-02", "d-03", "d-04", "d-05", "d-06", "d-07", "d-08"],
   "source_refs": {
     "main_before_cleanup": "2351b8159fe1d0767d1377741590c36b00cd20a0",
-    "research_snapshot": "51cdf5c8b1bb0d0618dba41c6b1d9511fd6ba624",
+    "research_snapshot": "e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1",
+    "previous_research_snapshot": "51cdf5c8b1bb0d0618dba41c6b1d9511fd6ba624",
     "upstream": "670c94fff7c64c4f79b632125f2ccf968155e746"
   }
 }
