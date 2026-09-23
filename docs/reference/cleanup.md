@@ -21,7 +21,7 @@
 | meeting_2026-09-18_world_model_architecture_notes_zh | [人工讨论单](../review/decisions.md) | 会议是部分记录，不能冒充全部已验证设计 |
 | README_before_cleanup | [总目录](../README.md) | Phase0 状态已过期 |
 
-机器映射为 `cleanup_map.json`；`audit_documentation.py` 会枚举整理前 docs 的每个路径、原 blob、处理方式与替代目标，输出逐文件 inventory，确保没有文件靠“没读到”就被删除。
+机器映射为 `cleanup_map.json`；`audit_documentation.py` 会枚举整理前 docs 的每个路径、原 blob、处理方式与替代目标，输出逐文件 inventory，确保每一项删除都有记录和中文替代位置。
 
 ## 不变范围与审计迁移
 
@@ -33,6 +33,24 @@
 
 这次从 main 单独整理文档，不合并研究 PR #4 的业务代码。PR #4 后续同步时应保留本目录结构；发生删除/修改冲突必须人工合并，不能让旧档案重新覆盖当前导航。
 
-## 本轮验收记录
+## 本轮实际验收（2026-09-23）
 
-本页中的 68→27 是目录盘点目标及逐文件映射口径。实际链接、中文标题、清单覆盖、Git 原文与受保护代码检查以本轮 CI 结果为准，运行记录将在完成后追加。真实 provider 请求为 0，不生成新的科学实验结论。
+文档与审计代码提交为 `2eaf4d34b4fdc9af58f10c9384836ecb46da6422`；测试使用与当时 main 的预合并提交 `53000dfb15bb9dc336b40f1f980280be0bc0f6f1`。本节是通过后的结果回填，不把后续文档提交当成下面运行的代码版本。
+
+| 检查 | 实际结果 | 证据 |
+|---|---|---|
+| 中文目录、链接、锚点、可达性、旧文件迁移覆盖 | PASS；68 份旧文档逐项登记，59 份退出当前树，27 份现行中文文档 | 文档 CI 35843575445 |
+| 文档和仓库专项 | 19 passed（15 项新增文档测试、4 项既有仓库质量测试） | 同上，Python 3.12.14 |
+| 原32项历史来源与受保护代码/数据 | PASS；历史原文可恢复、工具字节一致 | 同上审计 JSON |
+| 文档审计工具 Ruff | PASS | 同上 |
+| 全库回归 | 570 passed，8 skipped | 仓库 CI 35843575443 |
+| 实际固定上游 AS2 适配器 | AS2_CONTINUITY_ADAPTER_PASS，0 LLM/provider calls | 同上 |
+| 七天/三十天脚本工程验证 | PASS | 同上 core-contract |
+
+八项跳过仍属于未提交到 Git 的历史真人语料：test_a2_final、test_behavior_prior_context、test_behavior_prior_index；没有用假数据替代。570 是当前主线加文档测试的范围，研究分支另有新增测试，因此不能与研究分支此前的 660 直接比较增减。
+
+运行记录：[中文文档 CI](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/35843575445)、[主线范围回归 CI](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/35843575443)。
+
+文档审计产物 ID `10741723786` 包含 navigation.json（逐文件迁移清单）、repository.json（32项原文指纹与保护检查）、tests.xml；回归产物 ID `10742084782` 包含测试结果、依赖和上游版本。Actions 下载产物可能过期，关键运行 ID 与结果保留于此。
+
+本轮未读取本地凭据、未调用真实模型、未生成新的科学实验结果。全部业务源码、原实验配置、原业务测试和业务 runner 的差异已核对为零。
