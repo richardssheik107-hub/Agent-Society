@@ -1,6 +1,6 @@
 # Q6.2 代码交付与实际验收
 
-日期：2026-09-22。分支：`research/q6-real-continuity-pilot`。在现有 PR #4 继续交付，不自动合并 main。
+原代码验收：2026-09-22。追加本地原始产物核验与 A/B dry-run：2026-09-23。分支：`research/q6-real-continuity-pilot`。在现有 PR #4 继续交付，不自动合并 main。
 
 ## 已完成的代码
 
@@ -65,3 +65,20 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 只有与传入文件的逐步状态、观察摘要、版本及终态都相符，才标记 source_artifact_verified=true；这不是对外部文件真实性的额外认证。
 
 当前结论：**可执行活动投影已实现并通过受测工程检查；是否改善真实模型选择、增加上下文是否划算，仍需单独授权的真实对照实验。**
+
+## 2026-09-23：原始 Attempt 3 核验与 A/B 准备
+
+这一节是后续本地实测，不改写上面 2026-09-22 的 CI 历史。当前 WSL 的原始 `run/evaluation/q6_1_provider_runtime/q61-runtime-01/attempt_3/` 实际存在。Python 3.12.14 轻量 runtime 的 `pip check` 通过；凭据字符串扫描没有命中。用 `--source-artifact` 进行离线回放后，逐步时间、版本、位置、金额、饥饿、库存变化、媒体进度、观察摘要和最终状态均与原始文件相符：`SOURCE_ARTIFACT_VERIFIED=True`、`comparison_mismatches=[]`、`PROVIDER_REQUESTS=0`。最新输出在 `run/evaluation/q6_2_projection/20260923T091537191524Z/`（本地忽略目录，不提交 Git）。
+
+| 决策 | 原提案 | 饥饿前→后 | 投影内 | 原规则结果 |
+|---|---|---:|---|---|
+| 1 | TRAVEL restaurant | 800→815 | 是 | 接受并完成 |
+| 2 | MEAL food_meal | 815→245 | 是 | 接受并完成 |
+| 3 | MEAL food_meal | 245→0 | 是 | 接受并完成 |
+| 4 | PLAY game_a | 0→0 | 否 | `ITEM_NOT_OWNED` |
+
+第四步前 `game_a` 数量为 0；原观察可见该对象，但原提示并没有显式可执行 `PLAY(game_a)` 候选。B 投影排除此配对，原 RuleEngine 仍拒绝。第三步餐食在规则层仍可执行，不因连续吃饭被人为禁用。
+
+本轮加入候选数量、稳定摘要和提案 membership 指标，以及独立 A/B world、固定 `AB`/`BA` 顺序、每臂四次/总计八次请求上限、失败停止和不可覆盖的 session 产物。离线 dry-run `q62-ab-dry-20260923` 已在轻量 runtime 运行：`Q6_2_REAL_AB_EXECUTED=NO`、`PROVIDER_REQUESTS=0`。真实 A/B 未运行，效果差异为 `NOT_TESTED`。具体冻结协议见 [Q6.2 小预算真实 A/B 预注册协议](q6_2_real_ab_protocol.md)。
+
+本轮本地新旧 Q6.2 focused 测试为 **57 passed**，新增/改动代码的 Ruff PASS。GitHub CI 完整回归结果应以本次提交后 PR #4 的 workflow 为准，不能沿用上面前一提交的 660 passed 作为新提交的验收结论。

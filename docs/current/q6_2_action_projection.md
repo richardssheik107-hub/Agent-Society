@@ -1,6 +1,6 @@
 # Q6.2：当前可执行活动投影与状态利用审计
 
-更新：2026-09-22。范围：离线实现与工程验证；真实 A/B 尚未执行。继续在 `research/q6-real-continuity-pilot` 交付，经 PR #4 审阅，不直接合并主线。
+更新：2026-09-23。范围：原始产物离线核验、投影工程验证与小预算 A/B dry-run；真实 A/B 尚未执行。继续在 `research/q6-real-continuity-pilot` 交付，经 PR #4 审阅，不直接合并主线。
 
 ## 1. 为什么做这一轮
 
@@ -45,15 +45,15 @@ from social_sim.continuity.decision import ActivityDecisionRunner
 runner = ActivityDecisionRunner(world, client, prompt_builder=projected_prompt)
 ```
 
-默认不提供 `prompt_builder`，Q6.1 仍走原提示。原真实入口、预算、对象参数、动作集合、provider 配置、上游子模块均不变。本轮没有新增真实 A/B CLI，避免未经研究方案冻结就发模型请求。
+默认不提供 `prompt_builder`，Q6.1 仍走原提示。原真实入口、预算、对象参数、动作集合、provider 配置、上游子模块均不变。小预算 A/B 协议和独立运行入口见 [Q6.2 A/B 预注册协议](q6_2_real_ab_protocol.md)；默认入口只做零请求 dry-run。
 
-候选来自原 observation 的最多 5 个对象，本轮小世界是 4 个；对固定活动、目的地和这些对象做有限检查。仍使用旧的按 ID 排序候选，不把它称为新的语义 Top-K，更不据此声称千万对象检索已解决。
+候选来自原 observation 的最多 5 个对象，本轮小世界是 4 个；对固定活动、目的地和这些对象做有限检查。可执行活动/目标对按活动名和规范目标 ID 排序，记录数量与 SHA-256 摘要；顺序不是偏好排序。对象检索仍使用旧的按 ID 排序候选，不把它称为语义 Top-K，更不据此声称千万对象检索已解决。
 
 ## 4. 离线回放结果与证据来源
 
-本轮无法从 Git 读取用户 WSL 中被忽略的 `q61-runtime-01` 原始运行目录。因此默认模式明确叫 `SCRIPTED_REPORT_SEQUENCE_REPLAY`：用报告已记录的四个意图，在新的小世界中确定性回放，不伪造模型响应、不重跑 provider。
+Git 不收录用户 WSL 中被忽略的 `q61-runtime-01` 原始运行目录；现在已在该 WSL 中直接读取并核对。无来源参数时仍明确叫 `SCRIPTED_REPORT_SEQUENCE_REPLAY`，只回放报告序列；带 `--source-artifact` 时叫 `ARTIFACT_DRIVEN_DETERMINISTIC_REPLAY`，对原始文件逐步校验，不伪造模型响应、不重跑 provider。
 
-冻结来源：执行代码 `54ed48f93f452718e59bda1368e15737f173084c`；报告提交 `a338f0b3171bf1692032bfd6818f47620fba3fdb`。原始本地 artifact 是否已核对默认是 **false**。
+冻结来源：执行代码 `54ed48f93f452718e59bda1368e15737f173084c`；报告提交 `a338f0b3171bf1692032bfd6818f47620fba3fdb`。2026-09-23 使用原始本地 artifact 核对的实际结果为 `SOURCE_ARTIFACT_VERIFIED=True`、`comparison_mismatches=[]`、`PROVIDER_REQUESTS=0`；无来源参数的默认模式仍不能自称已核对。
 
 | 步骤 | 报告中的意图 | 回放饥饿值前→后 | 回放金额前→后（分） | 新投影保留 | 原规则结果 |
 |---|---|---:|---:|---|---|
@@ -62,7 +62,7 @@ runner = ActivityDecisionRunner(world, client, prompt_builder=projected_prompt)
 | 3 | MEAL / food_meal | 245→0 | 298000→296000 | 是 | 接受并完成 |
 | 4 | PLAY / game_a | 0→0 | 296000→296000 | 否 | ITEM_NOT_OWNED |
 
-A/B 提示字符数分别为 1236/1772、1243/1659、1245/1661、1245/1661。这里只比较同一状态下的输入差异，**没有 B 模型行为结果，更没有证明 B 减少了真实拒绝率**。
+A/B 提示字符数分别为 1236/1772、1243/1659、1245/1661、1245/1661（早期未排序候选的离线记录；候选排序后以新 artifact 为准）。这里只比较同一状态下的输入差异，**没有 B 模型行为结果，更没有证明 B 减少了真实拒绝率**。
 
 回放时即使发现第四项不在新投影里，仍执行报告中的原提案，以验证原规则正确拒绝；不会挑一个合法动作替换它。共享检查重构前后的四步完整状态哈希和事件哈希由冻结脚本基线测试核验一致。该哈希基线是离线脚本，不是原 provider artifact。
 
@@ -83,13 +83,13 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   --source-artifact run/evaluation/q6_1_provider_runtime/q61-runtime-01
 ```
 
-工具只读原 `attempt_3/summary.json`、`decisions.jsonl` 与 `final_state.json`，检查来源版本、逐步状态/观察摘要与回放终态。只有这些都匹配才标记 `source_artifact_verified=true`。这表示与传入文件相符，不对外部文件的真实性做额外认证。
+工具只读原 `attempt_3/summary.json`、`decisions.jsonl` 与 `final_state.json`，检查来源版本、逐步时间/位置/余额/饥饿/状态版本、库存变化、媒体进度、观察摘要与回放终态。只有这些都匹配才标记 `source_artifact_verified=true`。不一致时仅输出字段名和期望/实际值的摘要，不复制 provider 原文。这表示与传入文件相符，不对外部文件的真实性做额外认证。
 
 输出写到新的 `run/evaluation/q6_2_projection/<时间>/`：中文报告、summary、逐步回放审计和独立数据库。拒绝覆盖目录、向源目录内部输出或默默忽略来源不匹配。额外 provider 字段不复制，未知异常不回显正文。CLI 没有 `--allow-provider`，并阻断网络连接；模型调用固定为 0。
 
 ## 6. 测试范围
 
-Q6.2 新增 47 项测试案例。覆盖未拥有/已拥有游戏、位置、能力不符、下架、缺钱/缺货、已持有食物、忙碌/暂停、剧集顺序与显式重看、状态过期、投影后库存变化、只读无副作用、A/B 上下文隔离、旧行为哈希不变，以及本地 artifact 核对与隐私字段过滤。
+原投影新增 47 项测试案例；本轮继续增加逐步库存/媒体比较、候选摘要、提案 membership、A/B 隔离、失败停止、重复 session 与零凭据 dry-run 测试。覆盖未拥有/已拥有游戏、位置、能力不符、下架、缺钱/缺货、已持有食物、忙碌/暂停、剧集顺序与显式重看、状态过期、投影后库存变化、只读无副作用、A/B 上下文隔离、旧行为哈希不变，以及本地 artifact 核对与隐私字段过滤。
 
 十类状态中，投影的每个候选都与独立副本的实际完整执行结果比较；副本只用于测试，不在投影实现里运行。接线测试让 fake provider 真正接收 B 输入，验证完成第一集后下次输入确实出现第二集；另测模型无视投影时仍由规则拒绝。
 
@@ -105,7 +105,7 @@ Q6.2 新增 47 项测试案例。覆盖未拥有/已拥有游戏、位置、能�
 
 ## 8. 下一轮计划
 
-先审阅本轮离线结果，并在 WSL 对原始 artifact 做只读核对。再独立冻结小预算真实 A/B：使用相同状态、相同模型和请求契约，比较原始候选与可执行候选。主要看规则拒绝率、接受后完成率和上下文成本；重复进食仅作行为描述，不作为规则失败。
+WSL 原始 artifact 已只读核对通过；小预算真实 A/B 协议和 dry-run 已准备，详见 [预注册协议](q6_2_real_ab_protocol.md)。未来需另行明确授权真实运行：两臂各最多四次请求，使用相同初态、模型和请求契约，主要看规则拒绝率、提案 membership 与上下文成本；重复进食仅作行为描述，不作为规则失败。
 
 “加入近期状态变化摘要”是另一项状态显著性干预，应另设实验条件，不能与可执行候选同时修改后归因。媒体进度和已拥有游戏用明确标注的独立场景覆盖，不向旧 Attempt 3 偷加动作。
 
