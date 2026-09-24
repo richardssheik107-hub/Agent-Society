@@ -6,10 +6,12 @@ import json
 import re
 import time
 from pathlib import Path
+from collections.abc import Callable
 
 import httpx
 
 from social_sim.decision.client import ProviderContractError
+from social_sim.provider_runtime.safety import exception_type
 
 from .context import decision_prompt, observe
 from .context import parse_proposal
@@ -19,12 +21,14 @@ from .models import identity, integer
 
 class ActivityDecisionRunner:
     def __init__(self, world: ContinuityWorld, client, *, max_calls: int = 4,
-                 hard_timeout_seconds: float = 60, journal_path: str | Path | None = None):
+                 hard_timeout_seconds: float = 60, journal_path: str | Path | None = None,
+                 prompt_builder: Callable[[ContinuityWorld, int], tuple[str, str]] | None = None):
         integer(max_calls, "max_calls", 1, 100)
         if not 0 < hard_timeout_seconds <= 120:
             raise ValueError("invalid timeout")
         self.world, self.client = world, client
         self.max_calls, self.timeout = max_calls, hard_timeout_seconds
+        self.prompt_builder = prompt_builder
         self.journal = Path(journal_path) if journal_path is not None else None
         self.calls = self._call_count()
         self.records = []
@@ -49,6 +53,9 @@ class ActivityDecisionRunner:
         status = getattr(source, "http_status", None)
         if isinstance(status, int) and 100 <= status <= 599:
             output["http_status"] = status
+        finish_reason = getattr(source, "finish_reason", None)
+        if isinstance(finish_reason, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", finish_reason):
+            output["finish_reason"] = finish_reason
         model = getattr(source, "provider_model", None)
         if (isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,80}", model)
                 and not model.startswith(("sk-", "ark-"))
@@ -70,8 +77,14 @@ class ActivityDecisionRunner:
         if attempt:
             return {"status": "ALREADY_ATTEMPTED", "previous_status": attempt[0],
                     "application_calls": 0}
-        system, user = decision_prompt(self.world, actor_id)
-        version = store.actor(actor_id)["version"]
+        if self.prompt_builder is None:
+            system, user = decision_prompt(self.world, actor_id)
+            version = store.actor(actor_id)["version"]
+        else:
+            # 新的 opt-in 投影与提交用版本必须来自同一快照；不在 await 时持锁。
+            with store.read_snapshot():
+                system, user = self.prompt_builder(self.world, actor_id)
+                version = store.actor(actor_id)["version"]
         # 在同一事务内重查预算与请求 ID；多个 runner 不能用各自旧计数超发请求。
         with store.transaction():
             self.calls = self._call_count()
@@ -89,29 +102,35 @@ class ActivityDecisionRunner:
         started = time.perf_counter()
         row = {"request_id": request_id, "application_calls": 1,
                "input_tokens": None, "output_tokens": None, "reasoning_tokens": None,
-               "provider_model": None, "http_status": None}
+               "provider_model": None, "http_status": None, "exception_type": None}
         cancelled = False
         try:
             reply = await asyncio.wait_for(self.client.complete(system, user), timeout=self.timeout)
-        except (TimeoutError, httpx.TimeoutException):
+        except (TimeoutError, httpx.TimeoutException) as error:
             row["status"] = "PROVIDER_TIMEOUT"
+            row["exception_type"] = exception_type(error)
         except asyncio.CancelledError:
             row["status"] = "REQUEST_CANCELLED"
+            row["exception_type"] = "CancelledError"
             cancelled = True
         except ProviderContractError as error:
             row["status"] = "PROVIDER_CONTRACT_ERROR"
+            row["exception_type"] = exception_type(error)
             if re.fullmatch(r"[A-Z0-9_]{1,64}", error.category):
                 row["failure_category"] = error.category
             row.update(self._safe_metadata(error.metadata))
-        except Exception:
+        except Exception as error:
             row["status"] = "PROVIDER_ERROR"
+            row["exception_type"] = exception_type(error)
             row.update(self._safe_metadata(getattr(self.client, "last_metadata", None)))
         else:
+            row.update(self._safe_metadata(getattr(self.client, "last_metadata", None)))
             row.update(self._safe_metadata(reply))
             try:
                 proposal = parse_proposal(reply.raw_text)
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, TypeError, AttributeError) as error:
                 row["status"] = "INVALID_MODEL_OUTPUT"
+                row["exception_type"] = exception_type(error)
             else:
                 target = proposal["target"]
                 allowed = {item["id"] for item in observe(self.world, actor_id)["objects"]}
@@ -122,8 +141,9 @@ class ActivityDecisionRunner:
                     try:
                         result = self.world.start(request_id, actor_id, proposal["activity"], target,
                                                   expected_version=version)
-                    except Exception:
+                    except Exception as error:
                         row["status"] = "ARCHITECTURE_ERROR"
+                        row["exception_type"] = exception_type(error)
                     else:
                         status = "DECISION_ACCEPTED" if result["accepted"] else "RULE_REJECTED"
                         if result.get("commitment_status") == "FAILED":

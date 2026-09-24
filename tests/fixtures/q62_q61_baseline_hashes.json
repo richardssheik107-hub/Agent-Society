@@ -1,0 +1,92 @@
+[
+  {
+    "i": 1,
+    "result": {
+      "accepted": true,
+      "reason": "ACCEPTED",
+      "minute": 0,
+      "commitment_id": "q6_1:1",
+      "commitment_status": "ACTIVE",
+      "replayed": false
+    },
+    "actor": {
+      "actor_id": 1,
+      "calories_kcal": 0,
+      "energy_milli": 685,
+      "hunger_milli": 815,
+      "location": "restaurant",
+      "money_cents": 300000,
+      "version": 3,
+      "work_minutes": 0
+    },
+    "state_hash": "0895cee3164a5000ffedc2a8c413e41ac96f6de11756ba9688fc54130c921f90",
+    "events_hash": "fd9168995e18ecff78b176dae1cef3a6099f14dc7eb22b619c957dc0ec3128ca"
+  },
+  {
+    "i": 2,
+    "result": {
+      "accepted": true,
+      "reason": "ACCEPTED",
+      "minute": 15,
+      "commitment_id": "q6_1:2",
+      "commitment_status": "ACTIVE",
+      "replayed": false
+    },
+    "actor": {
+      "actor_id": 1,
+      "calories_kcal": 650,
+      "energy_milli": 655,
+      "hunger_milli": 245,
+      "location": "restaurant",
+      "money_cents": 298000,
+      "version": 8,
+      "work_minutes": 0
+    },
+    "state_hash": "c13cc2033594d3c04f4ce54270f23cb65157d9b616d3f0150a09826a49b5e480",
+    "events_hash": "248a229f15096efe8e75e91e9b1ba1ed4a6043fd4d0e610773bd3b4e756575d7"
+  },
+  {
+    "i": 3,
+    "result": {
+      "accepted": true,
+      "reason": "ACCEPTED",
+      "minute": 45,
+      "commitment_id": "q6_1:3",
+      "commitment_status": "ACTIVE",
+      "replayed": false
+    },
+    "actor": {
+      "actor_id": 1,
+      "calories_kcal": 1300,
+      "energy_milli": 625,
+      "hunger_milli": 0,
+      "location": "restaurant",
+      "money_cents": 296000,
+      "version": 13,
+      "work_minutes": 0
+    },
+    "state_hash": "2743e66710baefd439ef9e086afe23ed5fb4001546433556f6510ea60ce9a433",
+    "events_hash": "64fb52e90d95fbc3c2c4fb34c6a336c9731041f4a540202e4584a7b4133dde30"
+  },
+  {
+    "i": 4,
+    "result": {
+      "accepted": false,
+      "reason": "ITEM_NOT_OWNED",
+      "minute": 75,
+      "replayed": false
+    },
+    "actor": {
+      "actor_id": 1,
+      "calories_kcal": 1300,
+      "energy_milli": 625,
+      "hunger_milli": 0,
+      "location": "restaurant",
+      "money_cents": 296000,
+      "version": 13,
+      "work_minutes": 0
+    },
+    "state_hash": "2743e66710baefd439ef9e086afe23ed5fb4001546433556f6510ea60ce9a433",
+    "events_hash": "0015220cc45edbe7d449107b5418999467da08267aa6d976e51b1b7dd1282316"
+  }
+]

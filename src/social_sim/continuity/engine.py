@@ -153,12 +153,11 @@ class ContinuityWorld:
             if actor["version"] != expected:
                 raise Rejected("STALE_STATE")
 
-    def _buy(self, actor_id: int, target: str) -> None:
-        actor = self._actor(actor_id)
-        obj = self._object(target, "purchasable")
-        oid = obj["object_id"]
-        link = self.store.link(actor_id, oid)
-        if actor["location"] != obj["seller"]:
+    @staticmethod
+    def _check_purchase(actor: dict, obj: dict, link: dict, *,
+                        require_location: bool = True) -> None:
+        """购买阶段的共享条件；读取事实，不购买、不预留库存。"""
+        if require_location and actor["location"] != obj["seller"]:
             raise Rejected("NOT_AT_SELLER")
         if obj["stock"] < 1:
             raise Rejected("OUT_OF_STOCK")
@@ -166,6 +165,13 @@ class ContinuityWorld:
             raise Rejected("INSUFFICIENT_FUNDS")
         if "edible" not in obj["capabilities"] and link["quantity"] > 0:
             raise Rejected("ALREADY_OWNED")
+
+    def _buy(self, actor_id: int, target: str) -> None:
+        actor = self._actor(actor_id)
+        obj = self._object(target, "purchasable")
+        oid = obj["object_id"]
+        link = self.store.link(actor_id, oid)
+        self._check_purchase(actor, obj, link)
         actor["money_cents"] -= obj["price_cents"]
         link["quantity"] += 1
         self._save_actor(actor)
@@ -225,6 +231,71 @@ class ContinuityWorld:
         watched = set(self.store.link(actor_id, obj["object_id"])["watched"])
         return next((i for i in range(1, obj["episodes"] + 1) if i not in watched), None)
 
+    def _prepare_activity(self, request_id: str, actor_id: int, activity: str,
+                          target: str | None, episode: int | None, rewatch: bool,
+                          expected_version: int | None) -> tuple[dict, dict]:
+        """启动与只读投影共用的前置检查；不提交任何状态或事件。"""
+        actor = self._actor(actor_id)
+        self._check_version(actor, expected_version)
+        if self.store.commitment(actor_id):
+            raise Rejected("ACTIVITY_IN_PROGRESS")
+        if activity != "WATCH" and (episode is not None or rewatch):
+            raise Rejected("UNEXPECTED_MEDIA_ARGUMENT")
+        c = {"id": request_id, "actor_id": actor_id, "activity": activity,
+             "target": None, "episode": None, "rewatch": rewatch,
+             "phase": activity, "status": "ACTIVE", "remaining_min": 0,
+             "elapsed_min": 0, "started_minute": self.minute, "failure_reason": None}
+        if activity in ("MEAL", "WATCH", "PLAY"):
+            if not target:
+                raise Rejected("MISSING_TARGET")
+            cap = {"MEAL": "edible", "WATCH": "watchable", "PLAY": "playable"}[activity]
+            obj = self._object(target, cap)
+            c["target"] = obj["object_id"]
+            link = self.store.link(actor_id, c["target"])
+            if activity == "MEAL":
+                if link["quantity"]:
+                    c["phase"], c["remaining_min"] = "EAT", obj["duration_min"]
+                elif actor["location"] != obj["seller"]:
+                    c["phase"], c["remaining_min"] = "MOVE", self.parameters.travel_minutes
+                    c["destination"] = obj["seller"]
+                else:
+                    c["phase"] = "BUY"
+            elif activity == "WATCH":
+                ep = episode if episode is not None else self.next_episode(actor_id, c["target"])
+                if ep is None:
+                    raise Rejected("SERIES_COMPLETED")
+                if ep > obj["episodes"]:
+                    raise Rejected("UNKNOWN_EPISODE")
+                if ep in link["watched"] and not rewatch:
+                    raise Rejected("ALREADY_COMPLETED")
+                if rewatch and ep not in link["watched"]:
+                    raise Rejected("REWATCH_REQUIRES_COMPLETION")
+                if not rewatch and ep != self.next_episode(actor_id, c["target"]):
+                    raise Rejected("PREREQUISITE_EPISODE_MISSING")
+                c["episode"] = ep
+                offset = 0 if rewatch else link["offsets"].get(str(ep), 0)
+                c["remaining_min"] = obj["duration_min"] - offset
+            else:
+                if not link["quantity"]:
+                    raise Rejected("ITEM_NOT_OWNED")
+                c["remaining_min"] = obj["duration_min"]
+        elif activity == "TRAVEL":
+            if target not in json.loads(self.store.meta("locations")):
+                raise Rejected("UNKNOWN_DESTINATION")
+            if actor["location"] == target:
+                raise Rejected("ALREADY_AT_DESTINATION")
+            c["phase"], c["remaining_min"] = "MOVE", self.parameters.travel_minutes
+            c["destination"] = target
+        elif activity in TIMED_ACTIVITIES:
+            if activity == "WORK" and actor["location"] != "office":
+                raise Rejected("NOT_AT_ACTIVITY_LOCATION")
+            if activity in ("SLEEP", "PERSONAL_CARE", "CHORES") and actor["location"] != "home":
+                raise Rejected("NOT_AT_ACTIVITY_LOCATION")
+            c["remaining_min"] = TIMED_ACTIVITIES[activity]
+        else:
+            raise Rejected("UNSUPPORTED_ACTIVITY")
+        return actor, c
+
     def start(self, request_id: str, actor_id: int, activity: str, target: str | None = None,
               *, episode: int | None = None, rewatch: bool = False,
               expected_version: int | None = None) -> dict:
@@ -234,65 +305,8 @@ class ContinuityWorld:
         if episode is not None:
             integer(episode, "episode", 1, 100_000)
         def operation():
-            actor = self._actor(actor_id)
-            self._check_version(actor, expected_version)
-            if self.store.commitment(actor_id):
-                raise Rejected("ACTIVITY_IN_PROGRESS")
-            if activity != "WATCH" and (episode is not None or rewatch):
-                raise Rejected("UNEXPECTED_MEDIA_ARGUMENT")
-            c = {"id": request_id, "actor_id": actor_id, "activity": activity,
-                 "target": None, "episode": None, "rewatch": rewatch,
-                 "phase": activity, "status": "ACTIVE", "remaining_min": 0,
-                 "elapsed_min": 0, "started_minute": self.minute, "failure_reason": None}
-            if activity in ("MEAL", "WATCH", "PLAY"):
-                if not target:
-                    raise Rejected("MISSING_TARGET")
-                cap = {"MEAL": "edible", "WATCH": "watchable", "PLAY": "playable"}[activity]
-                obj = self._object(target, cap)
-                c["target"] = obj["object_id"]
-                link = self.store.link(actor_id, c["target"])
-                if activity == "MEAL":
-                    if link["quantity"]:
-                        c["phase"], c["remaining_min"] = "EAT", obj["duration_min"]
-                    elif actor["location"] != obj["seller"]:
-                        c["phase"], c["remaining_min"] = "MOVE", self.parameters.travel_minutes
-                        c["destination"] = obj["seller"]
-                    else:
-                        c["phase"] = "BUY"
-                elif activity == "WATCH":
-                    ep = episode if episode is not None else self.next_episode(actor_id, c["target"])
-                    if ep is None:
-                        raise Rejected("SERIES_COMPLETED")
-                    if ep > obj["episodes"]:
-                        raise Rejected("UNKNOWN_EPISODE")
-                    if ep in link["watched"] and not rewatch:
-                        raise Rejected("ALREADY_COMPLETED")
-                    if rewatch and ep not in link["watched"]:
-                        raise Rejected("REWATCH_REQUIRES_COMPLETION")
-                    if not rewatch and ep != self.next_episode(actor_id, c["target"]):
-                        raise Rejected("PREREQUISITE_EPISODE_MISSING")
-                    c["episode"] = ep
-                    offset = 0 if rewatch else link["offsets"].get(str(ep), 0)
-                    c["remaining_min"] = obj["duration_min"] - offset
-                else:
-                    if not link["quantity"]:
-                        raise Rejected("ITEM_NOT_OWNED")
-                    c["remaining_min"] = obj["duration_min"]
-            elif activity == "TRAVEL":
-                if target not in json.loads(self.store.meta("locations")):
-                    raise Rejected("UNKNOWN_DESTINATION")
-                if actor["location"] == target:
-                    raise Rejected("ALREADY_AT_DESTINATION")
-                c["phase"], c["remaining_min"] = "MOVE", self.parameters.travel_minutes
-                c["destination"] = target
-            elif activity in TIMED_ACTIVITIES:
-                if activity == "WORK" and actor["location"] != "office":
-                    raise Rejected("NOT_AT_ACTIVITY_LOCATION")
-                if activity in ("SLEEP", "PERSONAL_CARE", "CHORES") and actor["location"] != "home":
-                    raise Rejected("NOT_AT_ACTIVITY_LOCATION")
-                c["remaining_min"] = TIMED_ACTIVITIES[activity]
-            else:
-                raise Rejected("UNSUPPORTED_ACTIVITY")
+            actor, c = self._prepare_activity(
+                request_id, actor_id, activity, target, episode, rewatch, expected_version)
             self.store.put_commitment(c)
             self._save_actor(actor)
             self._emit("COMMITMENT_STARTED", dict(c))
@@ -302,6 +316,44 @@ class ContinuityWorld:
         return self._command(request_id, {"op": "start", "actor_id": actor_id,
                              "activity": activity, "target": target, "episode": episode,
                              "rewatch": rewatch, "expected_version": expected_version}, operation)
+
+    def preview_activity(self, actor_id: int, activity: str, target: str | None = None,
+                         *, episode: int | None = None, rewatch: bool = False,
+                         expected_version: int | None = None) -> dict:
+        """只读、当前快照下的可执行性；不保证未来库存/事件不变。
+
+        start_allowed 区别于 executable_now：旧 MEAL 可以先接受出发，后在
+        购买阶段失败。投影提前检查该阶段，却不改变原启动/执行语义。
+        这里只判断规则条件，不判断人类偏好或进食合理性。
+        """
+        integer(actor_id, "actor_id", 1)
+        if not isinstance(rewatch, bool):
+            raise ValueError("rewatch must be boolean")
+        if episode is not None:
+            integer(episode, "episode", 1, 100_000)
+        with self.store.read_snapshot():
+            result = {"activity": activity, "target": target,
+                      "executable_now": False, "start_allowed": False,
+                      "reason": None, "blocked_stage": "START",
+                      "state_version": None, "simulation_minute": self.minute,
+                      "scope": "CURRENT_SNAPSHOT_NO_EXTERNAL_CHANGES"}
+            try:
+                result["state_version"] = self._actor(actor_id)["version"]
+                actor, c = self._prepare_activity(
+                    "q62:preview", actor_id, activity, target, episode, rewatch, expected_version)
+                result["start_allowed"] = True
+                needs_purchase = activity == "MEAL" and c["phase"] != "EAT"
+                if needs_purchase:
+                    result["blocked_stage"] = "PURCHASE"
+                    obj = self._object(c["target"], "purchasable")
+                    link = self.store.link(actor_id, c["target"])
+                    self._check_purchase(actor, obj, link, require_location=False)
+                result.update(executable_now=True, reason="ELIGIBLE", blocked_stage=None,
+                              requires_purchase=needs_purchase, phase=c["phase"],
+                              resolved_episode=c["episode"])
+            except Rejected as error:
+                result["reason"] = str(error)
+            return result
 
     def _settle(self, c: dict) -> None:
         """每个微步骤仍受规则约束；先前已经成功的阶段不会被伪装成未发生。"""

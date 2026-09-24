@@ -70,6 +70,21 @@ class StateStore:
                 self.db.execute("ROLLBACK")
             raise
 
+    @contextmanager
+    def read_snapshot(self):
+        """一致的只读事务；SQL 写入被 query_only 拒绝，不靠写后回滚预演。"""
+        owned = not self.db.in_transaction
+        previous = self.db.execute("PRAGMA query_only").fetchone()[0]
+        self.db.execute("PRAGMA query_only=ON")
+        try:
+            if owned:
+                self.db.execute("BEGIN")
+            yield
+        finally:
+            if owned and self.db.in_transaction:
+                self.db.execute("ROLLBACK")
+            self.db.execute(f"PRAGMA query_only={int(previous)}")
+
     def meta(self, key: str) -> str:
         row = self.db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         if row is None:
