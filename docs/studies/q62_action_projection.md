@@ -1,6 +1,6 @@
 # Q6.2｜把当前可执行活动提前告诉模型
 
-状态：研究分支 `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1` 已有原始产物核验、投影、A/B 入口与 dry-run；**真实 A/B 尚未运行**。本页更新纳入整理期间的新推送，不把后续准备工作当作真实模型结果。[证据 E-Q62](../reference/evidence.md#q62)
+状态：原始产物核验、投影、A/B 入口与 dry-run 已通过 PR #4 合入 `main`；**真实 A/B 尚未运行**。本页更新纳入整理期间的新推送，不把后续准备工作当作真实模型结果。[证据 E-Q62](../reference/evidence.md#q62)
 
 ## 研究问题
 
@@ -47,4 +47,4 @@ A_RAW 保持原 prompt；B_FEASIBLE 保留相同观察和目的地，追加 `exe
 
 `Q6_2_REAL_AB_EXECUTED=NO`，模型效果差异 `NOT_TESTED`。游戏获取路径仍缺失，正常行为标准仍待审核，原 Q6.1 的 INSUFFICIENT_EVIDENCE 不改变。[人工 D-01、D-02](../review/decisions.md#d-01)
 
-代码位于研究分支：`continuity/action_projection.py`、`continuity/q6_2.py` 及 A/B 运行层；入口 `scripts/run_q6_2_real_ab.py` 默认零请求，真实运行需另获授权。文档整理没有将这些业务代码合入 main。[运行手册](../current/runbook.md)
+代码现已位于 `main`：`continuity/action_projection.py`、`continuity/q6_2.py` 及 A/B 运行层；入口 `scripts/run_q6_2_real_ab.py` 默认零请求，真实运行仍需另获授权。[运行手册](../current/runbook.md)

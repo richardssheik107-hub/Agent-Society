@@ -1,19 +1,37 @@
-# 分支状态与文档/代码边界
+# 分支状态与主线约定
 
-核对日期：2026-09-23，包含文档整理收尾时出现的新研究提交。
+核对日期：2026-09-24。
 
-| 分支 | 核对提交 | 实际定位 |
+## 当前远端状态
+
+| 分支 | 状态 | 用途 |
 |---|---|---|
-| main | 文档PR #5 合并提交 `610d95dbaa56272db4021e9027b6bb89aadc6b23`，随后仅同步新报告摘要 | Q3/Q4/Q5/Q6基础与新的中文文档体系 |
-| research/q6-real-continuity-pilot | `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1` | Q6.1真实记录、Q6.2原产物核验与A/B准备；PR #4仍未合并 |
-| docs/research-navigation-zh | `c6494e3f68f20aeb08d08a5a64eaab18138088d5` | 本次文档工作已通过PR #5合入main，非新业务开发基线 |
+| `main` | **唯一现行开发基线**；Q6.1/Q6.2 已合入，merge `cce3e7bd850f72faf0efa41017491d392b00ee11` | 后续所有新研究、修复和实验从这里开分支 |
+| `research/q6-real-continuity-pilot` | PR #4 已合并；历史 ref | 保留 Q6.1/Q6.2 提交顺序与实验审计，不继续开发 |
+| `docs/research-navigation-zh` | PR #5 已合并；历史 ref | 保留文档整理过程，不继续开发 |
 
-旧Q3/Q4/Q5、ATUS和旧integration分支名在本轮开始的远端列表中已不存在，历史内容仍在Git提交里。不要要求执行者切换不存在的旧分支，用固定提交进行隔离复核。
+旧 Q3/Q4/Q5、ATUS 和 integration 分支已经从远端移除；其提交仍在 Git 历史中。
 
-## 合并边界
+## 本次合并记录
 
-main可描述研究分支结果，但必须标注分支。文档整理不等于PR #4业务获批。PR #4同步时需处理文档删除/修改和审计迁移冲突，不能把旧archive、跳转和多份现行计划重新带回；不得直接覆盖其投影共享规则保护。
+Q6 研究分支先与最新 main 做显式双父合并，保留 main 的中文文档体系，只带入 Q6.1/Q6.2 的业务代码、运行时、测试和 CI。第一次集成 CI 暴露一个旧文档保护测试与新退役策略不兼容；修复提交 `bea7dbf64fd8a61eced09820503b46ae3f56ad59` 后，最终 CI `35951841827` 全绿，再合并 PR #4。
 
-研究分支新推送包含中文Q6.2协议及源产物核验成功记录，但真实A/B未运行。本次只同步说明，不 cherry-pick 业务代码、不调用模型。
+最终 merge commit：
 
-后续工作从确认的代码基线建短期分支，经测试和结果记录再提PR；禁止force push或改写旧实验提交。[仓库地图](repository.md)、[人工合并审核](../review/decisions.md#d-08)。
+```text
+cce3e7bd850f72faf0efa41017491d392b00ee11
+```
+
+## 以后怎么开工
+
+统一规则：
+
+```text
+main
+  ↓
+feature/<topic>
+research/<new-question>
+fix/<problem>
+```
+
+不要从已合并的 docs/Q6 历史分支继续开发，也不要 force push 或改写旧实验提交。真实 Q6.2 A/B 仍需新的明确授权；代码入 main 不等于自动授权请求。

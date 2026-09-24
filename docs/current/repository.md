@@ -1,6 +1,6 @@
 # 仓库地图：研究问题对应哪些代码和文档
 
-盘点范围：父仓库跟踪文件、main 与 Q6 研究分支、文档引用、历史报告和验收记录。没有逐行证明全部业务代码正确，也没有读取用户本机被忽略的密钥/数据。
+盘点范围：当前 `main`、文档引用、历史报告和验收记录。Q6.1/Q6.2 已于 2026-09-24 合入主线；没有读取用户本机被忽略的密钥或原始运行目录。
 
 ## 代码检索地图
 
@@ -15,12 +15,12 @@
 | object_benchmark | Q3 三方案单步对照 | [Q3](../studies/q3_object_set.md) |
 | resource_benchmark | Q4 状态可见性 | [Q4](../studies/q4_resource_visibility.md) |
 | rule_scaling | Q5 虚拟对象规则索引 | [Q5](../studies/q5_rule_scaling.md) |
-| continuity | Q6 状态与活动控制器；main 已有基础 | [Q6](../studies/q6_continuity.md) |
-| provider_runtime；continuity 中 q6_1/q6_2/action_projection | Q6.1/Q6.2 分支新增，尚非 main 业务代码 | [Q6.1](../studies/q61_real_pilot.md)、[Q6.2](../studies/q62_action_projection.md) |
+| continuity | Q6 持久状态、活动控制器、Q6.1/Q6.2 投影与 A/B 运行层 | [Q6](../studies/q6_continuity.md)、[Q6.1](../studies/q61_real_pilot.md)、[Q6.2](../studies/q62_action_projection.md) |
+| provider_runtime | Q6.1 独立 provider 运行环境、安全诊断和一次性预检 | [Q6.1](../studies/q61_real_pilot.md) |
 
-`tests/` 保留旧回归，`config/` 保留冻结实验参数，`scripts/` 按阶段运行；`smoke/` 的历史入口不等于现行任务。两个写死旧 A2 实验 ID 的工具仍保持停用，原代码留在 `archive/legacy_tools/`，本轮不删除业务复现代码。
+`tests/` 保留旧回归和 Q6.1/Q6.2 专项；`config/` 保留冻结实验参数；`scripts/` 按阶段运行。两个写死旧 A2 实验 ID 的工具仍保持停用，原代码留在 `archive/legacy_tools/`。
 
-## 新文档结构
+## 文档结构
 
 ```text
 docs/
@@ -33,8 +33,4 @@ docs/
   reference/      术语、来源、清理映射、导航目录
 ```
 
-## 本轮保护范围
-
-不改 `src/`、实验配置、原测试、业务 runner、上游子模块和两份 `delivery.*.jsonl`。只改文档、文档审计与新增文档测试/工作流。没有调用真实模型、没有重算历史实验结果。
-
-过时跳转和旧阶段计划从当前树删除，不再搬一份重复档案；原始报告保留在固定 Git 提交，可从[证据登记](../reference/evidence.md)恢复。删除映射见[清理记录](../reference/cleanup.md)。
+过时跳转和旧阶段计划已从当前树删除；原始报告保留在固定 Git 提交，可从[证据登记](../reference/evidence.md)恢复。Q6.1/Q6.2 合并时没有把旧 archive 或重复计划带回。

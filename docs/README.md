@@ -1,6 +1,6 @@
 # 中文文档总目录
 
-整理日期：2026-09-23。主线整理基于 `2351b8159fe1d0767d1377741590c36b00cd20a0`，文档 PR #5 已合并；收尾同步研究分支新推送 `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1` 的报告。研究业务 PR #4 仍未合并，不把分支能力冒充主线代码。
+整理日期：2026-09-24。文档 PR #5 与 Q6.1/Q6.2 研究 PR #4 均已合入 `main`；当前主线合并提交为 `cce3e7bd850f72faf0efa41017491d392b00ee11`。Q6.2 的原产物核验、投影和 A/B 工程入口已进入主线，但**真实 A/B 尚未运行**。
 
 ## 四种检索方式
 
@@ -20,13 +20,13 @@
 | 人工审核 | [待决事项总表](review/README.md)、[讨论单与决策记录](review/decisions.md) |
 | 前置阶段 | [基础闭环](stages/00_foundation.md)、[发呆与最小上下文](stages/01_idle_context.md)、[真人日记与行为校准](stages/02_behavior_data.md) |
 | 三个会议问题 | [Q3 对象集](studies/q3_object_set.md)、[Q4 可见状态](studies/q4_resource_visibility.md)、[Q5 规则扩展](studies/q5_rule_scaling.md) |
-| 持续运行 | [Q6 长期事实](studies/q6_continuity.md)、[Q6.1 真实短链](studies/q61_real_pilot.md)、[Q6.2 可执行活動投影](studies/q62_action_projection.md) |
+| 持续运行 | [Q6 长期事实](studies/q6_continuity.md)、[Q6.1 真实短链](studies/q61_real_pilot.md)、[Q6.2 可执行活动投影](studies/q62_action_projection.md) |
 | 工程参考 | [架构职责](current/architecture.md)、[仓库模块地图](current/repository.md)、[运行手册](current/runbook.md)、[分支状态](current/branches.md) |
 | 查词与追溯 | [术语及指标](reference/glossary.md)、[证据登记](reference/evidence.md)、[删除与迁移记录](reference/cleanup.md) |
 
 ## 怎样理解状态标签
 
-主线已有是代码位置，不等于行为已证明；分支已验证必须同时写提交和测试范围；报告记载不等于本轮重跑；待验证不能改写成工程结论；待人工确认不是已批准。最新 Q6.2 原产物核验与 A/B 准备已完成，但真实 A/B 仍未执行。
+“代码已入主线”不等于研究结论已经成立；“工程验收通过”不等于真人行为已证明；“待验证”不能改写成已完成；“待人工确认”不是执行授权。Q6.2 的工程准备已经在主线，但真实 A/B 仍是下一轮受控实验。
 
 正常阅读链接均指向中文说明。英文类名、变量名和机器标签保留以便搜代码。旧英文报告不再作为阅读必经路径，其原始字节通过证据登记中的固定提交追溯。
 

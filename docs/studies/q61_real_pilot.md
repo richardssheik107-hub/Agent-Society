@@ -1,6 +1,6 @@
 # Q6.1｜真实模型短链：已发生什么，尚未证明什么
 
-状态：研究分支有结果，PR #4未合并；正式结论仍是 `SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE`。2026-09-23新增原产物核验不改变原实验门槛。[证据 E-Q61](../reference/evidence.md#q61)
+状态：Q6.1 代码已通过 PR #4 合入 `main`；正式实验结论仍是 `SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE`。2026-09-23新增原产物核验不改变原实验门槛。[证据 E-Q61](../reference/evidence.md#q61)
 
 ## 原定问题
 

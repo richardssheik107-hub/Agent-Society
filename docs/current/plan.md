@@ -1,18 +1,20 @@
-# 唯一现行计划：先审阅协议，再授权真实对照
+# 唯一现行计划：审阅 Q6.2 协议，再决定是否授权真实对照
 
-更新：2026-09-23；已纳入研究分支 `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1` 的最新准备结果。历史阶段中的下一步不再作为现行任务，以本页和[人工审核记录](../review/README.md)为准。
+更新：2026-09-24。Q6.1/Q6.2 业务代码已通过 PR #4 合入 `main`；历史阶段中的“下一步”不再作为现行任务，以本页和[人工审核记录](../review/README.md)为准。
 
 ## 已完成，不要重复建设
 
-Q6.1 原始 Attempt 3 已在 WSL 与确定性回放逐字段核对，`SOURCE_ARTIFACT_VERIFIED=True`，无差异、无新增 provider 请求。Q6.2 A_RAW/B_FEASIBLE 双独立 world、成员资格指标、最多八次预算、AB/BA 顺序、停止规则和默认零请求 CLI 已实现并 dry-run。完整分支 CI 670通过/8历史数据跳过，真实 A/B 未运行。[详见 Q6.2](../studies/q62_action_projection.md)
+Q6.1 原始 Attempt 3 已在 WSL 与确定性回放逐字段核对，`SOURCE_ARTIFACT_VERIFIED=True`，无差异、无新增 provider 请求。Q6.2 A_RAW/B_FEASIBLE 双独立 world、成员资格指标、最多八次预算、AB/BA 顺序、停止规则和默认零请求 CLI 已实现并 dry-run。
 
-不要继续把“先找原产物”“先写 A/B 入口”列为未开始，也不要因为 dry-run 通过而擅自发真实请求。
+主线集成最终 CI `35951841827`：core-contract、runtime-contract、full regression 和 AS2 全部通过；full regression 为 **685 passed、8 skipped**。真实 Q6.2 A/B 仍未运行。[详见 Q6.2](../studies/q62_action_projection.md)
+
+不要继续把“先找原产物”“先写 A/B 入口”“先合 PR #4”列为未开始，也不要因为代码已入 main 就擅自发真实请求。
 
 ## P0｜人工审阅协议与语义缺口
 
 **1. 审阅现有 Q6.2 对照协议。** 已实现的是相同初态的两条自主短链；需要人确认这是当前要回答的问题，还是先用固定状态面板比较。两臂后续世界会分叉，不做逐步同态因果推断。
 
-**2. 确认预算、分母与停止条件。** 当前准备版每臂最多四请求、总八次，规则失败停止本臂而另一臂继续，provider/输出/架构失败停止全 session。需要明确授权才执行；本次文档整理新增真实请求上限为 0。原 preflight 和 q61-runtime-01 不重跑。
+**2. 确认预算、分母与停止条件。** 当前准备版每臂最多四请求、总八次，规则失败停止本臂而另一臂继续，provider/输出/架构失败停止全 session。需要新的明确授权才执行；旧 preflight 和 q61-runtime-01 不重跑。
 
 **3. 单独审阅采购缺口与长期行为标准。** 游戏过滤不等于买得到；第一餐后仍有饥饿，不能强禁第二餐。D-02/D-05 单独决定，不在投影实验中改规则、初始所有权或饱腹参数。
 
@@ -34,4 +36,4 @@ Resource 相关投影是另一项研究；先审 Q4 的关键字段、补数指�
 
 ## 文档与分支纪律
 
-当前结论进[问题索引](research_status.md)，实验结果进对应档案，验收进[账本](acceptance.md)，待拍板进[人工专区](../review/README.md)。不复制多个最终版或计划。PR #4 的业务代码仍须单独审查，本次只将文档整理合入 main。
+当前结论进[问题索引](research_status.md)，实验结果进对应档案，验收进[账本](acceptance.md)，待拍板进[人工专区](../review/README.md)。后续一律从最新 `main` 开短期分支，不再从已合并的 Q6/doc 分支继续开发。
