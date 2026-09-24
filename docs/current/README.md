@@ -1,32 +1,23 @@
-# 项目当前入口
+# 当前研究工作台
 
-最后整理：2026-09-23。**当前唯一现行主线：`main`。** 最新 Q6.1/Q6.2 工作在 `research/q6-real-continuity-pilot`，经 PR #4 审阅，尚未自动合并。
+这里回答现在做到哪、今天先看什么。全部文档见[中文总目录](../README.md)。收尾已同步研究分支e2d85c6的最新报告，业务代码仍未合并。
 
-本目录是现行说明与计划入口。归档中的“下一步”“必须停止”等属于当时的实验，不是当前任务。Q3/Q4/Q5 中文阅读版与翻译前原文分别保留，原文仍与冻结 Git 版本校验。
+## 当前三件重点
 
-## 现在先看这里
+**已有证据已核对。** Q6.1真实轨迹是旅行、两次进餐、未拥有游戏的PLAY被拒绝；后续WSL原文件核验通过，无差异。原四次全部接受门槛仍未完成，正式结论保持INSUFFICIENT_EVIDENCE。
 
-**[Q6.2 可执行活动投影与离线审计](q6_2_action_projection.md)**：提前生成当前规则允许的活动/目标对；不再要求模型自行猜测游戏所有权等前置条件。默认 Q6.1 提示和行为语义保持不变，新投影须显式启用。WSL 原始 Attempt 3 产物已零请求核对通过。真实 A/B 尚未运行；[小预算预注册协议](q6_2_real_ab_protocol.md)及 dry-run 已准备。
+**Q6.2已准备，不等于收益已证明。** 只读投影、A/B独立world、八次请求上限和dry-run已有代码与测试；真实A/B未运行，不能说拒绝率已下降。现在优先审阅既有协议，不重复搭环境或重跑旧session。
 
-**[Q6.1 协议及 Attempt 1–3](q6_1_real_continuity_pilot.md)**：本地 Attempt 3 已完成真实预检和四次请求，前三次活动完成，第四次 PLAY 未拥有游戏被拒绝；正式短链结论仍为 INSUFFICIENT_EVIDENCE。不能再把“尚未进行真实预检”的旧阶段状态当作最新进度。
+**人需要决定研究与产品边界。** 两条自主链会从首次选择后分叉；固定状态面板回答另一类问题。采购入口、Resource最小集合和正常长期行为标准也仍待决定。全部集中在[人工审核专区](../review/README.md)。
 
-**[独立运行时交付与历史验收](q6_1_provider_runtime_acceptance.md)**与[运行手册](q6_1_provider_runtime.md)：使用单一 Python 环境，不拼接 uv 缓存。Q6.1 已用的会话不重跑；本轮先运行 Q6.2 零网络审计。
+## 阅读顺序
 
-## 文档导航
+| 目的 | 中文材料 |
+|---|---|
+| 回忆三个会议问题 | [综合实验说明](three_core_questions_experiment_summary.md) |
+| 看真实执行过程 | [Q6.1档案](../studies/q61_real_pilot.md) |
+| 看投影和A/B准备 | [Q6.2档案](../studies/q62_action_projection.md) |
+| 准备会议讨论 | [逐项人工讨论单](../review/decisions.md) |
+| 决定下一步 | [唯一现行计划](plan.md) |
 
-1. [分支归档与主线约定](branches.md)：研究分支如何归档到 main。
-2. [仓库地图与清理记录](repository.md)：当前运行代码与历史实验的边界。
-3. [三个会议问题与证据边界](research_status.md)：已有结果与不能扩大的结论。
-4. [规则体系与长期状态设计](architecture.md)：对象、资源、规则、活动与持久化。
-5. [Q6 基础交付与实际验收](acceptance.md)：早期长期状态工程结果。
-6. [基础运行与验收](runbook.md)：AS2 依赖与基础测试。
-7. [Q6.1 原协议与 Attempt 1–3](q6_1_real_continuity_pilot.md)：失败历史不覆盖。
-8. [Q6.1 运行时协议](q6_1_provider_runtime.md)与[验收](q6_1_provider_runtime_acceptance.md)。
-9. [Q6.2 可执行活动投影](q6_2_action_projection.md)、[本轮实际验收](q6_2_acceptance.md)与[小预算 A/B 协议](q6_2_real_ab_protocol.md)：原始产物核验、dry-run、测试和边界。
-10. [优先级与实施计划](plan.md)：后续工作顺序。
-
-## 证据边界
-
-原有 Phase/A2/Q3/Q4/Q5 代码用于复核；Q6 是隔离的长期状态实验运行层。Q6.2 共享前置条件重构保持旧执行结果，投影仅提供规则可行性，不证明模型一定使用这些信息，也不等于偏好或行为真实性判断。
-
-真实模型自主生活 7/30 天、本地小模型能力、人类行为分布拟合、千万级真实对象数据库尚未证明。原始 Attempt 3 文件保留在用户 WSL，并已在本机使用 `--source-artifact` 核对通过；GitHub CI 只能做无原始文件的报告序列回放，不能冒充本地原始产物核验。
+文档PR #5已合并，研究PR #4仍待审，不能混为一谈。[分支状态](branches.md)

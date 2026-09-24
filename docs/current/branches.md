@@ -1,58 +1,19 @@
-# 分支归档与主线约定
+# 分支状态与文档/代码边界
 
-整理日期：2026-09-20。
+核对日期：2026-09-23，包含文档整理收尾时出现的新研究提交。
 
-从本次整理开始，**`main` 是唯一现行主线**。后续新研究、修复和实验都应从最新 `main` 创建新分支；下面列出的旧分支只保留历史审计价值，不再继续提交新功能。
-
-## 当前分支状态
-
-| 分支 | 主要内容 | 当前状态 |
+| 分支 | 核对提交 | 实际定位 |
 |---|---|---|
-| `main` | Q3/Q4/Q5、会议资料、delivery 数据、Q6 continuity 与中文现行文档 | **现行主线** |
-| `integration/continuity-cleanup` | 本次仓库整理、长期状态、滚动活动、AS2 适配与验收 | 已通过 PR #3 合入 `main`，历史保留 |
-| `research/object-set-necessity` | Q3 Object Set 必要性实验 | 已被集成分支完整包含，历史保留 |
-| `research/resource-set-size` | Q4 Resource Set 大小实验 | 已被集成分支完整包含，历史保留 |
-| `research/rule-engine-scaling` | Q5 10M RuleEngine scaling 实验 | 已被集成分支完整包含，历史保留 |
-| `data/atus-2025` | 早期 ATUS/行为数据相关实现 | 已被集成分支完整包含，历史保留 |
+| main | 文档PR #5 合并提交 `610d95dbaa56272db4021e9027b6bb89aadc6b23`，随后仅同步新报告摘要 | Q3/Q4/Q5/Q6基础与新的中文文档体系 |
+| research/q6-real-continuity-pilot | `e2d85c670a46b0dc5598ec21ea6dab8d3681a6a1` | Q6.1真实记录、Q6.2原产物核验与A/B准备；PR #4仍未合并 |
+| docs/research-navigation-zh | `c6494e3f68f20aeb08d08a5a64eaab18138088d5` | 本次文档工作已通过PR #5合入main，非新业务开发基线 |
 
-GitHub compare 已确认：上面五个旧分支的 HEAD 都是集成分支的祖先，因此没有逐个重复 merge；一次合并 PR #3 即把它们统一收进 `main`。
+旧Q3/Q4/Q5、ATUS和旧integration分支名在本轮开始的远端列表中已不存在，历史内容仍在Git提交里。不要要求执行者切换不存在的旧分支，用固定提交进行隔离复核。
 
-## PR 归档
+## 合并边界
 
-- PR #3：已合入 `main`，作为本轮统一归档入口。
-- PR #1（Q3）：内容已通过 PR #3 进入 `main`，不再单独合并。
-- PR #2（Q5）：内容已通过 PR #3 进入 `main`，不再单独合并。
-- Q4 没有单独保留一个必须再合并的 PR；其 HEAD 已位于 Q5/集成历史链上。
+main可描述研究分支结果，但必须标注分支。文档整理不等于PR #4业务获批。PR #4同步时需处理文档删除/修改和审计迁移冲突，不能把旧archive、跳转和多份现行计划重新带回；不得直接覆盖其投影共享规则保护。
 
-## 为什么不直接删除旧分支
+研究分支新推送包含中文Q6.2协议及源产物核验成功记录，但真实A/B未运行。本次只同步说明，不 cherry-pick 业务代码、不调用模型。
 
-本轮目标是“归档到 main”，不是抹掉实验历史。保留旧 branch ref 有三个好处：
-
-1. 能直接查看当时实验代码和提交顺序；
-2. 能复核 Q3/Q4/Q5 的原始结果，而不依赖后续重构；
-3. 避免删除后需要从 commit SHA 人工恢复历史上下文。
-
-因此旧分支现在是**只读历史标签式用途**。如果以后确认不再需要 branch ref，可以单独做一次远端分支删除；删除前不应再产生新提交。
-
-## 以后怎么开工
-
-统一规则：
-
-```text
-main
-  ↓
-feature/<topic>
-research/<new-question>
-fix/<problem>
-```
-
-不要再从 Q3/Q4/Q5/data/integration 这些历史分支继续开发。
-
-当前项目状态、架构和优先级以：
-
-- `docs/current/README.md`
-- `docs/current/research_status.md`
-- `docs/current/architecture.md`
-- `docs/current/plan.md`
-
-为准。
+后续工作从确认的代码基线建短期分支，经测试和结果记录再提PR；禁止force push或改写旧实验提交。[仓库地图](repository.md)、[人工合并审核](../review/decisions.md#d-08)。

@@ -33,15 +33,6 @@ def test_archived_real_entrypoints_are_inert():
 
 
 def test_current_document_entrypoints_exist():
-    for name in (
-        "README.md",
-        "repository.md",
-        "research_status.md",
-        "architecture.md",
-        "plan.md",
-        "runbook.md",
-        "q6_1_real_continuity_pilot.md",
-    ):
+    for name in ("README.md", "repository.md", "research_status.md", "architecture.md", "plan.md", "runbook.md"):
         assert (ROOT / "docs/current" / name).is_file()
     assert Path(ROOT / "scripts/run_continuity.py").is_file()
-    assert Path(ROOT / "scripts/run_q6_1_real_continuity.py").is_file()

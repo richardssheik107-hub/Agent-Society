@@ -1,0 +1,38 @@
+name: 中文文档导航与历史追溯
+on:
+  push:
+    branches: [main, 'docs/**']
+    paths: ['README.md', 'docs/**', 'scripts/audit_repository.py', 'scripts/audit_documentation.py', 'tests/test_documentation_navigation.py', '.github/workflows/documentation.yml']
+  pull_request:
+    paths: ['README.md', 'docs/**', 'scripts/audit_repository.py', 'scripts/audit_documentation.py', 'tests/test_documentation_navigation.py', '.github/workflows/documentation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chinese-documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -q pytest ruff
+      - name: 中文导航与逐文件迁移检查
+        run: |
+          mkdir -p run/documentation_audit
+          python scripts/audit_documentation.py --check > run/documentation_audit/navigation.json
+          python scripts/audit_repository.py --check > run/documentation_audit/repository.json
+      - name: 链接、语言、回退与失败路径测试
+        run: python -m pytest -q tests/test_documentation_navigation.py tests/test_repository_quality.py --junitxml=run/documentation_audit/tests.xml
+      - name: 文档工具静态检查
+        run: python -m ruff check scripts/audit_documentation.py scripts/audit_repository.py tests/test_documentation_navigation.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chinese-documentation-audit
+          path: run/documentation_audit/
+          if-no-files-found: error
