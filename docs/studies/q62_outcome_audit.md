@@ -276,7 +276,7 @@ PROMPT_INTERVENTION_AUDIT = PASS
 `b72156ff956486cc1f56163037fc0bd588dd8917e1e68eb24ffcaf1df88af3f9`。
 全部逐文件hash见[安全结果表](../reference/q62_outcome_audit_results.json)。journal只hash，不解码completion、prompt或隐藏推理；不读.env、不创建provider client。源缺失/证据不一致硬停止，不从中文报告伪造48行。
 
-确定性审计在新目录保留-01/-02开发产物，再在独立未存在的-03目录完成最终审计；两者都不是模型重跑，原目录未变。最终输出为`run/evaluation/q62_outcome_audit/q62-real-v2-outcome-audit-03/`，含source_integrity、48行state_deltas、24对paired_effects、prompt_intervention_audit、人审包、私有解盲键、report和safe_delivery。解盲键只留忽略目录，不交给审核者，也不提交Git。大型源run/DB/原文/凭据不上传。
+确定性审计在新目录保留-01/-02开发产物，再在独立未存在的-03目录完成最终审计；这些都不是模型重跑，原目录未变。最终输出为`run/evaluation/q62_outcome_audit/q62-real-v2-outcome-audit-03/`，含source_integrity、48行state_deltas、24对paired_effects、prompt_intervention_audit、人审包、私有解盲键、report和safe_delivery。解盲键只留忽略目录，不交给审核者，也不提交Git。大型源run/DB/原文/凭据不上传。
 
 安全CLI示例（输出目录必须未存在；本轮无需再执行）：
 
@@ -292,3 +292,9 @@ python scripts/audit_q6_2_outcomes.py \
 [人工盲审包](q62_outcome_human_review.md)需在未阅读本页结果的独立审核者手中使用；行为合理/不合理/信息不足、事实理由、准备步骤、未来依赖和不确定性均待人工填写。已知本研究的人可能不再满足盲审条件。本轮HUMAN_REVIEW_COMPLETED=NO，不伪造评分或一致性。
 
 原研究见[Q6.2档案](q62_action_projection.md)，本轮待决事项见[人工决策D-09](../review/decisions.md#d-09)，唯一[计划](../current/plan.md)及[验收](../current/acceptance.md)继续维护。各统计计算和安全边界由独立代码及离线测试支撑；最终提交对应的完整CI状态以PR检查与交付记录为准，不将历史通过数冒充新HEAD。
+
+## 新GitHub交付及实际验收
+
+[M1.5 PR #7](https://github.com/richardssheik107-hub/Agent-Society/pull/7)是base为原研究分支的stacked PR；起点b7c6d503、实现提交9528e8daa7c82c0ca827bb612a439ccb0a2f4d00；原PR #6继续OPEN，不合并main、不force-push。原业务文件和固定clean detached上游字节未变；只入库安全结果，不上传大型原始run/SQLite、模型原文、配置或私有解盲键。
+
+实现提交的[完整CI37778453314](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37778453314)及[文档CI37778453278](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37778453278)全部SUCCESS：核心523 passed、全库1082 passed/8 skipped、文档22 passed、Ruff/两审计/实际固定AS2适配器/7天30天恢复PASS，CPython3.12.15；新真实provider请求0。8跳过缺历史真人语料、不计通过；本机轻量环境full/AS2仍NOT_RUN，不将CI称为本机修复。独立读者复核促成单位、初始资源和宏活动粒度补齐；开发期失败与修复在验收账本保留。最终文档补账提交的新CI以PR #7 checks为准，统计/代码与公开安全JSON不变。
