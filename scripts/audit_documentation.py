@@ -13,6 +13,17 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 CJK = re.compile(r"[\u3400-\u9fff]")
 LINK = re.compile(r"\[[^\]\n]*\]\(([^)\n]+)\)")
+# M2 starts from main rather than stacking the two open research PRs. Only these
+# immutable Chinese historical evidence references may live outside this tree.
+# This is not permission to make arbitrary external documents reading routes.
+HISTORICAL_READINGS = frozenset({
+    "https://github.com/richardssheik107-hub/Agent-Society/blob/"
+    "b7c6d503dc09c0c2d7dc32467b277a23a1a26404/docs/studies/q62_action_projection.md",
+    "https://github.com/richardssheik107-hub/Agent-Society/blob/"
+    "016fffe28b4a296a24a1ee8c8c4adc63b7394383/docs/studies/q62_outcome_audit.md",
+    "https://github.com/richardssheik107-hub/Agent-Society/blob/"
+    "016fffe28b4a296a24a1ee8c8c4adc63b7394383/docs/studies/q62_outcome_human_review.md",
+})
 
 
 def without_fences(text: str) -> tuple[str, bool]:
@@ -79,7 +90,8 @@ def check_document_set(root: Path, index: dict) -> tuple[list[str], dict, dict]:
             url = match.group(1).strip()
             parts = urlsplit(url)
             if parts.scheme or parts.netloc:
-                if parts.path.lower().endswith((".md", ".rst", ".pdf", ".docx")):
+                if (parts.path.lower().endswith((".md", ".rst", ".pdf", ".docx"))
+                        and url not in HISTORICAL_READINGS):
                     errors.append("EXTERNAL_READING_DOCUMENT:" + name)
                 continue
             target = ((root / name).parent / unquote(parts.path)).resolve() if parts.path else (root / name).resolve()

@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-09-24。Q6.1/Q6.2已合入main。本页不是付费请求授权；计划中的新面板和新活动尚未实现，不能猜测命令运行。现行任务见[完整计划](plan.md)。
+更新：2026-10-08。旧 Q6.1/Q6.2 工程已合入 main；固定面板和 M1.5 留在 PR #6/#7。本轮 M2 在独立研究分支实现，只允许离线新 world。本页不是付费请求授权；现行任务见[完整计划](plan.md)。
 
 ## 工作区与环境
 
@@ -42,7 +42,7 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 ## 当前Q6.2入口：默认零请求
 
-现有`scripts/run_q6_2_real_ab.py`是两条自主短链，不是计划中新提出的固定状态面板。它支持session-id、AB/BA顺序、输出目录和显式allow-provider；**没有env-file参数**。
+现有`scripts/run_q6_2_real_ab.py`是两条自主短链，不是 PR #6 已完成的固定状态面板。它支持session-id、AB/BA顺序、输出目录和显式allow-provider；**没有env-file参数**。
 
 无凭据试运行示例（先把占位符替换为新的、批准使用的dry-run ID）：
 
@@ -56,6 +56,17 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 获得对应实验的明确授权后，配置映射必须在同一个Linux进程环境完成；只读解析既有受忽略保护的配置，密钥不回显、不进shell history、不写报告。不要cat整个.env，不靠跨PowerShell/Bash层的未转义变量展开检查仓库，也不重用此前混合uv缓存的方法。
 
 真正运行前按[M0检查](plan.md#四m0下一轮先完成最小证据检查)确认版本、计数、停止和中断证据；本页不提供自动开启真实调用的命令。八请求是旧短链代码上限，不是本次新增授权。
+
+## M2 独立离线获取闭环
+
+在 `research/m2-acquire-closed-loop` 及已验收 Python 环境运行以下命令；每次必须使用新 session，不能覆盖已存在目录：
+
+```bash
+python scripts/run_m2_acquire_validation.py --mode offline --session <新的离线唯一ID>
+python -m pytest -q tests/test_m2_acquire*.py
+```
+
+默认也是 offline，没有 real 模式，不读取 `.env`，不构造 provider。输出位于 `run/evaluation/m2_acquire/<session>/`，保存所有成功、拒绝、失败及恢复证据。新 world 显式启用 ACQUIRE，生产默认仍禁用；完成获取不自动 PLAY。完整机制和事务边界见[M2](../studies/m2_object_acquisition.md)，本轮实际结果见[验收账本](acceptance.md)。
 
 ## 中断与已有session
 

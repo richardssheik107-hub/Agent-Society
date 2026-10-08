@@ -23,7 +23,7 @@ def docs_copy(tmp_path):
 def test_current_documents_are_indexed_chinese_and_reachable():
     result = MODULE.audit(include_history=False)
     assert result["status"] == "PASS", result["errors"]
-    assert result["current_markdown_count"] == 27
+    assert result["current_markdown_count"] == 28
     assert result["provider_requests"] == 0
 
 
@@ -71,6 +71,24 @@ def test_external_english_reading_link_fails(docs_copy):
     path = docs_copy / "docs/README.md"
     path.write_text(path.read_text(encoding="utf-8") + "\n[外部旧报告](https://example.invalid/report.md)\n", encoding="utf-8")
     assert any("EXTERNAL_READING_DOCUMENT" in e for e in MODULE.audit(docs_copy, include_history=False)["errors"])
+
+
+@pytest.mark.parametrize("url", sorted(MODULE.HISTORICAL_READINGS))
+def test_frozen_chinese_historical_evidence_link_is_allowed(docs_copy, url):
+    path = docs_copy / "docs/README.md"
+    path.write_text(path.read_text(encoding="utf-8") + f"\n[历史证据]({url})\n", encoding="utf-8")
+    errors = MODULE.audit(docs_copy, include_history=False)["errors"]
+    assert not any("EXTERNAL_READING_DOCUMENT" in error for error in errors)
+
+
+@pytest.mark.parametrize("replacement", ["main", "research/q62-outcome-audit", "0" * 40])
+def test_historical_allowlist_does_not_allow_mutable_or_other_commit(docs_copy, replacement):
+    url = next(url for url in MODULE.HISTORICAL_READINGS if "q62_outcome_audit.md" in url)
+    url = url.replace("016fffe28b4a296a24a1ee8c8c4adc63b7394383", replacement)
+    path = docs_copy / "docs/README.md"
+    path.write_text(path.read_text(encoding="utf-8") + f"\n[非冻结证据]({url})\n", encoding="utf-8")
+    errors = MODULE.audit(docs_copy, include_history=False)["errors"]
+    assert any("EXTERNAL_READING_DOCUMENT" in error for error in errors)
 
 
 def test_duplicate_navigation_entry_fails(docs_copy):
