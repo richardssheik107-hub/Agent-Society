@@ -21,7 +21,7 @@ Q6.2初版运行ID `35680426146`；后续准备运行ID `35842428974`。文档�
 
 ## 当前研究判定
 
-Q3目录是工程参考；Q4最小值未知；Q5结构门槛通过；Q6状态机制通过；Q6.1原结论仍证据不足；Q6.2原产物核验与A/B工程准备已进入主线，真实收益待测。
+Q3目录是工程参考；Q4最小值未知；Q5结构门槛通过；Q6状态机制通过；Q6.1原结论仍证据不足；Q6.2原产物核验与旧短链工程已进入主线，旧8-call真实短链未测；研究分支固定面板v2已真实执行，主指标为NO_CLEAR_DIFFERENCE、可评分覆盖PARTIAL，不证明等价或长期真人效果。
 
 分支与主线代码位置见[分支状态](branches.md)。
 
@@ -87,3 +87,37 @@ v1配置字节不变、默认CLI仍v1；v2只增加版本、共享连续超时�
 冻结前最终本机联合专项 **390 passed（64.93秒）**：新面板265（runner/CLI27、fixtures123、reporting38、recovery32、v2 timeout45）加原Q6.1/Q6.2/continuity125；文档/仓库专项另为19，不与全库混加。Ruff、audit_repository、audit_documentation、15文件限定范围/敏感格式扫描（命中0）、13保护文件字节与固定clean detached子模块审计PASS。两次误填不存在的测试路径产生0 tests ran，已纠正；末次恢复占位码缺口曾导致389通过/1失败，修正后390全通过，失败事实保留。
 
 v2完整offline `q62-panel-offline-v2-20261008-02`：48 fake调用/有效提案、22拒绝、26完成、不变量48 PASS、24完整配对；只读导出到同名新恢复目录PASS、源不变、真实请求0。v1/v2公平性指纹完全相等：scenario `cf7794f6809f82bab7d50ef911aad14c861f3b1d10e4b78318a73a26a9070ede`，schedule `590331b29f0cc0ff66cc5ad055e68f03c06af550214cf704f312eca6c3251696`，fairness `ae7a53c51ea0fa4c6e76cf6af4133baae807bf931aedcef91bc10e67ccbd7f92`；规范v2协议hash `b66217fa18ce8740deec38334b157ff35f00455d8d2b431dd0b48531debffcc6`（不是文件原始SHA）。上述开发树产物仅为离线验收，新HEAD完整CI/AS2 **PENDING**，实际受保护配置尚未读、真实尚未运行。
+
+### v2 执行前新HEAD门禁：已通过，不沿用v1数字
+
+代码/预注册提交与真实执行commit均 `ae2123f50beaaca6bcac2dcca8e34659bd0a8b24`；[完整CI 37744586404](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37744586404)及[文档CI 37744586620](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37744586620)全部SUCCESS。核心 **394 passed**；全库 **950 passed、8 skipped、0 failed**；文档19 passed；Ruff/两审计/v1和v2的dry-run、全48 fake及只读恢复/7天30天恢复均PASS，实际AS2 `AS2_CONTINUITY_ADAPTER_PASS`、LLM_CALLS=0/PROVIDER_REQUESTS=0。核心与全库该run均CPython3.12.15；本机既有runtime为3.12.14，pip check通过，未重装本机litellm，local full/AS2仍NOT_RUN而非本机PASS。
+
+CI临时merge `c7e41519c3dc73373d442e9aa336a20f040ea954` 的父为main基线53b1244和head ae2123f；执行前git diff HEAD/临时merge为空，整树相同。本机运行只用ae2123f，不用临时merge代替EXECUTION_COMMIT，也没有merge main。8项跳过仍为test_a2_final三项、behavior_prior_context两项、behavior_prior_index三项，缺两个冻结真人语料文件；不计通过、不伪造语料。GitHub日志中的Node/runner镜像迁移提示不是测试失败。
+
+### v2 唯一真实执行、只读结果与交付
+
+版本、协议、新CI、干净树、正确parent/fixed clean detached子模块、依赖、配置映射、唯一ID与其他进程检查通过。既有load_provider_config仅只读指定 `.env`，仅记录非敏感base/别名/key存在；有效配置匹配火山coding/v3与ark-code-latest，不打印API key。正式 `q62-panel-real-v2-01` 只启动一次，运行窗不改tracked文件/HEAD/环境；调用48后结束(exit0)且原runner已停止，不补发。额外真实探针、smoke/preflight、旧短链、重试/修复/补样本均0。
+
+|真实范围|实际结果|
+|---|---|
+|计划 / 处理 / 登记意图 / 客户端尝试|12状态、24对；48 / 48 / 48 / 48|
+|HTTP / 契约 / 严格JSON / 目录有效 / 规则检查|各46；超时无回复2，不算契约/JSON fatal|
+|启动 / 活动完成 / 候选成员|各46；A/B各23|
+|拒绝 / 已知commitment失败 / 其他fatal|0 / 0 / 0|
+|超时 / NOT_RUN / UNKNOWN状态|2（A/B各1） / 0 / 0；提案字段未知2|
+|client provider计数 / 证据缺失|已知48、缺失调用计数0、未知意图0；服务端收到/计费未知2不能据本地counter证明|
+|实际响应后端|46次glm-5.3、2次UNKNOWN；不说全部48确认同模型|
+|超时继续 / 最大streak / session终态|c027(A s06)、c041(B s04)均本地安全终结并进入下一不同cell；2 / 1 / PANEL_COMPLETED|
+|cleanup / 不变量|CLOSED、local_settled=True、exception=null；48/48不变量PASS|
+|配对|22有效完整、22可评、22同后端；后端不同0、未知2；双方接受且完成22，两个超时配对缺失|
+|主要差值|完整及同后端配对拒绝B−A=0、完成B−A=0；不补未知、不混超时为行为拒绝|
+|成本|input/output/reasoning已知小计20309/30024/29398，各缺2行、覆盖46/48；分开记录不相加；不能声称关闭思考|
+|配对成本|完整22对input平均+119.3182（+31.25%，原计划覆盖22/24）；latency平均+3.5042秒；全24对含超时latency平均+3.1029秒、字符平均+502.0833（+40.56%）|
+|行为分布|A18TRAVEL restaurant+5MEAL food_meal；B19MEAL food_meal+4MEAL food_bread；B非更多LEISURE|
+|只读核对 / 恢复|原进程结束后本地确定性重算counts/stages/ratios/24pairs与原一致；新恢复目录、297源文件hash全不变、新请求0|
+
+原安全summary与runner NOT_TESTED未手工改写，独立中文研究结论为 **NO_CLEAR_DIFFERENCE**：本面板主指标未见改善，不是等价证明，也不因输出更集中MEAL而另设需求满足评分宣布胜利。客户端尝试与终态归档覆盖48/48，HTTP及评分覆盖46/48、完整配对22/24，故REAL_DATA_COVERAGE=PARTIAL。长期真人相似性NOT_TESTED；Q6.1证据不足历史不变。
+
+源 `run/evaluation/q6_2_fixed_state_panel/q62-panel-real-v2-01/`；只读恢复 `run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01/`；确定性分析 `run/evaluation/q62_v2_analysis/q62-panel-real-v2-01/`。中文完整小型结果表、全部24配对、分层与成本、源SHA见[问题档案](../studies/q62_action_projection.md)。大run/DB/原始文本与凭据不强行上传，代码/配置/测试/脱敏中文证据入Git。本次许可已用完，PR #6继续OPEN、不自动merge，结果提交后的文档/审计与新CI另列，不重跑真实面板。
+
+结果阶段只改上述五份中文文档与对应文档状态断言，不改已冻结业务/协议/provider代码。文档专项首次18 passed/1 failed：旧断言硬要求所有Q6.2“真实尚未运行”，与新固定面板结果冲突；改为同时守护旧8-call未运行、新面板已运行、NO_CLEAR_DIFFERENCE/PARTIAL、非等价和长期未测试，未删除测试或把未运行塞回现行状态。最新相关专项 **89 passed**（文档/仓库19＋reporting38＋recovery32，范围与390有重叠，不相加）；Ruff与两审计PASS。全部24配对中文表逐行与原safe pairs一致、297源hash复核PASS、执行后src/scripts/config/.github业务字节未变；本轮最终16文件敏感格式命中0、13保护文件与子模块审计PASS。本文提交前结果HEAD新CI为 **PENDING**；推送后的实际状态以PR #6 checks与最终交付汇报为准，不能混作执行前950/8完整CI。

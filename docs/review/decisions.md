@@ -1,9 +1,11 @@
 # 人工讨论单与决策记录
 
-更新：2026-10-08。D-01 追加本轮v2唯一session的有限真实授权；v1工程轮的零请求记录保留。D-02—D-07仍待审核，D-08已完成。路线只维护在[完整计划](../current/plan.md)，本页维护选择与授权。
+更新：2026-10-08。D-01 保留本轮v2唯一session的有限真实授权，并追加其已完成的结果与收束；v1工程轮的零请求记录保留。D-02—D-07仍待审核，D-08已完成。路线只维护在[完整计划](../current/plan.md)，本页维护选择与授权，不自动转授权后续实验。
 
 <a id="d-01"></a>
 ## D-01｜Q6.2比较对象、预算与停止规则（P0）
+
+以下“已有／本轮实施／待审核／工程决定”保留为v1工程轮历史；它们的真实未运行、未授权不改写，也不代表本轮v2当前状态。当前授权及实际收尾见本节后续两段追加记录。
 
 **已有：** 原始Attempt3逐字段核验通过；只读投影、双独立world、AB/BA顺序、每臂最多4次/总8次和默认零请求入口已实现。真实对照未运行。
 
@@ -28,7 +30,21 @@ M0 已补独立调度预算、安全阶段留痕、只读导出、显式分母�
 |provider|既有火山兼容地址及`ark-code-latest`别名；仅安全解析指定受保护配置；不调整请求字段|
 |禁止|重试、补样本、换模型/endpoint、JSON repair、fallback、变更状态/提示、自动merge/强推/删除分支|
 
-原v1配置字节、场景/调度/提示、global授权0、旧实验结论均保留。许可仅属于上述一次新session，不是永久批准以后48次实验。**Q6_2_FIXED_PANEL_REAL_AUTHORIZED=YES（仅此session）；执行状态尚未运行，须依本轮门禁后记录。** 实际执行commit、规范协议hash、逐单元事实与结果收尾在[验收账本](../current/acceptance.md)登记；真实结束后才补结果文档。真实收益仍不得预先写改善。
+原v1配置字节、场景/调度/提示、global授权0、旧实验结论均保留。许可仅属于上述一次新session，不是永久批准以后48次实验。**Q6_2_FIXED_PANEL_REAL_AUTHORIZED=YES（仅此session）；本段预注册时尚未运行，当前执行已完成，见下一段。** 实际执行commit、规范协议hash、逐单元事实与结果收尾在[验收账本](../current/acceptance.md)登记；结果在真实结束后追加，不把无差异改成预先承诺的改善。
+
+### 追加结果｜唯一session已结束，许可不续用
+
+冻结与真实执行版本均为 `ae2123f50beaaca6bcac2dcca8e34659bd0a8b24`；协议v2规范JSON摘要为 `b66217fa18ce8740deec38334b157ff35f00455d8d2b431dd0b48531debffcc6`。当次新HEAD全部门禁在运行前通过，临时CI merge树与执行树相等，具体运行版本与真实验收记录见[验收账本](../current/acceptance.md)。PR #6保持OPEN，未自动合并。
+
+`q62-panel-real-v2-01` 已按固定分配串行处理48单元，持久意图及客户端计数48，额外探针/真实smoke/旧短链0；HTTP及有效提案/完成各46，A/B各23，规则拒绝和已知commitment失败均0。A的c027/s06与B的c041/s04各一次安全超时，均占预算并记录后继续，最大streak1；终止 `PANEL_COMPLETED`，收尾 `CLOSED`。未retry、补样本、修改原输出/状态/提示，未扩大预算。46个已响应后端为glm-5.3，2次超时身份未知，不补写身份；客户端计数不代表服务端必然收到或计费。
+
+全部24对均保留，其中22对有效、可评分且同后端，2对不完整；22对均双方接受及完成，拒绝B−A=0、完成B−A=0。独立描述性研究结论为 **`NO_CLEAR_DIFFERENCE`**，不是统计等价证明。计划48/48已处理，但可评分46/48、完整22/24，因此 **`REAL_DATA_COVERAGE=PARTIAL`**。runner原自动 `MODEL_BENEFIT=NOT_TESTED` 不修改，也不能拿该字段否认本次真实请求。
+
+完整22对A输入均值381.818、B输入均值501.136 tokens，B−A平均+119.318（以A为基数约31.25%）；调用耗时B−A平均+3.504秒，全部24对含超时调用耗时平均+3.102868秒。调用耗时是每个cell的`latency_seconds`，从本地`client.complete`开始到返回或终结，不是仿真时长或服务端纯推理时间。成本缺失与分母分开，reasoning不与输出重复相加；存在reasoning token，不能解释为关闭思考或已完成小模型运行。行为分布、全部配对和局限见[Q6.2问题档案](../studies/q62_action_projection.md)。
+
+只读恢复已执行到 `run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01/`，297个原session文件hash前后相同，阶段计数和原终止原因一致，恢复新增请求0；确定性安全分析位于 `run/evaluation/q62_v2_analysis/q62-panel-real-v2-01/`。两者不恢复实验流程、不执行动作、不读取凭据。
+
+**决定：本次一次性真实执行及结果交付范围已完成，到此收束。** `Q6_2_FIXED_PANEL_REAL_EXECUTED=YES`；`LONG_TERM_HUMAN_LIKENESS=NOT_TESTED`；Q6.1正式 `SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE` 不变。没有授权追加样本、换ID重跑、自动merge、获取活动、Resource改造、本地模型或长链；下一轮问题、协议与预算必须另审。
 
 <a id="d-02"></a>
 ## D-02｜对象获取与购买游戏活动（P0）
@@ -85,7 +101,7 @@ Q5固定合成schema/虚拟ID索引通过，不等于生产数据库完成。需
 
 已有合并验收记录：全库685 passed、8 skipped；AS2、只读投影回放、A/B零请求试运行等通过。具体运行版本与范围见[验收账本](../current/acceptance.md)，不把本次文档更新说成重新运行了全部测试。
 
-未授权范围仍包括真实Q6.2 A/B、12-call和多日付费运行。[分支状态](../current/branches.md)
+D-08当时的未授权范围包括真实Q6.2 A/B、12-call和多日付费运行；后来D-01仅批准并完成指定v2面板，不把这项历史业务合并决定扩展为其他调用许可。[分支状态](../current/branches.md)
 
 ## 每项决定填写模板
 

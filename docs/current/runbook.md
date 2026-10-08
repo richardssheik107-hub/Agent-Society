@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-10-08。Q6.1/Q6.2已合入main；新固定状态面板在本轮分支实现并离线验收。本页不是付费请求授权；获取活动尚未实现。现行任务见[完整计划](plan.md)。
+更新：2026-10-08。既有Q6.1/Q6.2已合入main；PR #6的固定面板v2已完成唯一真实session、只读恢复与分析。本页不是付费请求授权，正式ID已使用，不能重跑、换ID或补样本；获取活动尚未实现。现行状态见[完整计划](plan.md)，结果见[Q6.2问题档案](../studies/q62_action_projection.md)。
 
 ## 工作区与环境
 
@@ -42,7 +42,7 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 ## 当前Q6.2入口：默认零请求
 
-现有`scripts/run_q6_2_real_ab.py`是两条自主短链，不是计划中新提出的固定状态面板。它支持session-id、AB/BA顺序、输出目录和显式allow-provider；**没有env-file参数**。
+现有`scripts/run_q6_2_real_ab.py`是两条自主短链，不是已经实现的独立固定状态面板。它支持session-id、AB/BA顺序、输出目录和显式allow-provider；**没有env-file参数**。
 
 无凭据试运行示例（先把占位符替换为新的、批准使用的dry-run ID）：
 
@@ -99,11 +99,11 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 无独立 allow-provider、版本/hash不匹配、环境无效或重复session均不发送请求。沿用 minimal_request，仅 model/messages；不添加 thinking/max_tokens/temperature。首个请求前冻结48计划和全部世界，每单元前再查冻结四项摘要；调用前占预算，逐单元增量输出完成数、cell、状态与累计尝试。规则拒绝和已知活动失败可继续；其余fatal停止整轮，剩余NOT_RUN附停止原因。
 
-本轮真实 provider 请求0，不读取实际 `.env`，不重跑Q6.1/旧双短链，不自动merge。离线环境中缺完整AS2依赖应单列收集错误，由完整CI验收，不能冒充通过。
+v1工程轮真实 provider 请求0、未读取实际 `.env`，这段历史不因v2获授权并执行而改写。两轮均未重跑Q6.1/旧双短链，不自动merge。离线环境中缺完整AS2依赖应单列收集错误，由完整CI验收，不能冒充通过。
 
-### v2本轮唯一授权：先新版本门禁，后一次执行
+### v2预注册与执行命令历史：已执行，不再运行
 
-上述零授权/零请求段落为v1轮历史。本轮仅 `q62-panel-real-v2-01` 获准最多48尝试，额外真实请求0；D-01记录范围，不是未来永久许可。v2单次安全终结超时继续下一cell，连续两次停；默认v1仍一次停。先检查原进程与session目录，ID存在则不执行、不换ID，只读核对。
+上述零授权/零请求段落为v1轮历史。本轮仅 `q62-panel-real-v2-01` 获准最多48尝试，现已完成这唯一session；额外探针/真实smoke/旧联调0。D-01记录的许可不是未来永久许可。以下是执行前预注册及原命令留档，不是再次运行指引：v2单次安全终结超时继续下一cell，连续两次停；默认v1仍一次停。正式ID已存在，只能只读核对，不能删除、换ID或执行第二次。
 
 以下v2离线入口已实测；再次使用新的**离线**ID，不删除已有目录：
 
@@ -113,10 +113,10 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   --session-id q62-panel-offline-v2-next --mode offline
 ```
 
-只有新HEAD所有CI/AS2通过、工作树clean、环境和配置安全检查通过后，在同一WSL shell用可检查脚本冻结 `EXECUTION_COMMIT` 与 `digest(load_protocol(version="v2"))`。必须用规范JSON摘要，不用配置原始字节sha256；实际生效地址为 `https://ark.cn-beijing.volces.com/api/coding/v3`、请求别名 `ark-code-latest`，仅现有load_provider_config解析 `third_party/AgentSociety/.env`，不source/cat/回显key；环境覆盖不匹配则停止。不能为了测key额外发请求。
+执行前要求且已核对：新HEAD所有CI/AS2通过、工作树clean、环境和配置安全检查通过后，在同一WSL shell用可检查脚本冻结 `EXECUTION_COMMIT` 与 `digest(load_protocol(version="v2"))`。协议使用规范JSON摘要，不用配置原始字节sha256；当次生效地址为 `https://ark.cn-beijing.volces.com/api/coding/v3`、请求别名 `ark-code-latest`，仅现有load_provider_config解析 `third_party/AgentSociety/.env`，未source/cat/回显key；环境覆盖不匹配必须停止，未为测key发额外请求。分析与只读恢复不读取配置。
 
 ```bash
-# 本轮唯一正式session：仅门禁全通过后执行一次；已有目录禁止执行
+# 已执行命令的历史记录；正式ID已存在，禁止再次执行或换ID重跑
 env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   scripts/run_q6_2_fixed_state_panel.py --mode real --allow-provider --protocol v2 \
   --session-id q62-panel-real-v2-01 --max-requests 48 \
@@ -124,7 +124,31 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
   --env-file third_party/AgentSociety/.env
 ```
 
-超时占预算，取消未完成不启动下一请求；不并发、不重试、不repair/fallback、不换provider/状态/提示。增量进度区分已处理与活动完成，含CALLS/VALID/ACTIVITIES/REJECTED/TIMEOUTS/STREAK/PAIRS。真实窗口不改tracked文件/commit/环境，不merge。中断先查原进程，原进程未停不并发导出；确认停止后才将原session只读导出到新的恢复目录，不恢复实验或补发。实际结果与结束标记在验收账本追加。
+当次执行遵守：超时占预算，取消未完成不启动下一请求；串行、无重试、无repair/fallback、未换provider/状态/提示。增量进度区分已处理与活动完成，含CALLS/VALID/ACTIVITIES/REJECTED/TIMEOUTS/STREAK/PAIRS。真实窗口未改tracked文件/commit/环境、未merge。若未来遇中断，先查原进程，原进程未停不并发导出；确认停止后才只读恢复，不恢复实验或补发。本次实际结束标记与验收范围见[验收账本](acceptance.md)。
+
+### v2当前状态：只读复核与结果交接
+
+执行commit为 `ae2123f50beaaca6bcac2dcca8e34659bd0a8b24`，规范协议hash为 `b66217fa18ce8740deec38334b157ff35f00455d8d2b431dd0b48531debffcc6`。执行前CI [37744586404](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37744586404) 全库950 passed、8 skipped，核心394 passed及AS2通过；文档CI [37744586620](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37744586620)通过。临时merge `c7e41519c3dc73373d442e9aa336a20f040ea954` 与执行HEAD整树相等，但不是实际执行commit。本页不把这些CI结果说成本机完整AS2验收或结果文档提交的新CI结果。
+
+正式session最终为 `PANEL_COMPLETED`，cleanup为 `CLOSED`。计划48/48已处理、客户端计数48；HTTP与有效完成活动46，A/B各23；各臂一次孤立安全超时，max streak1。可评分覆盖为 `PARTIAL`：46/48单元、22/24完整同后端配对；两次超时没有输出可评分行为，未补齐。研究解释为 `NO_CLEAR_DIFFERENCE`，并非统计等价或长期效果证明。
+
+|安全产物|当前位置|本次操作|
+|---|---|---|
+|原session|`run/evaluation/q6_2_fixed_state_panel/q62-panel-real-v2-01/`|已结束；禁止覆盖或重新运行|
+|只读恢复|`run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01/`|已执行；297个源文件hash前后相同、阶段计数及原终止原因一致、新增请求0；不得覆盖此目录|
+|确定性分析|`run/evaluation/q62_v2_analysis/q62-panel-real-v2-01/`|`safe_metrics.json`、`result_fragment_zh.md`、`source_integrity.json`；重算与原安全记录一致，新增请求0|
+
+原只读恢复命令保留如下，**输出目录已经存在，不能再次执行并覆盖**；若将来有独立复核需要，先确认原进程停止，另选未使用的新恢复目录，不改变原session：
+
+```bash
+# 本次已执行的只读恢复记录，不重用已有output
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py \
+  --export-only run/evaluation/q6_2_fixed_state_panel/q62-panel-real-v2-01 \
+  --output run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01
+```
+
+分析只看安全字段和明确分母，不打开原prompt/completion/隐藏推理。已知reasoning token存在，minimal_request不能解释为关闭了思考，也不等于完成小模型对照。不得把runner的自动 `NOT_TESTED` 字段改成收益成功；独立解释及成本/行为局限见[Q6.2问题档案](../studies/q62_action_projection.md)。本轮收束，无追加请求、自动merge、采购功能或长链授权。
 
 ## 文档检查
 
