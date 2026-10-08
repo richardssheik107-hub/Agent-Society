@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-09-24。Q6.1/Q6.2已合入main。本页不是付费请求授权；计划中的新面板和新活动尚未实现，不能猜测命令运行。现行任务见[完整计划](plan.md)。
+更新：2026-10-08。Q6.1/Q6.2已合入main；新固定状态面板在本轮分支实现并离线验收。本页不是付费请求授权；获取活动尚未实现。现行任务见[完整计划](plan.md)。
 
 ## 工作区与环境
 
@@ -60,6 +60,46 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 ## 中断与已有session
 
 发现session已存在或上次执行是否发请求不清楚，先只读检查进程、summary、decision记录与SQLite；日志没有某行不能证明请求为0。不得删除目录、换ID或自动补跑。允许导出已存在记录，不重新发送请求。真实停止策略以批准的具体协议为准。
+
+## 新固定状态面板：三个模式与只读恢复
+
+入口为 `scripts/run_q6_2_fixed_state_panel.py`；`--help` 实际列出 mode、session-id、export-only、output、allow-provider、execution-commit、protocol-hash、max-requests、env-file、offline-case。普通运行注册根固定为 `run/evaluation/q6_2_fixed_state_panel/`，`--output` **仅可用于新恢复报告目录**，不能换目录绕过 session 身份。已有 ID 排他拒绝，不删除后重跑。
+
+以下 dry-run、offline 和 export-only 均已通过离线测试；示例 ID 是本轮已用 ID 的形式，实际再次执行要换**新的离线 ID**，不要复用旧真实 session。默认不读密钥、不创建真实 client；offline 只使用显式脚本 client，报告为 OFFLINE_SYNTHETIC。
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --session-id q62-panel-dry-next
+
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --session-id q62-panel-offline-next --mode offline
+
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py \
+  --export-only run/evaluation/q6_2_fixed_state_panel/q62-panel-offline-next \
+  --output run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-offline-next
+```
+
+恢复源库 `mode=ro`、`query_only` 打开，不调用 StateStore/World 初始化，不迁移，不读凭据、不构造 client、不补动作；报告写新目录。session.sqlite3 记录完整计划与阶段；每个 `cells/cNNN/world.sqlite3` 的 commands、decision_attempts、events、state 是业务事实。意图后中断写发送 UNKNOWN/null；只有响应证据不编造提案；world 已提交从已提交事实恢复。不提供自动 resume/retry，保留中断 session。
+
+离线脚本还可选 `--offline-case both-legal`、`b-worse`、`no-valid-proposal`；它们验证汇总器不保证 B 获胜，不构成模型证据。每单元一次决策，跨决策反馈/重复率/长期连续性为 NOT_APPLICABLE。
+
+### 未来 real：尚未授权，不执行
+
+只有独立批准冻结协议和48次预算后，才可将占位符换成已批准执行commit、配置规范JSON hash、新session和保护配置路径：
+
+```bash
+# 尚未授权，不执行；48是固定容量，不是本轮许可
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --mode real --allow-provider \
+  --session-id <待批准的新real-ID> --max-requests 48 \
+  --execution-commit <待批准的干净HEAD> --protocol-hash <待批准的配置SHA256> \
+  --env-file <显式指定的受保护配置文件>
+```
+
+无独立 allow-provider、版本/hash不匹配、环境无效或重复session均不发送请求。沿用 minimal_request，仅 model/messages；不添加 thinking/max_tokens/temperature。首个请求前冻结48计划和全部世界，每单元前再查冻结四项摘要；调用前占预算，逐单元增量输出完成数、cell、状态与累计尝试。规则拒绝和已知活动失败可继续；其余fatal停止整轮，剩余NOT_RUN附停止原因。
+
+本轮真实 provider 请求0，不读取实际 `.env`，不重跑Q6.1/旧双短链，不自动merge。离线环境中缺完整AS2依赖应单列收集错误，由完整CI验收，不能冒充通过。
 
 ## 文档检查
 

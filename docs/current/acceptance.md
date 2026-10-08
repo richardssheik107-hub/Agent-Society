@@ -24,3 +24,40 @@ Q6.2初版运行ID `35680426146`；后续准备运行ID `35842428974`。文档�
 Q3目录是工程参考；Q4最小值未知；Q5结构门槛通过；Q6状态机制通过；Q6.1原结论仍证据不足；Q6.2原产物核验与A/B工程准备已进入主线，真实收益待测。
 
 分支与主线代码位置见[分支状态](branches.md)。
+
+## 2026-10-08｜Q6.2 固定状态配对面板（本轮新增，零真实请求）
+
+基线 `53b1244ac0f8562fd01fe8439e73ca900a40dd8c`；分支 `research/q62-fixed-state-panel`。首个实现提交 `5aad834257bcc51f390b21c0b3abae4011e19405`；补修提交 `31a2bdc0062ef12029d29c3d0f43a32847df23ba`，保留未知HTTP收据并收紧安全元数据，不改写前一个提交。新PR与最终CI版本在交付时补齐；PR #4/#5 不追加、不自动merge。测试环境和轻量runtime均为Python3.12.14；runtime pip check无依赖冲突，复用现有环境，未读取实际.env或provider配置。
+
+### M0 差距与最小修复
+
+| 已有机制 / 实际缺口 | 本轮最小补齐 | 没有改什么 |
+|---|---|---|
+| world 已持久化REQUEST_STARTED、最终decision、commands/events；缺整个面板身份/48预算 | session排他创建、48预分配计划、逐cell原子claim、唯一request ID | 业务真值仍在各world，没建第二个RuleEngine |
+| 请求响应到解析/执行前之间缺安全分阶段receipt | ActivityDecisionRunner可选evidence_hook；RESPONSE/PARSE/DECISION阶段仅安全字段 | 默认旧prompt、动作、日志行和停止语义不变 |
+| world已提交但面板汇总没写，中断发送状态可能未知 | SQLite mode=ro/query_only恢复，不初始化/迁移，不client/凭据/动作重放 | 不实现resume/retry，不补写源库，不删失败目录 |
+| 旧双短链用调用减失败推成功、token缺失求和归零 | 新Q6_2_FIXED_PANEL_METRICS_V1逐阶段计数、显式分母、known subtotal/缺失/覆盖率 | 不重写旧summary与历史结果 |
+| 复用client时可能误用上一receipt、未知失败被混合 | 本cell元数据/计数隔离；HTTP/传输/契约/JSON/目录/规则/取消/架构分类 | 不改变真实client请求体、思考或输出参数 |
+
+### 实际执行记录
+
+| 范围 | 本轮实测结果 |
+|---|---|
+| 新面板专项 | 154 passed（27 runner/CLI、76 fixtures、30 ledger/recovery、21 reporting）；未知HTTP收据与敏感响应元数据新增回归均通过 |
+| 新旧联合回归 | 最新279 passed：含上述154专项、原Q6.1、原Q6.2投影/双短链和continuity三文件；补修前曾为276 passed，不累加不同范围 |
+| Ruff | 新增模块、共享continuity目录、入口与四个新增测试文件PASS |
+| 默认dry-run | q62-panel-dry-20261008-01：48 NOT_RUN，0真实请求，未构造真实client |
+| 完整offline演练 | q62-panel-offline-20261008-01：48 fake调用、48有效提案、22规则拒绝、26启动/完成、不变量48 PASS；24完整配对；0真实请求 |
+| 脚本正反例 | A非法/B合法、两者合法、B更差、零有效分母均专项验证；不是模型行为结果 |
+| 故障与恢复 | HTTP200无效JSON、HTTP/传输/timeout/取消/契约/导入错误、目录外字符串哨兵、未知backend/token、已知餐食失败、执行上限等测试PASS；意图/响应/world已提交三断点恢复源文件SHA256不变 |
+| CLI只读导出 | q62-panel-offline-20261008-01恢复报告写新目录，NEW_PROVIDER_REQUESTS=0；源目录不重跑 |
+| 本机全库/AS2 | NOT_RUN：独立测试环境缺litellm；没有往轻量runtime塞完整依赖，由完整CI验收 |
+| 仓库/文档审计 | audit_repository / audit_documentation 均exit0、status PASS、errors=[]；文档/仓库专项19 passed；限定17文件范围、敏感格式扫描与保护文件/固定子模块核对PASS；Attempt1两历史commit仍为HEAD祖先 |
+| 完整CI / AS2 | PENDING；不沿用主线历史685作为本轮数字 |
+| 本轮真实provider | 0；实际.env、key、真实配置读取0 |
+
+开发期一次误填旧测试路径导致0 tests ran，已纠正为实际三个continuity测试文件；不是测试通过。首次Ruff发现4个闭包绑定问题和1个无用局部变量，已修复后重验PASS。保留失败事实，不放宽规则/删除测试。
+
+本机产物在 `run/evaluation/q6_2_fixed_state_panel/`；只读报告在 `run/evaluation/q6_2_fixed_state_panel_recovery/`。这些忽略产物不入Git；配置、构造配方、代码和测试入库。早期-01产物是在开发工作树生成，记录对应基线，不能冒称最终commit执行证据；最终冻结版本以CI运行commit及其产物为准。全栈CI尚未完成时工程READY不得提前写最终PASS。
+
+`Q6_2_FIXED_PANEL_REAL_AUTHORIZED=NO`；`Q6_2_FIXED_PANEL_REAL_EXECUTED=NO`；`REAL_PROVIDER_REQUESTS_THIS_TASK=0`；`MODEL_BENEFIT=NOT_TESTED`。Q6.1 `SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE` 保留，48只为未来容量。
