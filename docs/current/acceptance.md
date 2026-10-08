@@ -62,7 +62,7 @@ Q3目录是工程参考；Q4最小值未知；Q5结构门槛通过；Q6状态机
 
 ### CI证据与完成门槛
 
-执行提交 `2c90612a9f361e8988136cfc1b253642c4086a3f` 的[完整CI 37728484043](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37728484043)及[文档CI 37728484029](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37728484029)均SUCCESS。文档专项19 passed；核心环境Python3.12.15，全库/AS2为Python3.12.14，不能统写为一个patch版本。全库8项跳过：test_a2_final三项、test_behavior_prior_context两项、test_behavior_prior_index三项，均缺 `run/calibration/neutral_day_v1/calibration_manifest.json` 与 `behavior_days_core7_candidate.jsonl`，未伪造语料或改为通过。开发期失败事实与本机缺litellm限制仍保留。
+关联分支头 `2c90612a9f361e8988136cfc1b253642c4086a3f` 的[完整CI 37728484043](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37728484043)及[文档CI 37728484029](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37728484029)均SUCCESS；GitHub PR checkout实际测试临时合并提交 `a6b9e9638b73f777e9bf8836003253378c1c5d5a`（该head与基线53b1244），不是已经合并main。文档专项19 passed；核心环境Python3.12.15，全库/AS2为Python3.12.14，不能统写为一个patch版本。全库8项跳过：test_a2_final三项、test_behavior_prior_context两项、test_behavior_prior_index三项，均缺 `run/calibration/neutral_day_v1/calibration_manifest.json` 与 `behavior_days_core7_candidate.jsonl`，未伪造语料或改为通过。开发期失败事实与本机缺litellm限制仍保留。
 
 CI核心产物 `continuity-core-evidence` 包含 ci-panel-dry/offline、只读恢复与原回放/长脚本证据；`continuity-regression-evidence` 包含全库JUnit、依赖和固定上游版本；文档产物为 `chinese-documentation-audit`。七天/三十天均 completed_days等于计划天数、不变量PASS、recovery_equivalent=true、provider_calls=0；AS2真实上游适配器PASS不代表本机安装了完整依赖。最终文档补账提交的重新验收状态见PR检查，不混作新的业务实验。
 
