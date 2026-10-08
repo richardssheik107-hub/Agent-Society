@@ -318,3 +318,24 @@ def test_changed_world_and_local_audit_cannot_bypass_database_manifest(tmp_path)
         assert client.call_count == 0
         assert summary["counts"]["not_run"] == 48
         assert summary["session_status"] == "ARCHITECTURE_ERROR"
+
+
+@pytest.mark.parametrize("case", ["success", "contract"])
+def test_safe_receipt_never_logs_secret_model_or_finish_reason(tmp_path, case):
+    sentinel = "PRIVATE_CREDENTIAL_RECEIPT_SENTINEL"
+    class Client:
+        _redaction_secret = sentinel
+        last_metadata = None
+        async def complete(self, _system, _user):
+            self.last_metadata = DecisionResponseMetadata(http_status=200, provider_model=sentinel,
+                                                          finish_reason=sentinel)
+            if case == "contract":
+                raise ProviderContractError("NO_CHOICES", self.last_metadata)
+            return SimpleNamespace(raw_text='{"activity":"LEISURE","target":null}',
+                                   finish_reason=sentinel, provider_model=sentinel)
+    _summary, rows, directory = run(tmp_path, Client())
+    assert rows[0]["provider_model"] is None
+    assert rows[0]["finish_reason"] is None
+    for path in directory.rglob("*"):
+        if path.is_file():
+            assert sentinel.encode() not in path.read_bytes()

@@ -90,6 +90,7 @@ def test_claim_is_atomic_per_cell_and_preserves_unknown_before_client_entry(tmp_
         assert row["status"] == row["request_send_status"] == "UNKNOWN"
         assert row["call_intent_registered"] is True
         assert row["client_call_attempted"] is None
+        assert row["http_response_observed"] is None
         assert row["application_calls"] is row["provider_requests"] is None
         assert row["missing_evidence"] == ["FINAL_ROW"]
     exported = read_session(tmp_path / "duplicate")
@@ -153,10 +154,23 @@ def test_metadata_without_http_status_does_not_invent_http_response(tmp_path):
             "proposal_activity": "SLEEP", "proposal_target": None})
         row = ledger.rows()[0]
         assert row["intent_registered"] is True
-        assert row["http_response_observed"] is False
+        assert row["http_response_observed"] is None
         assert row["strict_json_valid"] is True and row["catalog_valid"] is True
         assert row["input_tokens"] is None
         assert row["status"] == "UNKNOWN"
+
+
+def test_intent_only_missing_http_evidence_counts_unknown_not_false(tmp_path):
+    from social_sim.continuity.q6_2_panel_reporting import summarize
+
+    with create_session(tmp_path, "intent-only", _manifest(), {}) as ledger:
+        ledger.claim("cell-00")
+    exported = read_session(tmp_path / "intent-only")
+    summary = summarize(exported["rows"], mode="offline", session_status="INTERRUPTED")
+    assert summary["stage_counts"]["http_response_observed"] == {
+        "true": 0, "false": 0, "unknown": 1, "not_run": 47}
+    assert summary["counts"]["intent_send_unknown"] == 1
+    assert exported["rows"][0]["provider_requests"] is None
 
 
 def test_committed_world_result_survives_missing_final_export(tmp_path):

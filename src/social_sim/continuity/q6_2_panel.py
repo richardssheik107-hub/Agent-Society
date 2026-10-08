@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
+from social_sim.decision.client import DecisionResponseMetadata, ProviderContractError
 from social_sim.provider_runtime.environment import code_fingerprint, repository_info
 from social_sim.provider_runtime.safety import atom, counter, exception_type, metadata, write_json
 
@@ -32,6 +33,14 @@ class PanelStop(RuntimeError):
     def __init__(self, code: str):
         self.code = code
         super().__init__(code)
+
+
+def _receipt(source, secret: str = "") -> DecisionResponseMetadata:
+    """Reuse the safe whitelist and never persist arbitrary finish/error text."""
+    safe = metadata(SimpleNamespace(last_metadata=source, _redaction_secret=secret))
+    if safe["finish_reason"] not in {"stop", "length", "tool_calls", "function_call", "content_filter"}:
+        safe["finish_reason"] = None
+    return DecisionResponseMetadata(**safe)
 
 
 def _json(path: Path, data: object) -> None:
@@ -168,13 +177,26 @@ class _CellClient:
         succeeded = False
         try:
             reply = await self.client.complete(system, user)
+            receipt = _receipt(reply, getattr(self.client, "_redaction_secret", ""))
+            if not isinstance(getattr(reply, "raw_text", None), str):
+                raise ProviderContractError("PROVIDER_SCHEMA_MISMATCH", receipt)
             succeeded = True
-            return reply
+            return SimpleNamespace(raw_text=reply.raw_text, **{
+                key: getattr(receipt, key) for key in ("http_status", "provider_model", "finish_reason",
+                                                       "input_tokens", "output_tokens", "reasoning_tokens")})
+        except ProviderContractError as error:
+            category = error.category if error.category in {
+                "PROVIDER_SCHEMA_MISMATCH", "NO_CHOICES", "OUTPUT_BUDGET_EXHAUSTED", "PROVIDER_REFUSAL",
+                "TOOL_CALL_INSTEAD_OF_TEXT", "EMPTY_FINAL_CONTENT_WITH_REASONING", "EMPTY_FINAL_CONTENT",
+            } else "PROVIDER_SCHEMA_MISMATCH"
+            raise ProviderContractError(category, _receipt(error.metadata,
+                getattr(self.client, "_redaction_secret", ""))) from None
         finally:
             self.call_latency = round(time.perf_counter() - started, 6)
             current = getattr(self.client, "last_metadata", None)
             # A failing reusable client must not inherit the last successful cell's receipt.
-            self.last_metadata = current if succeeded or current is not previous_metadata else None
+            self.last_metadata = (_receipt(current, getattr(self.client, "_redaction_secret", ""))
+                                  if succeeded or current is not previous_metadata else None)
             after_counter = counter(getattr(self.client, "provider_request_count", None))
             if previous_counter is not None and after_counter is not None and after_counter >= previous_counter:
                 self.request_delta = after_counter - previous_counter
@@ -321,7 +343,7 @@ async def run_session(ledger, *, mode: str, client=None, fault_hook=None, progre
                 for key in ("strict_json_valid", "catalog_valid", "service_contract_valid",
                             "proposal_activity", "proposal_target", "proposal_target_hash"):
                     row[key] = evidence.get(key)
-                row["http_response_observed"] = row["http_status"] is not None
+                row["http_response_observed"] = True if row["http_status"] is not None else None
                 if raw["status"].startswith("PROVIDER_"):
                     row["service_contract_valid"] = False
                 if mode == "real":

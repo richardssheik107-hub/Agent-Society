@@ -140,9 +140,14 @@ def _rows(cells: list[dict], evidence: list[dict]) -> list[dict]:
         known = details.get(cell["cell_id"], {})
         world_result = committed.get(cell["cell_id"])
         http_status = known.get("http_status")
-        http_observed = (isinstance(http_status, int) and not isinstance(http_status, bool)
-                         and 100 <= http_status <= 599) or known.get(
-                             "http_response_observed") is True
+        if (isinstance(http_status, int) and not isinstance(http_status, bool)
+                and 100 <= http_status <= 599):
+            http_observed = True
+        elif isinstance(known.get("http_response_observed"), bool):
+            http_observed = known["http_response_observed"]
+        else:
+            # Missing receipt evidence is unknown, not an observed no-response.
+            http_observed = None if claimed else False
         client_attempted = (True if "CLIENT_CALL_STARTED" in observed else
                             None if claimed else False)
         output.append({
