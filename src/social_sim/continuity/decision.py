@@ -16,22 +16,29 @@ from social_sim.provider_runtime.safety import exception_type
 from .context import decision_prompt, observe
 from .context import parse_proposal
 from .engine import ContinuityWorld
-from .models import identity, integer
+from .models import digest, identity, integer
 
 
 class ActivityDecisionRunner:
     def __init__(self, world: ContinuityWorld, client, *, max_calls: int = 4,
                  hard_timeout_seconds: float = 60, journal_path: str | Path | None = None,
-                 prompt_builder: Callable[[ContinuityWorld, int], tuple[str, str]] | None = None):
+                 prompt_builder: Callable[[ContinuityWorld, int], tuple[str, str]] | None = None,
+                 evidence_hook: Callable[[str, dict], None] | None = None):
         integer(max_calls, "max_calls", 1, 100)
         if not 0 < hard_timeout_seconds <= 120:
             raise ValueError("invalid timeout")
         self.world, self.client = world, client
         self.max_calls, self.timeout = max_calls, hard_timeout_seconds
         self.prompt_builder = prompt_builder
+        # Opt-in evidence only: no extra prompts, requests, domain effects or legacy rows.
+        self.evidence_hook = evidence_hook
         self.journal = Path(journal_path) if journal_path is not None else None
         self.calls = self._call_count()
         self.records = []
+
+    def _evidence(self, stage: str, data: dict) -> None:
+        if self.evidence_hook is not None:
+            self.evidence_hook(stage, dict(data))
 
     def _call_count(self) -> int:
         return self.world.store.db.execute("SELECT count(*) FROM decision_attempts").fetchone()[0]
@@ -99,6 +106,8 @@ class ActivityDecisionRunner:
         self._record({"request_id": request_id, "status": "REQUEST_STARTED",
                       "minute": self.world.minute, "application_call": self.calls,
                       "prompt_chars": len(system) + len(user)})
+        self._evidence("REQUEST_STARTED", {"request_id": request_id,
+                       "prompt_chars": len(system) + len(user)})
         started = time.perf_counter()
         row = {"request_id": request_id, "application_calls": 1,
                "input_tokens": None, "output_tokens": None, "reasoning_tokens": None,
@@ -126,15 +135,25 @@ class ActivityDecisionRunner:
         else:
             row.update(self._safe_metadata(getattr(self.client, "last_metadata", None)))
             row.update(self._safe_metadata(reply))
+            self._evidence("RESPONSE_OBSERVED", {**self._safe_metadata(reply),
+                           **self._safe_metadata(getattr(self.client, "last_metadata", None)),
+                           "service_contract_valid": isinstance(getattr(reply, "raw_text", None), str)})
             try:
                 proposal = parse_proposal(reply.raw_text)
             except (ValueError, TypeError, AttributeError) as error:
                 row["status"] = "INVALID_MODEL_OUTPUT"
                 row["exception_type"] = exception_type(error)
+                self._evidence("PARSE_RESULT", {"strict_json_valid": False,
+                               "catalog_valid": None})
             else:
                 target = proposal["target"]
                 allowed = {item["id"] for item in observe(self.world, actor_id)["objects"]}
                 allowed.update(("home", "restaurant", "office", "park"))
+                self._evidence("PARSE_RESULT", {"strict_json_valid": True,
+                               "catalog_valid": target is None or target in allowed,
+                               "proposal_activity": proposal["activity"],
+                               "proposal_target": target if target is None or target in allowed else None,
+                               "proposal_target_hash": digest(target) if target is not None and target not in allowed else None})
                 if target is not None and target not in allowed:
                     row["status"] = "OUTSIDE_CATALOG"
                 else:
@@ -154,6 +173,7 @@ class ActivityDecisionRunner:
             store.db.execute("UPDATE decision_attempts SET status=?,data=? WHERE id=?",
                              (row["status"], json.dumps(row, ensure_ascii=False), request_id))
         self._record(row)
+        self._evidence("DECISION_RECORDED", row)
         if cancelled:
             raise asyncio.CancelledError
         return row
