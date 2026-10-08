@@ -23,7 +23,7 @@ def docs_copy(tmp_path):
 def test_current_documents_are_indexed_chinese_and_reachable():
     result = MODULE.audit(include_history=False)
     assert result["status"] == "PASS", result["errors"]
-    assert result["current_markdown_count"] == 27
+    assert result["current_markdown_count"] == 29
     assert result["provider_requests"] == 0
 
 
@@ -101,7 +101,7 @@ def test_no_git_history_is_a_failure_not_a_skip(docs_copy):
 
 def test_all_review_questions_have_explicit_anchors():
     text = (ROOT / "docs/review/decisions.md").read_text(encoding="utf-8")
-    assert {f"d-{n:02}" for n in range(1, 9)}.issubset(MODULE.anchors(text))
+    assert {f"d-{n:02}" for n in range(1, 10)}.issubset(MODULE.anchors(text))
     assert "待审核" in text
 
 
@@ -128,3 +128,56 @@ def test_original_current_entrypoints_preserved():
     for name in ("README.md", "research_status.md", "three_core_questions_experiment_summary.md",
                  "plan.md", "runbook.md", "acceptance.md", "architecture.md", "repository.md", "branches.md"):
         assert (ROOT / "docs/current" / name).is_file()
+
+
+def test_m15_outcome_audit_and_human_packet_are_separately_navigable():
+    navigation = json.loads((ROOT / "docs/reference/navigation.json").read_text(encoding="utf-8"))
+    assert "docs/studies/q62_outcome_audit.md" in navigation["groups"]["研究问题"]
+    assert "docs/studies/q62_outcome_human_review.md" in navigation["groups"]["人工审核"]
+    assert "d-09" in navigation["review_ids"]
+    status = (ROOT / "docs/current/research_status.md").read_text(encoding="utf-8")
+    assert "q62_outcome_audit.md" in status and "q62_outcome_human_review.md" in status
+    assert "UNKNOWN" in status
+    assert "HUMAN_REVIEW_COMPLETED=NO" in status
+    assert "HUMAN_NEED_SATISFACTION_CONCLUSION=UNRESOLVED" in status
+    assert "NEW_REAL_PROVIDER_REQUESTS=0" in status
+
+
+def test_m15_posthoc_boundaries_do_not_rewrite_original_research_conclusions():
+    study = (ROOT / "docs/studies/q62_action_projection.md").read_text(encoding="utf-8")
+    plan = (ROOT / "docs/current/plan.md").read_text(encoding="utf-8")
+    decisions = (ROOT / "docs/review/decisions.md").read_text(encoding="utf-8")
+    report = (ROOT / "docs/studies/q62_outcome_audit.md").read_text(encoding="utf-8")
+    for text in (study, plan, decisions):
+        assert "EXPLORATORY_POST_HOC" in text
+        assert "NO_CLEAR_DIFFERENCE" in text
+        assert "UNRESOLVED" in text
+        assert "NEW_REAL_PROVIDER_REQUESTS=0" in text
+        assert "q62_outcome_human_review.md" in text
+    assert "EXPLORATORY_POST_HOC" in report
+    assert "UNKNOWN" in report
+    assert "HUMAN_REVIEW_COMPLETED" in report and "NO" in report
+    assert "q62_outcome_human_review.md" in report
+    assert "待审核" in decisions.split('id="d-09"', 1)[1]
+    assert "未实现、未运行、未验证" in decisions
+    assert "不合成总分" in decisions
+
+
+def test_m15_public_json_is_valid_complete_and_never_imputes_timeout_effects():
+    result = json.loads((ROOT / "docs/reference/q62_outcome_audit_results.json").read_text(encoding="utf-8"))
+    assert result["schema"] == "Q62_OUTCOME_SAFE_DELIVERY_V1"
+    assert len(result["cells"]) == 48 and len(result["pairs"]) == 24
+    assert result["aggregates"]["complete_pairs"] == 22
+    assert result["source_integrity"]["file_count"] == 297
+    assert len(result["source_integrity"]["source_file_hashes"]) == 297
+    missing = [p for p in result["pairs"] if not p["complete"]]
+    assert [p["pair_id"] for p in missing] == ["p014", "p021"]
+    assert all(all(v is None for v in p["B_minus_A"].values()) for p in missing)
+    timed_out = [c for c in result["cells"] if c["status"] == "PROVIDER_TIMEOUT"]
+    assert len(timed_out) == 2
+    assert all(c["hunger_relief"] is None and c["money_delta"] is None
+               and c["minutes_elapsed"] is None for c in timed_out)
+    assert result["markers"]["NEW_REAL_PROVIDER_REQUESTS"] == 0
+    assert result["markers"]["ORIGINAL_Q62_CONCLUSION"] == "NO_CLEAR_DIFFERENCE"
+    assert result["human_review_completed"] is False
+    assert result["human_review_key_published"] is False

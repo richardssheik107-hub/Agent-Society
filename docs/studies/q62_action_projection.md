@@ -2,11 +2,15 @@
 
 状态：原始产物核验、投影、旧双短链A/B入口与dry-run已通过PR #4合入main；旧8-call真实短链仍未运行。研究分支的固定状态v2面板已完成唯一真实session：48尝试、46有效并完成、2隔离超时、22完整配对；主指标研究判断为 **NO_CLEAR_DIFFERENCE**，不是等价证明。以下早期阶段保留当时未测试的历史，最新结果见页末。[证据 E-Q62](../reference/evidence.md#q62)
 
+当前M1.5另做[客观状态后果与提示干预审计](q62_outcome_audit.md)，仅使用这批历史证据，`NEW_REAL_PROVIDER_REQUESTS=0`。新增指标是 `EVALUATION_TYPE=EXPLORATORY_POST_HOC`，不是原48请求的预注册主指标；原 `NO_CLEAR_DIFFERENCE` 不改写。TRAVEL完成、MEAL完成与人物需求改善分开，两个超时的行为后果保留 `UNKNOWN`；[人工盲审包](q62_outcome_human_review.md)尚未标注，`HUMAN_REVIEW_COMPLETED=NO`，`HUMAN_NEED_SATISFACTION_CONCLUSION=UNRESOLVED`。新标准与提示消融只提交[D-09](../review/decisions.md#d-09)讨论，不自动运行。
+
 ## 研究问题
 
 对象在目录里，不等于该人物现在能使用。Q6.1 的 `game_a.qty=0` 仍被选作 PLAY，提示应区分“存在的对象”与“现在可执行的活动/对象对”。
 
 A_RAW 保持原 prompt；B_FEASIBLE 保留相同观察和目的地，追加 `executable_options` 及说明。干预只有当前合法候选，不添加最佳答案、偏好排序、近期变化摘要或日记标签。两臂都记录候选成员资格，但 A 不向模型显示候选。
+
+M1.5澄清上面“只有候选”的原设计简称：冻结B还在system中明确要求从 `executable_options` 选择activity/target，并声明这不是偏好排序。因此它是候选数据与选择指令的综合干预，还增加上下文、固定排列与名称重复曝光；原实验并未分别消融这些因素。只读重建的12场景/48单元hash与字节数均需和冻结产物一致才报告PASS；不改原提示，不读取或保存原模型completion，不能编造模型隐藏思考解释。[提示审计与机制边界](q62_outcome_audit.md)
 
 ## 工程做法
 
@@ -278,3 +282,15 @@ B的有效输出全为MEAL，**不是更多选择LEISURE**；A大多TRAVEL。安
 `Q6_2_FIXED_PANEL_REAL_AUTHORIZED=YES`（本次一次许可已使用完）；`Q6_2_FIXED_PANEL_REAL_EXECUTED=YES`；`REAL_PROVIDER_REQUESTS_THIS_TASK=48`（客户端边界）；`REAL_DATA_COVERAGE=PARTIAL`；独立研究`MODEL_BENEFIT=NO_CLEAR_DIFFERENCE`；`LONG_TERM_HUMAN_LIKENESS=NOT_TESTED`；原Q6.1 `SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE`。
 
 本轮到此收束：推送现有PR #6供人工review，不自动merge。下一步只建议审核成本、宏活动与需求满足的评分边界，之后如需新实验另立协议/授权；不自动追加样本或新功能。完整离线/CI与后续结果文档验收见[验收账本](../current/acceptance.md)。
+
+## 2026-10-08｜M1.5独立后续：真实后果与提示干预审计
+
+本节是原v2结束后的新零请求工作，不改写上面真实实验的判断、runner自动字段或原产物。基线 `b7c6d503dc09c0c2d7dc32467b277a23a1a26404`；新分支 `research/q62-outcome-audit`，以仍OPEN的PR #6研究分支为stacked PR base，不自动合并。
+
+审计分三层：L1事实约束；L2可观测的饥饿、精力、钱、模拟时间及对象变化；L3待人工确认的行为适当性。原单次TRAVEL通常是准备性出行，MEAL可能内含旅行、购买、进食；完成不同粒度的活动不能自动得出相同需求满足，更不能预言A未观测的下一步。全部24配对及两个超时保留，主要描述性统计使用22完整对；不将缺失变成零，也不把相同十二个冻结状态的重复当独立人类样本。
+
+冻结提示核对发现：B system比A追加116字符的选择说明；用户JSON只多候选、共享事实相同；activity/target字典序使12/12状态MEAL先于TRAVEL。24次B分配中的候选名称曝光MEAL44、TRAVEL72、WATCH22、PLAY2、WORK2，MEAL宏步骤没有在候选对里展开。实际B选择MEAL23次，而A选择TRAVEL18/MEAL5；这个联合模式只是机制假设证据，不能分离数据、指令、长度、顺序、重复曝光与宏粒度的各自因果作用。
+
+完整客观delta、家族分布、成本权衡与七个问题的回答见[M1.5中文报告](q62_outcome_audit.md)，小型[安全结果表](../reference/q62_outcome_audit_results.json)可核对；[条件隐藏的人审包](q62_outcome_human_review.md)不包含任意模型原文或研究条件标签。未触发WATCH/PLAY/WORK不能宣布媒体/所有权/工作机制已在真实行为中通过；原31.25%输入增幅、缺失token和延迟事实保留，不推算费用。
+
+`EVALUATION_TYPE=EXPLORATORY_POST_HOC`；`NEW_REAL_PROVIDER_REQUESTS=0`；`ORIGINAL_Q62_CONCLUSION=NO_CLEAR_DIFFERENCE`；`HUMAN_REVIEW_COMPLETED=NO`；`HUMAN_NEED_SATISFACTION_CONCLUSION=UNRESOLVED`。下一步先[D-09人工讨论](../review/decisions.md#d-09)，没有批准新的真实请求、提示改写、采购或饥饿参数调整。

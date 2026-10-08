@@ -1,0 +1,22 @@
+{
+  "schema": "Q62_OUTCOME_AUDIT_V1",
+  "evaluation_type": "EXPLORATORY_POST_HOC",
+  "original_conclusion": "NO_CLEAR_DIFFERENCE",
+  "new_real_provider_requests": 0,
+  "global_utility_weights": null,
+  "human_need_satisfaction_conclusion": "UNRESOLVED",
+  "metrics": {
+    "hunger_relief": {"source": "before_state.hunger_milli - after_state.hunger_milli", "unit": "synthetic_milli_0_to_1000", "positive": "net_hunger_reduction", "negative": "net_hunger_increase"},
+    "energy_change": {"source": "after_state.energy_milli - before_state.energy_milli", "unit": "synthetic_milli_0_to_1000", "positive": "net_energy_increase"},
+    "money_delta": {"source": "after_state.money_cents - before_state.money_cents", "unit": "cents", "positive": "net_income_not_automatically_better", "negative": "net_expenditure_not_error"},
+    "minutes_elapsed": {"source": "after_state.minute - before_state.minute", "unit": "simulation_minutes", "positive": "time_elapsed_not_automatically_failure"},
+    "work_minutes_change": {"source": "verified_readonly_actor_after.work_minutes - verified_readonly_actor_before.work_minutes", "unit": "simulation_work_minutes"}
+  },
+  "missing_policy": "null_UNKNOWN_no_zero_imputation",
+  "unexercised_capability": "NOT_EXERCISED_not_passed",
+  "denominators": {"allocated_cells": 48, "allocated_pairs": 24, "primary_description": "complete_scored_pairs_22_with_all24_missing_visible", "arm_description": "23_known_of24_per_arm"},
+  "time_axes": ["simulation_minutes", "api_latency_seconds", "whole_session_wall_clock_seconds"],
+  "inventory_semantics": "net_quantity_not_gross_purchase_consumption",
+  "statistical_contract": ["mean", "median", "min", "max", "positive", "negative", "zero", "known", "missing", "eligible", "coverage"],
+  "l3": "independent_human_review_required_no_automated_human_score"
+}
