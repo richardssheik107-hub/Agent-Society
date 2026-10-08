@@ -1,6 +1,6 @@
 # M2：合法获取对象与后续使用闭环
 
-更新：2026-10-08。实现基线：`53b1244ac0f8562fd01fe8439e73ca900a40dd8c`，独立分支 `research/m2-acquire-closed-loop`，目标为 `main`。本轮只授权确定性代码、fake client、离线执行和工程验收，新增真实请求为 **0**。最终测试计数、提交、CI 和 PR 地址待本轮实际结果补齐，见[验收账本](../current/acceptance.md)。
+更新：2026-10-08。实现基线：`53b1244ac0f8562fd01fe8439e73ca900a40dd8c`，独立分支 `research/m2-acquire-closed-loop`，实现 `46fb620c0e53a5ab6e03836c95f9a64e1354430b`，[PR #8](https://github.com/richardssheik107-hub/Agent-Society/pull/8)指向 `main`，未合并。本轮已完成fake闭环、离线与完整新CI/AS2，新增真实请求为 **0**。实际测试范围、提交与CI证据见[验收账本](../current/acceptance.md)。
 
 导航：[唯一现行计划](../current/plan.md) · [研究状态](../current/research_status.md) · [D-02 产品语义](../review/decisions.md#d-02) · [D-09 人工行为评价](../review/decisions.md#d-09)
 
@@ -104,6 +104,8 @@ SQLite 的 `_command()` 使用 `BEGIN IMMEDIATE`，把命令结果、状态和�
 
 活动启动结果和当前 commitment 必须分开查询：异地 start 最初返回 ACTIVE，完成后重放 start 仍是原始响应；`get_commitment()` 才给出当前 COMPLETED/FAILED/CANCELLED。不能因为原始响应仍为 ACTIVE 就再次购买。
 
+新fake runner的decision_attempts另记schema和actor_id；跨人物复用请求拒绝归属，底层竞争命令不能把已经拒绝的提案变成接受。重放只读本次持久结果；REQUEST_STARTED但没有结果表示未知中断，不根据同ID的竞争命令猜测成交，也不再次调用client。活动恢复不等于重发高层决策。
+
 恢复覆盖尚未出发、部分旅行、到达待购买、成交已提交、完成后重复查询和失败后重启。暂停和取消也需要重启验证。配置、规范目标、阶段、剩余量、目的地和活动记录列不一致时拒绝恢复，保留证据。进程在 PURCHASED 事件前退出应恢复原 BUY0，而不是半笔成交。
 
 ## 九、SQLite 并发范围
@@ -116,7 +118,7 @@ SQLite 的 `_command()` 使用 `BEGIN IMMEDIATE`，把命令结果、状态和�
 
 独立 M2 runner 使用固定 fake 提案，CLI 默认为 `--mode offline`，不得通过默认模式、环境文件或替换真实 client 产生外部请求。一次 ACQUIRE 选择之后仅推进确定性阶段；重开 world 确认所有权，再接收一次新的 PLAY 提案，并按原 PLAY 规则推进媒体分钟。
 
-本轮独立 runner 已实际离线执行 17/17 场景 PASS、fake 高层调用 3，LLM_CALLS=0、PROVIDER_REQUESTS=0。该记录为提交前开发验证 `m2-offline-development-03`，基线 HEAD 为 53b1244，`git_dirty=True`；正式冻结提交的 session 待交付时补齐。主目录 `game_a` 初始拥有量 0、余额 300000 cents、home 卖家、库存 100；同地获取后余额 297000、库存 99、拥有量 1，获取耗时 0。重开确认所有权后，一次新的独立 PLAY 完成累计 45 分钟。异地合成物品价格 4200 cents，购买后余额 295800；旅行 15 分钟，饥饿 800→815、精力 700→685。
+正式独立runner在clean实现提交上执行 `m2-offline-acceptance-01`：17/17场景PASS、fake高层调用3，LLM_CALLS=0、PROVIDER_REQUESTS=0。provenance为完整实现SHA、`git_dirty=false`、Python3.12.14。此前提交前的development-01/02/03仍保留，不能用其dirty开发HEAD代替冻结证据。主目录 `game_a` 初始拥有量0、余额300000 cents、home卖家、库存100；同地获取后余额297000、库存99、拥有量1，获取耗时0。重开确认所有权后，一次新的独立PLAY完成累计45分钟。异地合成物品价格4200 cents，购买后余额295800；旅行15分钟，饥饿800→815、精力700→685。
 
 可用 `python scripts/run_m2_acquire_validation.py --mode offline --session <新的session>` 复核独立场景；每次使用新 session，不覆盖已有输出。实现位置为 `src/social_sim/continuity/engine.py`、`m2_acquire.py`、`m2_validation.py` 与 `scripts/run_m2_acquire_validation.py`。CLI 只接受 offline，并在运行期间禁止 socket 连接。
 
@@ -125,17 +127,17 @@ SQLite 的 `_command()` 使用 `BEGIN IMMEDIATE`，把命令结果、状态和�
 | 本轮交付 / 验收 | 状态 |
 |---|---|
 | M2 focused tests | 87 passed；PASS，含 79 个专属用例与 8 个 CLI 用例 |
-| 核心验收组合 | 本机 216 passed；PASS，与 CI core 合同同范围，独立 CI 仍待完成 |
+| 核心验收组合 | 本机和新 CI 均216 passed；其中M2精确87，PASS |
 | 旧 Q6 与 Q6.1/Q6.2、购买消费、规则与 reducer 联合回归 | 159 passed；PASS，仅此受测范围 |
 | 购买、消费、媒体、幂等与恢复 | PASS：本轮专属与原联合回归的受测范围，不扩大为分布式保证 |
 | Ruff | 新代码、测试和文档审计工具 PASS |
 | 文档与仓库专项 / 两项审计 | 25 passed；audit_repository、audit_documentation 均 PASS |
 | 历史产物 / 官方子模块保护 | 316 文件字节不变、297 文件清单摘要匹配历史登记；官方固定子模块 clean，PASS |
-| 完整 CI 与固定 AS2 适配器 | PENDING：补当前 SHA、run 和真实结果 |
+| 完整 CI 与固定 AS2 适配器 | 778 passed、8项缺历史语料SKIP；固定670c94fff适配器PASS；Python3.12.15；新工程CI37787843811、文档CI37787843755成功 |
 | Secret scan / 受保护文件差异 | PASS：凭据模式未发现匹配；旧提示/投影/规则参数/存储与 Q3/Q4/Q5 文件未改 |
-| 实现提交 / 最终提交 / 新 PR | PENDING |
+| 实现提交 / 结果记录 / 新 PR | 46fb620c0e53a5ab6e03836c95f9a64e1354430b；本报告后续提交只补记录；PR #8指向main，不自动合并 |
 | M2_EXPERIMENTAL_IMPLEMENTATION | READY：实验机制与本机受测路径可用，生产默认仍禁用 |
-| M2_ACQUIRE_ENGINEERING_READY | PENDING：等待完整 CI/AS2 与最终证据核对 |
+| M2_ACQUIRE_ENGINEERING_READY | YES：实际受测门槛通过，不代表生产默认或真人行为批准 |
 | HUMAN_BEHAVIOR_APPROPRIATENESS | NOT_TESTED |
 | LLM_CALLS / PROVIDER_REQUESTS | 0 / 0 |
 

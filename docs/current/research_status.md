@@ -13,7 +13,7 @@
 | 真实模型能继续用更新状态吗？ | Q6.1 三次完成、一次规则拒绝；观察一致不等于因果利用 | 代码已入 main；原实验结论仍证据不足 | [Q6.1](../studies/q61_real_pilot.md) | [D-01](../review/decisions.md#d-01) |
 | 提前给合法候选有用吗？ | 原主线有投影与八请求上限 A/B 入口；PR #6 固定 12 状态、24 配对、48 单元已有历史真实结果 | NO_CLEAR_DIFFERENCE 保持；研究分支未在本轮合并 | [原 Q6.2 工程](../studies/q62_action_projection.md)、[冻结研究](https://github.com/richardssheik107-hub/Agent-Society/blob/b7c6d503dc09c0c2d7dc32467b277a23a1a26404/docs/studies/q62_action_projection.md) | [D-01](../review/decisions.md#d-01) |
 | 状态后果是不是整体行为更好？ | PR #7 的 M1.5 对 22 个完整配对做离线净变化审计；宏活动粒度不同 | EXPLORATORY_POST_HOC；不能改写 B 获胜 | [历史审计](https://github.com/richardssheik107-hub/Agent-Society/blob/016fffe28b4a296a24a1ee8c8c4adc63b7394383/docs/studies/q62_outcome_audit.md) | [D-09](../review/decisions.md#d-09)，PENDING |
-| 对象存在但未拥有时，能合法获取后使用吗？ | M2 opt-in ACQUIRE 复用 BUY 与 controller；同地零分钟、异地 MOVE→持久 BUY0→交易，重开后独立 PLAY | 实验机制已实现；offline 17/17 PASS；完整验收与 CI 见账本，生产默认 DISABLED | [M2 获取闭环](../studies/m2_object_acquisition.md)、[当前验收](acceptance.md) | [D-02](../review/decisions.md#d-02) 为 NO；人的行为适当性 NOT_TESTED |
+| 对象存在但未拥有时，能合法获取后使用吗？ | M2 opt-in ACQUIRE复用BUY与controller；获取→持久重开→独立PLAY；focused87、正式offline17/17、新CI全库778/8与固定AS2通过 | M2_ACQUIRE_ENGINEERING_READY=YES；[PR #8](https://github.com/richardssheik107-hub/Agent-Society/pull/8)未合并，生产默认DISABLED | [M2 获取闭环](../studies/m2_object_acquisition.md)、[当前验收](acceptance.md) | [D-02](../review/decisions.md#d-02)为NO；人的行为适当性NOT_TESTED |
 
 证据按报告和代码提交冻结，见[验收账本](acceptance.md)与[证据登记](../reference/evidence.md)。测试数、请求数、成功活动数不能互换。
 

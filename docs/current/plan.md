@@ -35,7 +35,7 @@
 | Q6.2 主线工程 | 只读活动投影、原产物核验、双世界A/B入口、默认零请求试运行 | 原工程已入 main，冻结行为继续保留 | 主线原入口不等于 PR #6 的固定面板已合并 |
 | Q6.2 固定状态研究 / PR #6 | 12 状态、24 配对、48 单元及 v1/v2 历史协议 | 原真实主结论 NO_CLEAR_DIFFERENCE | 不增加样本，不用 M2 提示重跑历史单元 |
 | M1.5 / PR #7 | 22 个完整配对的离线状态后果审计 | EXPLORATORY_POST_HOC；客观净变化不等于人类效用 | D-09 人工行为评价待审核 |
-| M2 本轮实验机制 | 共享购买规则、持久配置、旅行/购买边界、获取后独立 PLAY | 代码与离线场景已实现；完整门槛以本轮账本为准 | 生产默认禁用，真人行为 NOT_TESTED |
+| M2 本轮实验机制 | 共享BUY与controller；正式offline17/17、focused87、新CI全库778/8与固定AS2通过 | 工程READY，[PR #8](https://github.com/richardssheik107-hub/Agent-Society/pull/8)交付未合并 | 生产默认禁用，真人行为NOT_TESTED |
 
 来源：[Q3](../studies/q3_object_set.md)、[Q4](../studies/q4_resource_visibility.md)、[Q5](../studies/q5_rule_scaling.md)、[Q6](../studies/q6_continuity.md)、[Q6.1](../studies/q61_real_pilot.md)、[原主线 Q6.2](../studies/q62_action_projection.md)、[M2](../studies/m2_object_acquisition.md)。固定研究见[PR #6 历史中文报告](https://github.com/richardssheik107-hub/Agent-Society/blob/b7c6d503dc09c0c2d7dc32467b277a23a1a26404/docs/studies/q62_action_projection.md)与[PR #7 历史审计](https://github.com/richardssheik107-hub/Agent-Society/blob/016fffe28b4a296a24a1ee8c8c4adc63b7394383/docs/studies/q62_outcome_audit.md)。旧合并验收的 685 passed、8 skipped 只属于当时版本，不作为本轮计数。八项跳过依赖未入 Git 的历史真人语料。
 
@@ -49,7 +49,7 @@
 |---|---|---|---|---|
 | P0 / M0 | 新实验能否留下可信证据？ | 当前 main 与隔离新 world | 沿用事务、请求留痕与故障恢复，只补本轮必要边界 | 既有框架复用，本轮最终审计待核对 |
 | P0 / M1 | 可执行候选是否改善模型选择？ | 冻结研究版本与原授权 | 保留 PR #6 的固定面板原始结论，关联 PR #7 事后审计 | 已有研究，NO_CLEAR_DIFFERENCE 不改写 |
-| P0 / M2 | 缺对象时有没有合法获取路径？ | main 基线；仅实验实施已授权 | 新版获取及使用闭环，成功/失败/恢复/并发与历史冻结回归 | 本轮实施和零模型验收；D-02 生产语义仍待审 |
+| P0 / M2 | 缺对象时有没有合法获取路径？ | main基线；仅实验实施已授权 | 获取及使用闭环、失败/恢复/并发和历史冻结回归 | 本轮工程验收完成，真实请求0；D-02生产语义仍待审 |
 | P1 / M3 | Resource应保留什么、展示什么？ | D-04确认字段与评分；活动接口固定 | 同长度相关字段消融、成本—质量比较，不硬定16或64最优 | 待设计与实现 |
 | P1 / M4 | 小模型能否使用这套规则与短上下文？ | 有冻结面板和模型接入条件 | 一个参考模型与一个本地候选的同协议结果 | 待条件确认；不必等多日实验后才开始 |
 | P1 / M5 | 能否连续合理生活，而非只是不出错？ | M1/M2必要路径通过、D-05定义标准 | 独立场景覆盖→12决策→半天/一天；逐档批准和停止 | 部分工程已有，真实长期待验证 |
@@ -189,7 +189,7 @@ A保持原观察与提示；B只增加当前可执行活动/对象对。对象�
 
 | 编号 | 下一项具体动作 | 完成物 | 本次是否已执行 |
 |---|---|---|---|
-| T-01 | 完成本轮 M2 focused/完整回归、审计、固定 AS2 和当前 CI，交付指向 main 的独立 PR | 当前版本实际验收账本与零请求离线中文报告 | 本轮执行；最终结果待核对 |
+| T-01 | 本轮M2代码、focused/完整回归、两审计、固定AS2和新CI，独立PR指向main | 实际验收账本与零请求中文报告、PR #8 | 已完成并交付，不自动merge |
 | T-02 | 保留 Q6.2 固定 12 状态、24 配对、48 单元和 NO_CLEAR_DIFFERENCE；保留 M1.5 历史标签 | PR #6/#7 不变，原产物不写入 | 本轮仅引用历史 |
 | T-03 | D-02 审核实验规则是否进入生产默认；D-09 完成人工行为评价 | 人工决定及盲审，不由模型代填 | 否，待人工 |
 | T-04 | 如需验证真实选择，先注册独立 ACQUIRE→恢复→PLAY 小预算短链 | 新版本、场景、session、双上限和停止条件 | 否，必须新授权 |
@@ -215,4 +215,4 @@ A保持原观察与提示；B只增加当前可执行活动/对象对。对象�
 
 不覆盖q61-runtime-01、原训练/评估划分、旧失败或其他成员delivery数据。后续目标意图集/交付数据的兼容性单独验收，不把未审阅数据默认映射成新行为。原报告继续通过[证据登记](../reference/evidence.md)固定Git历史追溯。
 
-当前 M2 实验机制已实现，完整验收以本轮账本和当前 CI 为准；ACQUIRE 生产默认仍为 DISABLED，D-02 为 NO，D-09 为 PENDING，真人行为为 NOT_TESTED。PR #6 的固定面板结论保持 NO_CLEAR_DIFFERENCE，M1.5 保持 EXPLORATORY_POST_HOC；Q4 最小集合仍 UNRESOLVED，相关 Resource 投影与真实目录维护仍待后续工作。
+当前M2实验机制已完成新版本工程验收并交付PR #8；业务实现提交46fb620，clean正式offline session17/17、新CI全库778/8与AS2通过。ACQUIRE生产默认仍DISABLED，D-02为NO，D-09为PENDING，真人行为NOT_TESTED。PR #6固定面板结论保持NO_CLEAR_DIFFERENCE，M1.5保持EXPLORATORY_POST_HOC；Q4最小集合仍UNRESOLVED，相关Resource投影与真实目录维护仍待后续工作。本轮到此停止，下一轮真实短链需独立协议和新预算。
