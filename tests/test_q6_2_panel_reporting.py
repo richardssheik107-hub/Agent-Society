@@ -7,6 +7,8 @@ import pytest
 
 from social_sim.continuity.q6_2_panel_reporting import (
     SCHEMA_VERSION,
+    V2_PROTOCOL,
+    V2_SCHEMA_VERSION,
     paired_comparison,
     render_report,
     summarize,
@@ -235,3 +237,202 @@ def test_unknown_execution_failure_is_preserved_without_claiming_rule_rejection(
     assert summary["status_counts"] == {"UNKNOWN_EXECUTION_FAILURE": 1}
     assert summary["counts"]["rule_rejected"] == 0
     assert summary["ratios"]["activity_completed_rate"]["value"] == 0
+
+
+def timeout_cell(condition, *, before=0, after=1, reason="SINGLE_TIMEOUT_LOCALLY_SETTLED_CONTINUE",
+                 **extra):
+    return cell(condition, valid=False, status="PROVIDER_TIMEOUT",
+                strict_json_valid=None, catalog_valid=None, rule_checked=None,
+                start_accepted=None, activity_completed=None, http_response_observed=False,
+                service_contract_valid=None, provider_model=None,
+                input_tokens=None, output_tokens=None, reasoning_tokens=None,
+                timeout_streak_before=before, timeout_streak_after=after,
+                continue_or_stop_reason=reason, local_call_settled=True,
+                timeout_locally_safe=True, provider_requests=1, **extra)
+
+
+def test_v2_second_timeout_keeps_cell_status_and_separate_session_termination():
+    rows = [timeout_cell("A_RAW"), timeout_cell("B_FEASIBLE", before=1, after=2,
+                                              reason="CONSECUTIVE_TIMEOUT_LIMIT")]
+    summary = summarize(rows, mode="real", session_status="CONSECUTIVE_TIMEOUT_LIMIT",
+                        protocol_version=V2_PROTOCOL, session_termination="CONSECUTIVE_TIMEOUT_LIMIT")
+    assert summary["schema_version"] == V2_SCHEMA_VERSION
+    assert summary["status_counts"] == {"PROVIDER_TIMEOUT": 2}
+    assert summary["session_termination"] == "CONSECUTIVE_TIMEOUT_LIMIT"
+    assert summary["timeout_summary"]["provider_timeout_count"] == 2
+    assert summary["timeout_summary"]["single_timeout_continued_count"] == 1
+    assert summary["timeout_summary"]["max_timeout_streak"] == 2
+    assert summary["timeout_summary"]["by_condition"] == {"A_RAW": 1, "B_FEASIBLE": 1}
+    assert summary["ratios"]["rule_rejection_rate"]["value"] is None
+    assert summary["provider_request_evidence"]["known_subtotal"] == 2
+    assert summary["MODEL_BENEFIT"] == "NOT_TESTED"
+
+
+def test_v2_timeout_statistics_and_not_run_coverage_are_independent():
+    rows = [timeout_cell("A_RAW"), cell("B_FEASIBLE", status="NOT_RUN")]
+    summary = summarize(rows, mode="real", session_status="TIMEOUT_NOT_LOCALLY_SETTLED",
+                        protocol_version="v2")
+    assert summary["counts"]["not_run"] == 1
+    assert summary["timeout_summary"]["provider_timeout_count"] == 1
+    assert summary["costs"]["input_tokens"]["missing_rows"] == 1
+    assert summary["actual_backend_distribution"] == {"UNKNOWN": 1}
+    assert summary["pair_counts"]["incomplete_valid_proposals"] == 1
+
+
+def test_v2_missing_streak_and_local_termination_are_not_invented():
+    row = timeout_cell("A_RAW")
+    row.update(timeout_streak_before=None, timeout_streak_after=None,
+               local_call_settled=None, timeout_locally_safe=None,
+               continue_or_stop_reason="TIMEOUT_EVIDENCE_INCOMPLETE")
+    summary = summarize([row], mode="real", session_status="TIMEOUT_EVIDENCE_INCOMPLETE",
+                        protocol_version="v2")
+    data = summary["timeout_summary"]
+    assert data["provider_timeout_count"] == 1
+    assert data["max_timeout_streak"] is None
+    assert data["streak_coverage"]["value"] == 0
+    assert data["timeout_locally_safe"]["unknown"] == 1
+    assert data["single_timeout_continued_count"] == 0
+    assert data["server_receipt_or_billing_proven_by_local_settlement"] is False
+
+
+def test_v2_primary_timeout_receipt_is_counted_with_unknown_client_entry():
+    row = timeout_cell("A_RAW")
+    row["client_call_attempted"] = None
+    summary = summarize([row], mode="real", session_status="INTERRUPTED", protocol_version="v2")
+    assert summary["timeout_summary"]["provider_timeout_count"] == 1
+    assert summary["counts"]["client_call_attempted"] == 0
+    assert summary["provider_request_evidence"]["unknown_intents"] == 1
+
+
+def test_v2_cleanup_does_not_replace_primary_failure():
+    summary = summarize([timeout_cell("A_RAW")], mode="real", session_status="PROVIDER_TIMEOUT",
+                        protocol_version="v2", session_termination="PROVIDER_TIMEOUT",
+                        cleanup_exception_type="TimeoutError", cleanup_outcome="FAIL")
+    assert summary["session_status"] == "PROVIDER_TIMEOUT"
+    assert summary["session_termination"] == "PROVIDER_TIMEOUT"
+    assert summary["cleanup"] == {"outcome": "FAIL", "exception_type": "TimeoutError",
+                                  "does_not_replace_primary_termination": True}
+
+
+def test_v1_calls_and_reports_do_not_gain_v2_fields():
+    rows = [cell("A_RAW"), cell("B_FEASIBLE")]
+    old = summarize(rows, mode="offline", session_status="PANEL_COMPLETED")
+    explicit = summarize(rows, mode="offline", session_status="PANEL_COMPLETED", protocol_version="v1")
+    assert old == explicit
+    assert old["schema_version"] == SCHEMA_VERSION
+    assert "timeout_summary" not in old
+    assert "action_distribution" not in old
+    assert "completion_combination" not in paired_comparison(rows)[0]
+    assert render_report(old, paired_comparison(rows)) == render_report(
+        explicit, paired_comparison(rows, protocol_version="v1"))
+    assert "v2 超时" not in render_report(old, paired_comparison(rows))
+
+
+def test_v2_action_distribution_keeps_only_canonical_choices():
+    rows = [cell("A_RAW", proposal_activity="MEAL", proposal_target="food_meal"),
+            cell("B_FEASIBLE", proposal_activity="LEISURE", proposal_target=None),
+            cell("B_FEASIBLE", pair="p002", proposal_activity="EVIL_SENTINEL",
+                 proposal_target="EVIL_SENTINEL")]
+    summary = summarize(rows, mode="offline", session_status="PANEL_COMPLETED", protocol_version="v2")
+    assert summary["action_distribution"]["A_RAW"]["choices"] == [
+        {"activity": "MEAL", "target": "food_meal", "count": 1}]
+    assert summary["action_distribution"]["B_FEASIBLE"]["choices"] == [
+        {"activity": "LEISURE", "target": "null", "count": 1},
+        {"activity": "UNKNOWN", "target": "UNKNOWN", "count": 1}]
+    assert "EVIL_SENTINEL" not in json.dumps(summary)
+
+
+def test_v2_paired_differences_keep_all_and_backend_sensitivity_without_assuming_b_win():
+    rows = [cell("A_RAW", accepted=False, input_tokens=10),
+            cell("B_FEASIBLE", input_tokens=30),
+            cell("A_RAW", pair="p002", provider_model="model-one", input_tokens=None),
+            cell("B_FEASIBLE", pair="p002", accepted=False, provider_model="model-two")]
+    pairs = paired_comparison(rows, protocol_version="v2")
+    summary = summarize(rows, mode="offline", session_status="PANEL_COMPLETED", protocol_version="v2")
+    assert pairs[0]["rule_rejection_B_minus_A"] == -1
+    assert pairs[1]["rule_rejection_B_minus_A"] == 1
+    assert pairs[0]["activity_completed_B_minus_A"] == 1
+    assert pairs[1]["activity_completed_B_minus_A"] == -1
+    all_pairs = summary["paired_descriptive"]["all_complete_scored"]
+    matched = summary["paired_descriptive"]["backend_matched_complete_scored"]
+    assert all_pairs["rule_rejection_B_minus_A"]["mean"] == 0
+    assert all_pairs["activity_completed_B_minus_A"]["mean"] == 0
+    assert all_pairs["input_tokens_B_minus_A"]["mean"] == 20
+    assert all_pairs["input_tokens_B_minus_A"]["missing_pairs"] == 1
+    assert matched["eligible_pairs"] == 1
+    assert matched["rule_rejection_B_minus_A"]["mean"] == -1
+    assert summary["actual_backend_distribution"] == {
+        "model-one": 1, "model-two": 1, "offline-fake": 2}
+
+
+def test_v2_pair_incomplete_reasons_and_safe_report_include_timeout_and_missing_cost():
+    rows = [timeout_cell("A_RAW"), cell("B_FEASIBLE", status="NOT_RUN")]
+    summary = summarize(rows, mode="real", session_status="PROVIDER_TIMEOUT", protocol_version="v2")
+    pairs = paired_comparison(rows, protocol_version="v2")
+    assert pairs[0]["incomplete_reasons"] == ["A_PROVIDER_TIMEOUT", "B_NOT_RUN"]
+    assert pairs[0]["rule_rejection_B_minus_A"] is None
+    text = render_report(summary, pairs)
+    assert "Q6_2_FIXED_PANEL_METRICS_V2" in text
+    assert "v2 超时" in text
+    assert "不代表服务端没有收到" in text
+    assert "客户端尝试及计数边界" in text
+    assert "A_PROVIDER_TIMEOUT,B_NOT_RUN" in text
+
+
+def test_v2_sensitive_optional_fields_are_not_copied():
+    sentinel = "sk-SENSITIVE_SENTINEL"
+    row = timeout_cell("A_RAW")
+    row.update(continue_or_stop_reason=sentinel, provider_model=sentinel,
+               proposal_activity=sentinel, proposal_target=sentinel)
+    summary = summarize([row], mode="offline", session_status="STOPPED", protocol_version="v2",
+                        session_termination=sentinel, cleanup_outcome=sentinel,
+                        cleanup_exception_type=sentinel)
+    exported = json.dumps(summary) + render_report(summary, paired_comparison([row], protocol_version="v2"))
+    assert sentinel not in exported
+    assert summary["session_termination"] == "UNKNOWN"
+    assert summary["cleanup"]["exception_type"] == "OtherException"
+
+
+@pytest.mark.parametrize(("counts", "expected"), [
+    ([1, 1], 2), ([1, 0], 1), ([1, None], None), ([None, None], None),
+])
+def test_v2_exact_provider_count_requires_every_call_counter(counts, expected):
+    rows = [cell("A_RAW", provider_requests=counts[0]),
+            cell("B_FEASIBLE", provider_requests=counts[1])]
+    summary = summarize(rows, mode="real", session_status="PANEL_COMPLETED", protocol_version="v2")
+    assert summary["real_provider_requests"] == expected
+    assert summary["provider_request_evidence"]["missing_call_rows"] == counts.count(None)
+    assert summary["provider_request_evidence"]["server_receipt_proven"] is False
+    assert summarize(rows, mode="real", session_status="PANEL_COMPLETED")["real_provider_requests"] is None
+
+
+def test_v2_zero_provider_count_requires_no_unknown_send_intent():
+    row = cell("A_RAW", status="UNKNOWN", client_call_attempted=None, intent_registered=True)
+    unknown = summarize([row], mode="real", session_status="INTERRUPTED", protocol_version="v2")
+    assert unknown["counts"]["client_call_attempted"] == 0
+    assert unknown["provider_request_evidence"]["unknown_intents"] == 1
+    assert unknown["real_provider_requests"] is None
+    empty = summarize([], mode="real", session_status="PLANNED", protocol_version="v2")
+    assert empty["real_provider_requests"] == 0
+    planned = summarize([cell("A_RAW", status="NOT_RUN", intent_registered=False)],
+                        mode="real", session_status="NOT_RUN", protocol_version="v2")
+    assert planned["real_provider_requests"] == 0
+
+
+def test_v2_known_counts_are_still_inexact_with_additional_unknown_intent():
+    rows = [cell("A_RAW", provider_requests=1),
+            cell("B_FEASIBLE", status="UNKNOWN", client_call_attempted=None, intent_registered=True)]
+    summary = summarize(rows, mode="real", session_status="INTERRUPTED", protocol_version="v2")
+    assert summary["provider_request_evidence"]["known_subtotal"] == 1
+    assert summary["provider_request_evidence"]["missing_call_rows"] == 0
+    assert summary["provider_request_evidence"]["unknown_intents"] == 1
+    assert summary["real_provider_requests"] is None
+
+
+def test_v2_not_locally_settled_cleanup_is_retained_without_replacing_failure():
+    summary = summarize([timeout_cell("A_RAW")], mode="real", session_status="PROVIDER_TIMEOUT",
+                        protocol_version="v2", session_termination="TIMEOUT_NOT_LOCALLY_SETTLED",
+                        cleanup_outcome="NOT_LOCALLY_SETTLED", cleanup_exception_type="TimeoutError")
+    assert summary["cleanup"]["outcome"] == "NOT_LOCALLY_SETTLED"
+    assert summary["session_termination"] == "TIMEOUT_NOT_LOCALLY_SETTLED"
+    assert summary["status_counts"] == {"PROVIDER_TIMEOUT": 1}

@@ -20,10 +20,13 @@ from social_sim.continuity.q6_2_panel_fixtures import (
     FAMILIES,
     SCENARIO_IDS,
     STOP_MAPPING,
+    SINGLE_TIMEOUT_V2,
     allocate_cells,
     build_world,
     freeze_scenarios,
+    fairness_fingerprint,
     load_protocol,
+    protocol_version,
     validate_protocol,
     world_fingerprint,
 )
@@ -375,3 +378,152 @@ def test_frozen_initial_state_facts_match_world_and_do_not_follow_later_effects(
             assert project_state(world) != scenario["initial_projected_state"]
             assert digest(world.store.snapshot()) != scenario["state_hash"]
     assert frozen == retained
+
+
+def test_explicit_version_loader_preserves_default_v1_and_its_bytes(protocol):
+    repository = Path(__file__).resolve().parents[1]
+    original = repository / "config/experimental/q6_2_fixed_state_panel_v1.json"
+    assert hashlib.sha256(original.read_bytes()).hexdigest() == (
+        "56f3165427255840c7810ba66170ae86f2a6f763455c394c810d772939bbfbea")
+    assert load_protocol() == load_protocol(repository, version="v1") == protocol
+    v2 = load_protocol(repository, version="v2")
+    assert protocol_version(protocol) == "v1"
+    assert protocol_version(v2) == "v2"
+    assert v2["max_consecutive_timeouts"] == 2
+    assert v2["single_timeout"] == v2["stop_mapping"]["PROVIDER_TIMEOUT"] == SINGLE_TIMEOUT_V2
+    assert protocol["stop_mapping"]["PROVIDER_TIMEOUT"] == "STOP_SESSION"
+    assert "max_consecutive_timeouts" not in protocol and "single_timeout" not in protocol
+    assert v2["real_provider_requests_authorized_this_delivery"] == 0
+    with pytest.raises(TypeError):
+        load_protocol(repository, "v2")
+
+
+def test_v2_changes_only_version_and_precisely_frozen_timeout_policy(protocol):
+    v2 = load_protocol(version="v2")
+    comparison = copy.deepcopy(v2)
+    comparison["schema"] = protocol["schema"]
+    comparison["protocol_version"] = protocol["protocol_version"]
+    comparison.pop("max_consecutive_timeouts")
+    comparison.pop("single_timeout")
+    comparison["stop_mapping"]["PROVIDER_TIMEOUT"] = "STOP_SESSION"
+    assert comparison == protocol
+    assert digest(v2) != digest(protocol)
+
+
+def test_v1_v2_actual_state_prompt_and_48_cell_fairness_are_identical(protocol, frozen):
+    v2 = load_protocol(version="v2")
+    v2_frozen = freeze_scenarios(v2)
+    assert v2_frozen == frozen
+    v1_cells = allocate_cells(protocol, frozen)
+    v2_cells = allocate_cells(v2, v2_frozen)
+    assert v1_cells == v2_cells
+    assert fairness_fingerprint(protocol, frozen, v1_cells) == fairness_fingerprint(
+        v2, v2_frozen, v2_cells)
+    assert fairness_fingerprint(v2) == fairness_fingerprint(protocol, frozen, v1_cells)
+    assert digest({"protocol": protocol, "scenarios": frozen, "cells": v1_cells}) != digest(
+        {"protocol": v2, "scenarios": v2_frozen, "cells": v2_cells})
+
+
+@pytest.mark.parametrize("research_change", ["state", "observation", "objects", "candidates",
+                                            "a_prompt", "b_prompt", "schedule"])
+def test_fairness_fingerprints_detect_research_inputs_not_timeout_metadata(protocol, frozen,
+                                                                          research_change):
+    expected = fairness_fingerprint(protocol, frozen)
+    scenarios = copy.deepcopy(frozen)
+    cells = allocate_cells(protocol, frozen)
+    if research_change == "schedule":
+        cells[0], cells[1] = cells[1], cells[0]
+    elif research_change == "objects":
+        scenarios[0]["object_candidates"][0]["qty"] += 1
+    elif research_change in {"a_prompt", "b_prompt"}:
+        mode = RAW if research_change == "a_prompt" else FEASIBLE
+        scenarios[0]["prompt_hashes"][mode] = "0" * 64
+    else:
+        field = {"state": "state_hash", "observation": "observation_hash",
+                 "candidates": "candidate_hash"}[research_change]
+        scenarios[0][field] = "0" * 64
+    actual = fairness_fingerprint(protocol, scenarios, cells)
+    assert actual["fairness_fingerprint"] != expected["fairness_fingerprint"]
+    changed_key = "schedule_fingerprint" if research_change == "schedule" else "scenario_fingerprint"
+    assert actual[changed_key] != expected[changed_key]
+
+
+@pytest.mark.parametrize("version", ["v3", "V2", "../v1", None, True, ["v1"]])
+def test_version_loader_rejects_unknown_or_non_string_choices(version):
+    with pytest.raises(ValueError, match="UNSUPPORTED_PANEL_PROTOCOL"):
+        load_protocol(version=version)
+
+
+def test_version_loader_does_not_silently_accept_wrong_file_identity(tmp_path, protocol):
+    directory = tmp_path / "config/experimental"
+    directory.mkdir(parents=True)
+    (directory / "q6_2_fixed_state_panel_v2.json").write_text(
+        canonical_json(protocol), encoding="utf-8")
+    with pytest.raises(ValueError, match="FILE_VERSION_MISMATCH"):
+        load_protocol(tmp_path, version="v2")
+
+
+@pytest.mark.parametrize("field,value", [
+    ("schema", "Q62_FIXED_STATE_PANEL_PROTOCOL_V1"),
+    ("protocol_version", "q62_fixed_state_panel_v1"),
+    ("max_consecutive_timeouts", 1),
+    ("max_consecutive_timeouts", 3),
+    ("max_consecutive_timeouts", True),
+    ("max_consecutive_timeouts", 2.0),
+    ("max_consecutive_timeouts", None),
+    ("single_timeout", "RETRY"),
+    ("single_timeout", "RECORD_AND_CONTINUE_NEXT_CELL"),
+    ("single_timeout", None),
+])
+def test_v2_timeout_policy_and_schema_pairing_remain_strict(field, value):
+    altered = load_protocol(version="v2")
+    altered[field] = value
+    with pytest.raises(ValueError):
+        validate_protocol(altered)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("max_consecutive_timeouts", 2), ("single_timeout", SINGLE_TIMEOUT_V2),
+])
+def test_v1_cannot_implicitly_receive_v2_timeout_behavior(protocol, field, value):
+    altered = copy.deepcopy(protocol)
+    altered[field] = value
+    with pytest.raises(ValueError, match="TIMEOUT_POLICY"):
+        validate_protocol(altered)
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+@pytest.mark.parametrize("status", ["PROVIDER_TIMEOUT", "HTTP_ERROR", "TRANSPORT_ERROR",
+                                   "INVALID_MODEL_OUTPUT", "STATE_INVARIANT_FAILED",
+                                   "EVIDENCE_INCOMPLETE", "REQUEST_BUDGET_EXHAUSTED"])
+def test_both_versions_reject_arbitrary_stop_mapping_changes(version, status):
+    altered = load_protocol(version=version)
+    altered["stop_mapping"][status] = "UNREVIEWED_CONTINUE_OR_RETRY"
+    with pytest.raises(ValueError, match="STOP_MAPPING"):
+        validate_protocol(altered)
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_each_version_rejects_missing_extra_or_cross_version_timeout_mapping(version):
+    protocol = load_protocol(version=version)
+    for change in ("missing", "extra", "cross_version"):
+        altered = copy.deepcopy(protocol)
+        if change == "missing":
+            altered["stop_mapping"].pop("PROVIDER_TIMEOUT")
+        elif change == "extra":
+            altered["stop_mapping"]["NEW_CONTINUABLE_STATUS"] = "RECORD_AND_CONTINUE_NEXT_CELL"
+        else:
+            altered["stop_mapping"]["PROVIDER_TIMEOUT"] = (
+                SINGLE_TIMEOUT_V2 if version == "v1" else "STOP_SESSION")
+        with pytest.raises(ValueError, match="STOP_MAPPING"):
+            validate_protocol(altered)
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_protocol_capacity_does_not_allow_global_authorization(version):
+    original = load_protocol(version=version)
+    for value in (48, True, None, "0", 0.0):
+        altered = copy.deepcopy(original)
+        altered["real_provider_requests_authorized_this_delivery"] = value
+        with pytest.raises(ValueError, match="GLOBAL_PANEL_AUTHORIZATION"):
+            validate_protocol(altered)

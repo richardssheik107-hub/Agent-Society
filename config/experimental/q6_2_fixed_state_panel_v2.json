@@ -1,0 +1,140 @@
+{
+  "schema": "Q62_FIXED_STATE_PANEL_PROTOCOL_V2",
+  "protocol_version": "q62_fixed_state_panel_v2",
+  "seed": 20261008,
+  "conditions": ["A_RAW", "B_FEASIBLE"],
+  "repeats": 2,
+  "planned_scenarios": 12,
+  "planned_cells": 48,
+  "planned_pairs": 24,
+  "budgets": {"per_cell": 1, "session": 48},
+  "timeout_seconds": 60,
+  "max_consecutive_timeouts": 2,
+  "single_timeout": "RECORD_CELL_AND_CONTINUE_IF_LOCALLY_SETTLED",
+  "max_activity_micro_steps": 96,
+  "max_prompt_chars": 5000,
+  "schedule": "SHUFFLED_ADJACENT_PAIRS_REVERSED_REPEAT",
+  "provider_contract": "Q6_1_MINIMAL_CHAT_COMPLETIONS",
+  "minimal_request": true,
+  "thinking_disabled_explicitly": false,
+  "transport_retries": 0,
+  "json_repair": false,
+  "fallback_action": false,
+  "real_provider_requests_authorized_this_delivery": 0,
+  "state_hash_definition": "SHA256_CANONICAL_JSON_STATESTORE_SNAPSHOT_NOT_SQLITE_BYTES",
+  "valid_proposal_definition": "STRICT_SCHEMA_PARSED_AND_CATALOG_VALID",
+  "primary_metric": "RULE_REJECTED_DIVIDED_BY_VALID_PROPOSALS",
+  "not_applicable_metrics": ["STATE_FEEDBACK_VISIBLE", "CROSS_DECISION_REPEAT_RATE", "LONG_TERM_CONTINUITY"],
+  "known_commitment_failures": ["OUT_OF_STOCK", "INSUFFICIENT_FUNDS", "OBJECT_UNAVAILABLE", "ITEM_NOT_OWNED"],
+  "stop_mapping": {
+    "DECISION_ACCEPTED": "RECORD_AND_CONTINUE_NEXT_CELL",
+    "RULE_REJECTED": "RECORD_AND_CONTINUE_NEXT_CELL",
+    "COMMITMENT_FAILED": "CONTINUE_ONLY_KNOWN_REASON_AND_VALID_INVARIANTS_AND_LEDGER",
+    "UNKNOWN_EXECUTION_FAILURE": "STOP_SESSION",
+    "PROVIDER_TIMEOUT": "RECORD_CELL_AND_CONTINUE_IF_LOCALLY_SETTLED",
+    "HTTP_ERROR": "STOP_SESSION",
+    "TRANSPORT_ERROR": "STOP_SESSION",
+    "PROVIDER_CONTRACT_ERROR": "STOP_SESSION",
+    "INVALID_MODEL_OUTPUT": "STOP_SESSION",
+    "OUTSIDE_CATALOG": "STOP_SESSION",
+    "REQUEST_CANCELLED": "STOP_SESSION",
+    "ARCHITECTURE_ERROR": "STOP_SESSION",
+    "STATE_INVARIANT_FAILED": "STOP_SESSION",
+    "EVIDENCE_INCOMPLETE": "STOP_SESSION",
+    "REQUEST_BUDGET_EXHAUSTED": "STOP_SESSION",
+    "EXECUTION_LIMIT_EXCEEDED": "STOP_SESSION",
+    "ALREADY_RECORDED": "STOP_SESSION",
+    "ALREADY_ATTEMPTED": "STOP_SESSION",
+    "COMMITMENT_PRESENT": "STOP_SESSION"
+  },
+  "metric_definitions": {
+    "counts": ["planned", "intent_registered", "client_attempted", "http_observed", "contract_valid", "strict_json_valid", "catalog_valid", "rule_checked", "start_accepted", "activity_completed", "rule_rejected", "commitment_failed", "not_run", "unknown"],
+    "ratios": "Each ratio stores numerator, denominator and nullable value; zero denominator means null.",
+    "tokens": "Input/output/reasoning separate known subtotals, missing rows and coverage; no missing-as-zero or double-sum.",
+    "costs": "Request latency, simulated activity minutes and session wall clock remain separate.",
+    "pairing": "24 pairs from 12 states and two repeats; not 24 independent population samples."
+  },
+  "fixture_contract": {
+    "catalog_source": "social_sim.continuity.benchmark.seed_demo",
+    "catalog_changes": "None: existing object IDs, names, capabilities, prices, durations and 120-episode series retained.",
+    "initial_settings": "Only isolated genesis actor money/hunger and object stock overrides; seed validates genesis. No SQL production-state rewrites.",
+    "generated_settings": "Existing BUY, TRAVEL, MEAL, WATCH and PAUSE/CANCEL commands; all effects and history retained.",
+    "invariants": "validate_world PASS; no ACTIVE or PAUSED commitment at decision time; nonempty feasible set; prompt budgets enforced.",
+    "family_comparison": "Family members cover related states, not matched causal comparisons. Generated time, actor version, inventory, money, stock, events and commitments can differ; recipes document this.",
+    "causal_pair": "Only A/B copies of the same scenario/repeat must have identical initial state, observation, object candidates and feasible-set hashes."
+  },
+  "scenarios": [
+    {
+      "scenario_id": "s01", "family": "OWNERSHIP",
+      "description": "game_a 未拥有；保留普通居家、餐食、观看和旅行选择。",
+      "source": "Existing seed_demo catalog and default initial_actor; no ownership commands.",
+      "recipe": {"actor": {}, "stock": {}, "steps": []}
+    },
+    {
+      "scenario_id": "s02", "family": "OWNERSHIP",
+      "description": "同一 genesis 后合法购买 game_a；购买同时改变余额、库存、actor version 和事件。",
+      "source": "s01 genesis plus existing ContinuityWorld.act BUY at home.",
+      "recipe": {"actor": {}, "stock": {}, "steps": [{"op": "BUY", "target": "game_a"}]}
+    },
+    {
+      "scenario_id": "s03", "family": "POST_MEAL_NEED",
+      "description": "从 home 合法旅行到餐厅；800/1000 饥饿随 15 分钟旅行增为 815/1000。",
+      "source": "Existing genesis plus completed TRAVEL restaurant; food remains obtainable.",
+      "recipe": {"actor": {}, "stock": {}, "steps": [{"op": "ACTIVITY", "activity": "TRAVEL", "target": "restaurant"}]}
+    },
+    {
+      "scenario_id": "s04", "family": "POST_MEAL_NEED",
+      "description": "同一旅行后合法完成一次 MEAL，剩余饥饿 245/1000；不禁止继续进食。",
+      "source": "s03 recipe followed by existing 30-minute MEAL; money, stock, calories, time, version and history change legitimately.",
+      "recipe": {"actor": {}, "stock": {}, "steps": [{"op": "ACTIVITY", "activity": "TRAVEL", "target": "restaurant"}, {"op": "ACTIVITY", "activity": "MEAL", "target": "food_meal"}]}
+    },
+    {
+      "scenario_id": "s05", "family": "MEDIA_PROGRESS",
+      "description": "series_a 第一集播放 10 分钟后合法 PAUSE/CANCEL；offset=10，无阻塞承诺。",
+      "source": "Existing WATCH plus 10-minute advance, PAUSE and CANCEL; partial progress and resulting time/version/history retained.",
+      "recipe": {"actor": {}, "stock": {}, "steps": [{"op": "PARTIAL_WATCH", "target": "series_a", "minutes": 10}]}
+    },
+    {
+      "scenario_id": "s06", "family": "MEDIA_PROGRESS",
+      "description": "按原规则完成全部 120 集；下一未完成集为 null，保留其他普通合法活动。",
+      "source": "120 deterministic WATCH completions with unchanged 30-minute episodes; 3600-minute time, hunger/energy, version and full ledger differ from s05 and are recorded.",
+      "recipe": {"actor": {}, "stock": {}, "steps": [{"op": "WATCH_ALL", "target": "series_a"}]}
+    },
+    {
+      "scenario_id": "s07", "family": "ACTIVITY_LOCATION",
+      "description": "home；fixture genesis 饥饿设为 600/1000，其他普通状态保持。",
+      "source": "Existing initial_actor and catalog with isolated validated genesis hunger=600; no production-world mutation.",
+      "recipe": {"actor": {"hunger_milli": 600}, "stock": {}, "steps": []}
+    },
+    {
+      "scenario_id": "s08", "family": "ACTIVITY_LOCATION",
+      "description": "同一 genesis 合法旅行到 office；WORK 可开始，在家活动仍由原地点条件限制。",
+      "source": "s07 genesis plus existing 15-minute TRAVEL office; time, hunger, energy, location, version and ledger legitimately change.",
+      "recipe": {"actor": {"hunger_milli": 600}, "stock": {}, "steps": [{"op": "ACTIVITY", "activity": "TRAVEL", "target": "office"}]}
+    },
+    {
+      "scenario_id": "s09", "family": "MEAL_PAYMENT",
+      "description": "未持有餐食，genesis 余额 2000 分，足够购买原价 food_meal。",
+      "source": "Existing validated initial_actor money_cents=2000 and unchanged food_meal price=2000; seeded home.",
+      "recipe": {"actor": {"money_cents": 2000}, "stock": {}, "steps": []}
+    },
+    {
+      "scenario_id": "s10", "family": "MEAL_PAYMENT",
+      "description": "仅将 genesis 余额减为 1999 分；MEAL 可先出发但 food_meal 购买失败，便宜面包等选择仍合法。",
+      "source": "s09 genesis except money_cents=1999; no stock, ownership or rule changes.",
+      "recipe": {"actor": {"money_cents": 1999}, "stock": {}, "steps": []}
+    },
+    {
+      "scenario_id": "s11", "family": "MEAL_SUPPLY",
+      "description": "未持有餐食，余额 5000 分，food_meal 初始库存 1；其他对象维持原目录与库存。",
+      "source": "Existing validated genesis money_cents=5000 and isolated seed food_meal stock=1.",
+      "recipe": {"actor": {"money_cents": 5000}, "stock": {"food_meal": 1}, "steps": []}
+    },
+    {
+      "scenario_id": "s12", "family": "MEAL_SUPPLY",
+      "description": "其他条件与 s11 相同，food_meal 初始库存为 0；不自动发放餐食。",
+      "source": "s11 genesis except seed food_meal stock=0; object remains available and other choices remain legitimate.",
+      "recipe": {"actor": {"money_cents": 5000}, "stock": {"food_meal": 0}, "steps": []}
+    }
+  ]
+}

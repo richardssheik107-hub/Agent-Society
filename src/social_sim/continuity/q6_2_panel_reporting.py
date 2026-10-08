@@ -12,7 +12,12 @@ import re
 from collections import Counter, defaultdict
 from typing import Any
 
+from social_sim.provider_runtime.safety import EXCEPTION_TYPES
+
+from .models import TIMED_ACTIVITIES
+
 SCHEMA_VERSION = "Q6_2_FIXED_PANEL_METRICS_V1"
+V2_SCHEMA_VERSION = "Q6_2_FIXED_PANEL_METRICS_V2"
 CONDITIONS = ("A_RAW", "B_FEASIBLE")
 FAMILIES = frozenset({
     "OWNERSHIP", "POST_MEAL_NEED", "MEDIA_PROGRESS", "ACTIVITY_LOCATION",
@@ -32,6 +37,8 @@ SESSION_STATUSES = STATUSES | {
     "PLANNED", "DRY_RUN", "COMPLETED", "STOPPED", "INTERRUPTED", "RECOVERED",
     "OFFLINE_SYNTHETIC", "BUDGET_COMPLETED", "EXECUTED", "PREPARED",
     "PANEL_COMPLETED", "RUNNING", "STOPPED_READ_ONLY_RECOVERY",
+    "CONSECUTIVE_TIMEOUT_LIMIT", "TIMEOUT_NOT_LOCALLY_SETTLED",
+    "TIMEOUT_EVIDENCE_INCOMPLETE", "LOCAL_CALL_NOT_SETTLED",
 }
 STAGES = (
     "intent_registered", "client_call_attempted", "http_response_observed",
@@ -39,6 +46,15 @@ STAGES = (
     "start_accepted", "activity_completed", "invariants_valid",
 )
 TOKEN_FIELDS = ("input_tokens", "output_tokens", "reasoning_tokens")
+V2_PROTOCOL = "q62_fixed_state_panel_v2"
+CONTINUE_REASONS = frozenset({
+    "CONTINUE_NORMAL_RESULT", "SINGLE_TIMEOUT_LOCALLY_SETTLED_CONTINUE",
+    "CONSECUTIVE_TIMEOUT_LIMIT", "TIMEOUT_NOT_LOCALLY_SETTLED",
+    "TIMEOUT_EVIDENCE_INCOMPLETE", "STOP_FATAL", "LOCAL_CALL_NOT_SETTLED",
+}) | SESSION_STATUSES
+SAFE_TARGETS = frozenset({
+    "food_bread", "food_meal", "game_a", "series_a", "home", "restaurant", "office", "park",
+})
 
 
 def _status(row: dict) -> str:
@@ -190,7 +206,7 @@ def _outcome(row: dict | None) -> str:
     return "UNKNOWN"
 
 
-def paired_comparison(cells: list[dict]) -> list[dict]:
+def paired_comparison(cells: list[dict], *, protocol_version: str | None = None) -> list[dict]:
     """Report all planned pairs, including incomplete and backend-unknown pairs."""
     grouped: dict[str, list[dict]] = defaultdict(list)
     for row in cells:
@@ -240,19 +256,43 @@ def paired_comparison(cells: list[dict]) -> list[dict]:
             av = _number(a.get(key), integer=key != "latency_seconds") if a else None
             bv = _number(b.get(key), integer=key != "latency_seconds") if b else None
             row[key + "_B_minus_A"] = bv - av if av is not None and bv is not None else None
+        if protocol_version in {V2_PROTOCOL, "v2"}:
+            completion_a = _flag(a, "activity_completed") if a else None
+            completion_b = _flag(b, "activity_completed") if b else None
+            labels = {True: "COMPLETED", False: "NOT_COMPLETED", None: "UNKNOWN"}
+            row.update(
+                completion_combination=f"A_{labels[completion_a]}_B_{labels[completion_b]}",
+                rule_rejection_B_minus_A=(int(outcome_b == "REJECTED")
+                                         - int(outcome_a == "REJECTED") if scored else None),
+                activity_completed_B_minus_A=(int(completion_b) - int(completion_a)
+                    if scored and completion_a is not None and completion_b is not None else None),
+            )
+            reasons = []
+            if not row["pair_structure_valid"]:
+                reasons.append("PAIR_STRUCTURE_INVALID")
+            for label, arm in (("A", a), ("B", b)):
+                if arm is None or _status(arm) == "NOT_RUN":
+                    reasons.append(label + "_NOT_RUN")
+                elif _valid(arm) is not True:
+                    reasons.append(label + "_" + _status(arm))
+                elif _outcome(arm) == "UNKNOWN":
+                    reasons.append(label + "_RULE_RESULT_UNKNOWN")
+            row["incomplete_reasons"] = reasons
         pairs.append(row)
     return pairs
 
 
 def summarize(cells: list[dict], *, mode: str, session_status: str,
-              wall_seconds: float | None = None) -> dict[str, Any]:
+              wall_seconds: float | None = None, protocol_version: str | None = None,
+              session_termination: str | None = None, cleanup_exception_type: str | None = None,
+              cleanup_outcome: str | None = None) -> dict[str, Any]:
     """Summarize recorded facts, not ``calls minus failures`` or answer labels."""
     modes = {"dry-run": "DRY_RUN", "offline": "OFFLINE_SYNTHETIC", "real": "REAL_PROVIDER",
              "DRY_RUN": "DRY_RUN", "OFFLINE_SYNTHETIC": "OFFLINE_SYNTHETIC",
              "REAL_PROVIDER": "REAL_PROVIDER", "REAL_PROVIDER_PANEL": "REAL_PROVIDER"}
     safe_mode = modes.get(mode, "UNKNOWN")
     safe_session = session_status if session_status in SESSION_STATUSES else "UNKNOWN"
-    pairs = paired_comparison(cells)
+    pairs = paired_comparison(cells, protocol_version=protocol_version)
     grouped = {}
     for key, sanitizer in (("scenario_id", lambda value: _id(value, "scenario")),
                            ("family", _family)):
@@ -290,7 +330,129 @@ def summarize(cells: list[dict], *, mode: str, session_status: str,
         "human_accuracy": "NOT_APPLICABLE",
         "contains_secret": False,
     }
+    if protocol_version in {V2_PROTOCOL, "v2"}:
+        summary.update(_v2_extension(cells, pairs, session_termination or safe_session,
+                                     cleanup_exception_type, cleanup_outcome))
+        summary["schema_version"] = V2_SCHEMA_VERSION
+        summary["protocol_version"] = V2_PROTOCOL
+        if safe_mode == "REAL_PROVIDER":
+            evidence = summary["provider_request_evidence"]
+            # Exact only at the durable client-counter boundary, never server receipt.
+            if evidence["missing_call_rows"] == 0 and evidence["unknown_intents"] == 0:
+                summary["real_provider_requests"] = (
+                    evidence["known_subtotal"] if evidence["known_call_rows"] else 0)
     return summary
+
+
+def _timeout_summary(rows: list[dict]) -> dict:
+    calls = [row for row in rows if _flag(row, "client_call_attempted") is True]
+    # Primary timeout receipts survive even when call-entry evidence is unknown.
+    timeouts = [row for row in rows if _status(row) == "PROVIDER_TIMEOUT"]
+    streaks = [_number(row.get("timeout_streak_after"), integer=True) for row in calls]
+    known_streaks = [value for value in streaks if value is not None]
+    audit = []
+    for row in calls:
+        reason = row.get("continue_or_stop_reason")
+        audit.append({
+            "cell_id": _id(row.get("cell_id"), "cell"), "status": _status(row),
+            "timeout_streak_before": _number(row.get("timeout_streak_before"), integer=True),
+            "timeout_streak_after": _number(row.get("timeout_streak_after"), integer=True),
+            "continue_or_stop_reason": (reason if isinstance(reason, str)
+                                        and reason in CONTINUE_REASONS else "UNKNOWN"),
+            "local_call_settled": _flag(row, "local_call_settled"),
+            "timeout_locally_safe": _flag(row, "timeout_locally_safe"),
+        })
+    return {
+        "provider_timeout_count": len(timeouts),
+        "single_timeout_continued_count": sum(
+            row.get("continue_or_stop_reason") == "SINGLE_TIMEOUT_LOCALLY_SETTLED_CONTINUE"
+            and _flag(row, "timeout_locally_safe") is True for row in timeouts),
+        "max_timeout_streak": max(known_streaks) if known_streaks else None,
+        "streak_coverage": _ratio(len(known_streaks), len(calls)),
+        "local_call_settled": _stage(calls, "local_call_settled"),
+        "timeout_locally_safe": _stage(timeouts, "timeout_locally_safe"),
+        "by_condition": {condition: sum(row.get("condition") == condition for row in timeouts)
+                         for condition in CONDITIONS},
+        "call_audit": audit,
+        "server_receipt_or_billing_proven_by_local_settlement": False,
+    }
+
+
+def _action_distribution(rows: list[dict]) -> dict:
+    counts = Counter()
+    valid = [row for row in rows if _valid(row) is True]
+    for row in valid:
+        activity = row.get("proposal_activity")
+        if (not isinstance(activity, str)
+                or activity not in {*TIMED_ACTIVITIES, "MEAL", "WATCH", "PLAY", "TRAVEL"}):
+            activity = "UNKNOWN"
+        target = row.get("proposal_target")
+        target = ("null" if target is None else target
+                  if isinstance(target, str) and target in SAFE_TARGETS else "UNKNOWN")
+        counts[(activity, target)] += 1
+    return {"eligible_valid_proposals": len(valid), "choices": [
+        {"activity": activity, "target": target, "count": count}
+        for (activity, target), count in sorted(counts.items())]}
+
+
+def _paired_descriptive(pairs: list[dict]) -> dict:
+    result = {}
+    for group, eligible in (
+        ("all_complete_scored", [pair for pair in pairs if pair["scored_pair_complete"]]),
+        ("backend_matched_complete_scored", [pair for pair in pairs
+                                             if pair["comparable_scored_pair"]]),
+    ):
+        values = {"eligible_pairs": len(eligible)}
+        for field in ("rule_rejection_B_minus_A", "activity_completed_B_minus_A",
+                      "input_tokens_B_minus_A"):
+            known = [pair[field] for pair in eligible if pair.get(field) is not None]
+            values[field] = {
+                "known_pairs": len(known), "missing_pairs": len(eligible) - len(known),
+                "known_subtotal": sum(known) if known else None,
+                "mean": sum(known) / len(known) if known else None,
+                "coverage": _ratio(len(known), len(eligible)),
+            }
+        values["completion_combinations"] = dict(sorted(Counter(
+            pair["completion_combination"] for pair in eligible).items()))
+        result[group] = values
+    return result
+
+
+def _v2_extension(cells: list[dict], pairs: list[dict], termination: str,
+                  cleanup_exception_type: str | None, cleanup_outcome: str | None) -> dict:
+    calls = [row for row in cells if _flag(row, "client_call_attempted") is True]
+    backend_groups: dict[str, list[dict]] = defaultdict(list)
+    for row in calls:
+        backend_groups[_backend(row.get("provider_model")) or "UNKNOWN"].append(row)
+    known_provider = [_number(row.get("provider_requests"), integer=True) for row in calls]
+    known_counts = [value for value in known_provider if value is not None]
+    unknown_intents = sum(_flag(row, "intent_registered") is True
+                          and _flag(row, "client_call_attempted") is None for row in cells)
+    return {
+        "session_termination": termination if termination in SESSION_STATUSES else "UNKNOWN",
+        "cleanup": {
+            "outcome": cleanup_outcome if cleanup_outcome in {
+                "PASS", "FAIL", "CLOSED", "FAILED", "NOT_REQUIRED", "UNKNOWN",
+                "NOT_LOCALLY_SETTLED"} else "UNKNOWN",
+            "exception_type": (cleanup_exception_type if cleanup_exception_type in EXCEPTION_TYPES
+                               else "OtherException" if cleanup_exception_type else None),
+            "does_not_replace_primary_termination": True,
+        },
+        "timeout_summary": _timeout_summary(cells),
+        "provider_request_evidence": {
+            "known_subtotal": sum(known_counts) if known_counts else None,
+            "known_call_rows": len(known_counts), "missing_call_rows": len(calls) - len(known_counts),
+            "unknown_intents": unknown_intents,
+            "server_receipt_proven": False,
+        },
+        "actual_backend_distribution": {name: len(rows)
+                                        for name, rows in sorted(backend_groups.items())},
+        "by_actual_backend": {name: _aggregate(rows)
+                              for name, rows in sorted(backend_groups.items())},
+        "action_distribution": {condition: _action_distribution(
+            [row for row in cells if row.get("condition") == condition]) for condition in CONDITIONS},
+        "paired_descriptive": _paired_descriptive(pairs),
+    }
 
 
 def _format_ratio(value: dict) -> str:
@@ -303,7 +465,7 @@ def render_report(summary: dict, pairs: list[dict]) -> str:
     """Render the safe summary; never interpolate raw rows or provider messages."""
     lines = [
         "# Q6.2 固定状态配对面板报告", "",
-        f"统计口径：`{SCHEMA_VERSION}`。",
+        f"统计口径：`{summary.get('schema_version', SCHEMA_VERSION)}`。",
         "研究问题：在完全相同初态下，额外展示现行规则可执行的 activity/target 候选，"
         "是否减少不可执行提案，增加多少上下文成本？",
         "唯一干预：A_RAW 原提示不变；B_FEASIBLE 仅增加既有 executable_options 与选择说明。"
@@ -385,4 +547,64 @@ def render_report(summary: dict, pairs: list[dict]) -> str:
                   "NOT_APPLICABLE。面板没有真人标签，不能推出长期真人行为、真人正确率或人类相似性。",
                   "`MODEL_BENEFIT = NOT_TESTED`；"
                   "`SHORT_HORIZON_STATE_CONTINUITY = INSUFFICIENT_EVIDENCE`。", ""])
+    if summary.get("protocol_version") == V2_PROTOCOL:
+        lines.extend(_v2_report_lines(summary, pairs))
     return "\n".join(lines)
+
+
+def _v2_report_lines(summary: dict, pairs: list[dict]) -> list[str]:
+    timeouts, cleanup = summary["timeout_summary"], summary["cleanup"]
+    lines = [
+        "## v2 超时、收尾与结果描述", "",
+        f"协议：`{V2_PROTOCOL}`；原 session 终止原因：`{summary['session_termination']}`。",
+        f"超时 {timeouts['provider_timeout_count']}；单次安全超时后继续 "
+        f"{timeouts['single_timeout_continued_count']}；最大已知连续超时 "
+        f"{timeouts['max_timeout_streak']}。",
+        "安全超时只结束原单元并占用预算，不重发。连续两次超时停止全轮；"
+        "本地调用安全终结不代表服务端没有收到、计费或完成请求。",
+        f"cleanup：`{cleanup['outcome']}`；安全异常类型：`{cleanup['exception_type']}`。"
+        "收尾失败不覆盖首个停止原因。", "",
+        "|调用单元|原状态|streak 前/后|本地已终结|超时可安全继续|继续/停止原因|",
+        "|---|---|---|---|---|---|",
+    ]
+    for row in timeouts["call_audit"]:
+        lines.append(f"|{row['cell_id']}|{row['status']}|"
+                     f"{row['timeout_streak_before']}/{row['timeout_streak_after']}|"
+                     f"{row['local_call_settled']}|{row['timeout_locally_safe']}|"
+                     f"{row['continue_or_stop_reason']}|")
+    evidence = summary["provider_request_evidence"]
+    lines.extend([
+        "", f"请求计数证据：已知小计 {evidence['known_subtotal']}；"
+        f"调用行缺失 {evidence['missing_call_rows']}；登记但发送未知 {evidence['unknown_intents']}。"
+        "客户端尝试及计数边界不是服务端必然收到的证明。", "",
+        "|实际后端|调用行数|", "|---|---:|",
+    ])
+    for backend, count in summary["actual_backend_distribution"].items():
+        lines.append(f"|{backend}|{count}|")
+    lines.extend(["", "|条件|activity|target|有效提案次数|", "|---|---|---|---:|"])
+    for condition, distribution in summary["action_distribution"].items():
+        for row in distribution["choices"]:
+            lines.append(f"|{condition}|{row['activity']}|{row['target']}|{row['count']}|")
+    lines.extend(["", "行为分布只描述选择，不增加事后标准答案。更多 LEISURE 等易合法活动，"
+                  "不能自动解释为需求满足、适当性或真人相似性改善。", "",
+                  "|配对|完成组合|不完整原因|", "|---|---|---|"])
+    for pair in pairs:
+        lines.append(f"|{pair['pair_id']}|{pair.get('completion_combination', 'UNKNOWN')}|"
+                     f"{','.join(pair.get('incomplete_reasons', [])) or 'NONE'}|")
+    lines.extend(["", "|描述子集|可评分配对|拒绝 B−A|完成 B−A|输入 token B−A|输入成本覆盖|",
+                  "|---|---:|---:|---:|---:|---|"])
+    for name, values in summary["paired_descriptive"].items():
+        rejection = values["rule_rejection_B_minus_A"]["mean"]
+        completion = values["activity_completed_B_minus_A"]["mean"]
+        inputs = values["input_tokens_B_minus_A"]
+        lines.append(f"|{name}|{values['eligible_pairs']}|{rejection}|{completion}|"
+                     f"{inputs['mean']}|{_format_ratio(inputs['coverage'])}|")
+    lines.extend([
+        "", "先报告全部分配单元，再报告完整配对及同后端完整配对敏感性描述；"
+        "不选择有利子集。超时可能不随机，完整配对不能消除全部选择偏差。",
+        "拒绝率低不等于真正完成活动更多。s06 的合法长历史及时间、需求差异继续作为限制，"
+        "固定面板不能证明真实模型连续追完一部剧。",
+        "runner 的 MODEL_BENEFIT=NOT_TESTED 不等于零真实请求。"
+        "研究方向必须在真实阶段结束后依据覆盖、失败及多个指标作独立透明解释。", "",
+    ])
+    return lines

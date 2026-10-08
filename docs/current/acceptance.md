@@ -69,3 +69,21 @@ CI核心产物 `continuity-core-evidence` 包含 ci-panel-dry/offline、只读�
 `M0_EVIDENCE_GATE=PASS`；`PANEL_SCENARIOS=12`；`PLANNED_CELLS=48`；`PLANNED_PAIRS=24`；`FIXED_STATE_PAIRING=PASS`；`OFFLINE_SYNTHETIC_RUN=PASS`；`READ_ONLY_RECOVERY=PASS`；`Q6_2_FIXED_PANEL_ENGINEERING_READY=YES`。工程门槛与模型收益分开，不授权真实运行。
 
 `Q6_2_FIXED_PANEL_REAL_AUTHORIZED=NO`；`Q6_2_FIXED_PANEL_REAL_EXECUTED=NO`；`REAL_PROVIDER_REQUESTS_THIS_TASK=0`；`MODEL_BENEFIT=NOT_TESTED`。Q6.1 `SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE` 保留，48只为未来容量。
+
+## 2026-10-08｜v2 超时策略验收与唯一真实面板预注册
+
+起点 `1b926a58ad986136aa121accf98f7dbb7dbaa2a6`，仍使用研究分支和PR #6；上面v1交付、零真实请求和当时未授权的记录原样保留。当前用户单独授权 `q62-panel-real-v2-01`，最多48客户端尝试（包含失败、超时和未知发送意图），额外真实探针0；不是长期授权，也不是48次成功保证。
+
+v1配置字节不变、默认CLI仍v1；v2只增加版本、共享连续超时计数和安全终结证据。冻结12状态、48分配单元、24配对、seed20261008与A/B输入指纹不变。单次超时必须本地调用终结、无pending任务、状态/证据完整且不变量通过才进入不同的下一cell；连续两次超时以第二cell原始PROVIDER_TIMEOUT和session CONSECUTIVE_TIMEOUT_LIMIT停止。合法提案（含规则拒绝/已知活动失败）重置streak；其他错误仍立即停止。
+
+开发期首轮集成376项通过；完整v2离线session `q62-panel-offline-v2-20261008-01` 已处理48 fake调用、48有效提案、22拒绝、26启动/完成、24完整配对、不变量48 PASS、真实请求0。此产物来自开发工作树，不冒称冻结提交的执行证据。最新专项、完整新HEAD CI、AS2和执行commit须在门禁完成后另记，不能沿用v1的839项。
+
+开发期曾出现v2请求证据被旧导出字段覆盖造成27失败（8通过），修正合并语义后重验通过；同步aclose抛错漏出cleanup边界也已补修。独立审查发现真实授权记录碰到敏感字段守卫、末cell fatal恢复误报完成、HTTP408超时恢复误分类三处缺口，均新增回归，不放宽凭据守卫、不删除失败历史。报告另保留NOT_LOCALLY_SETTLED及请求计数缺失，不补0。
+
+取消/清理各自有界等待；v2 CLI退出不使用asyncio.run对残余任务的无界gather，取消后只推进一次事件循环再关闭。残余调用仍报告未终结，而非伪装CLOSED；这是本机进程收尾，不证明服务端未收到/未计费。持续吞取消的fake需用离线子进程测试自然退出，不以测试finally人工清理冒称CLI有界验收。v1执行路径保持原样。
+
+执行前必须代码、测试、五份中文预注册文档全部提交，干净HEAD的新CI完整回归/AS2通过，核对临时merge业务树；再安全只读检查指定.env的非敏感有效地址/别名和唯一session未使用，冻结规范JSON digest与实际HEAD。不增加OK/SLEEP探针，不改provider body、思考参数、prompt或初态。此处为预注册，真实尚未运行：`Q6_2_FIXED_PANEL_REAL_AUTHORIZED=YES`（仅指定session），`Q6_2_FIXED_PANEL_REAL_EXECUTED=NO`，`REAL_PROVIDER_REQUESTS_THIS_TASK=0`，`MODEL_BENEFIT=NOT_TESTED`。真实结束后才追加结果。
+
+冻结前最终本机联合专项 **390 passed（64.93秒）**：新面板265（runner/CLI27、fixtures123、reporting38、recovery32、v2 timeout45）加原Q6.1/Q6.2/continuity125；文档/仓库专项另为19，不与全库混加。Ruff、audit_repository、audit_documentation、15文件限定范围/敏感格式扫描（命中0）、13保护文件字节与固定clean detached子模块审计PASS。两次误填不存在的测试路径产生0 tests ran，已纠正；末次恢复占位码缺口曾导致389通过/1失败，修正后390全通过，失败事实保留。
+
+v2完整offline `q62-panel-offline-v2-20261008-02`：48 fake调用/有效提案、22拒绝、26完成、不变量48 PASS、24完整配对；只读导出到同名新恢复目录PASS、源不变、真实请求0。v1/v2公平性指纹完全相等：scenario `cf7794f6809f82bab7d50ef911aad14c861f3b1d10e4b78318a73a26a9070ede`，schedule `590331b29f0cc0ff66cc5ad055e68f03c06af550214cf704f312eca6c3251696`，fairness `ae7a53c51ea0fa4c6e76cf6af4133baae807bf931aedcef91bc10e67ccbd7f92`；规范v2协议hash `b66217fa18ce8740deec38334b157ff35f00455d8d2b431dd0b48531debffcc6`（不是文件原始SHA）。上述开发树产物仅为离线验收，新HEAD完整CI/AS2 **PENDING**，实际受保护配置尚未读、真实尚未运行。

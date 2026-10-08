@@ -63,7 +63,7 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 ## 新固定状态面板：三个模式与只读恢复
 
-入口为 `scripts/run_q6_2_fixed_state_panel.py`；`--help` 实际列出 mode、session-id、export-only、output、allow-provider、execution-commit、protocol-hash、max-requests、env-file、offline-case。普通运行注册根固定为 `run/evaluation/q6_2_fixed_state_panel/`，`--output` **仅可用于新恢复报告目录**，不能换目录绕过 session 身份。已有 ID 排他拒绝，不删除后重跑。
+入口为 `scripts/run_q6_2_fixed_state_panel.py`；`--help` 实际列出 protocol(v1/v2，默认v1)、mode、session-id、export-only、output、allow-provider、execution-commit、protocol-hash、max-requests、env-file、offline-case。普通运行注册根固定为 `run/evaluation/q6_2_fixed_state_panel/`，`--output` **仅可用于新恢复报告目录**，不能换目录绕过 session 身份。已有 ID 排他拒绝，不删除后重跑。
 
 以下 dry-run、offline 和 export-only 均已通过离线测试；示例 ID 是本轮已用 ID 的形式，实际再次执行要换**新的离线 ID**，不要复用旧真实 session。默认不读密钥、不创建真实 client；offline 只使用显式脚本 client，报告为 OFFLINE_SYNTHETIC。
 
@@ -84,7 +84,7 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 离线脚本还可选 `--offline-case both-legal`、`b-worse`、`no-valid-proposal`；它们验证汇总器不保证 B 获胜，不构成模型证据。每单元一次决策，跨决策反馈/重复率/长期连续性为 NOT_APPLICABLE。
 
-### 未来 real：尚未授权，不执行
+### v1轮历史示例：当时尚未授权，不执行
 
 只有独立批准冻结协议和48次预算后，才可将占位符换成已批准执行commit、配置规范JSON hash、新session和保护配置路径：
 
@@ -100,6 +100,31 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 无独立 allow-provider、版本/hash不匹配、环境无效或重复session均不发送请求。沿用 minimal_request，仅 model/messages；不添加 thinking/max_tokens/temperature。首个请求前冻结48计划和全部世界，每单元前再查冻结四项摘要；调用前占预算，逐单元增量输出完成数、cell、状态与累计尝试。规则拒绝和已知活动失败可继续；其余fatal停止整轮，剩余NOT_RUN附停止原因。
 
 本轮真实 provider 请求0，不读取实际 `.env`，不重跑Q6.1/旧双短链，不自动merge。离线环境中缺完整AS2依赖应单列收集错误，由完整CI验收，不能冒充通过。
+
+### v2本轮唯一授权：先新版本门禁，后一次执行
+
+上述零授权/零请求段落为v1轮历史。本轮仅 `q62-panel-real-v2-01` 获准最多48尝试，额外真实请求0；D-01记录范围，不是未来永久许可。v2单次安全终结超时继续下一cell，连续两次停；默认v1仍一次停。先检查原进程与session目录，ID存在则不执行、不换ID，只读核对。
+
+以下v2离线入口已实测；再次使用新的**离线**ID，不删除已有目录：
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --protocol v2 \
+  --session-id q62-panel-offline-v2-next --mode offline
+```
+
+只有新HEAD所有CI/AS2通过、工作树clean、环境和配置安全检查通过后，在同一WSL shell用可检查脚本冻结 `EXECUTION_COMMIT` 与 `digest(load_protocol(version="v2"))`。必须用规范JSON摘要，不用配置原始字节sha256；实际生效地址为 `https://ark.cn-beijing.volces.com/api/coding/v3`、请求别名 `ark-code-latest`，仅现有load_provider_config解析 `third_party/AgentSociety/.env`，不source/cat/回显key；环境覆盖不匹配则停止。不能为了测key额外发请求。
+
+```bash
+# 本轮唯一正式session：仅门禁全通过后执行一次；已有目录禁止执行
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --mode real --allow-provider --protocol v2 \
+  --session-id q62-panel-real-v2-01 --max-requests 48 \
+  --execution-commit "$EXECUTION_COMMIT" --protocol-hash "$PROTOCOL_HASH" \
+  --env-file third_party/AgentSociety/.env
+```
+
+超时占预算，取消未完成不启动下一请求；不并发、不重试、不repair/fallback、不换provider/状态/提示。增量进度区分已处理与活动完成，含CALLS/VALID/ACTIVITIES/REJECTED/TIMEOUTS/STREAK/PAIRS。真实窗口不改tracked文件/commit/环境，不merge。中断先查原进程，原进程未停不并发导出；确认停止后才将原session只读导出到新的恢复目录，不恢复实验或补发。实际结果与结束标记在验收账本追加。
 
 ## 文档检查
 

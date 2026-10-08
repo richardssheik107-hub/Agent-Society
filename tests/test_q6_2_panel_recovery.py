@@ -292,6 +292,71 @@ def test_unknown_world_schema_is_not_silently_created_or_migrated(tmp_path):
             ("marker",)]
 
 
+def test_v2_readonly_recovery_preserves_timeout_streak_unknown_and_not_run(tmp_path):
+    from social_sim.continuity.q6_2_panel_reporting import summarize
+
+    with create_session(tmp_path, "v2-timeout", _manifest(), {
+        "mode": "REAL_PROVIDER", "protocol_version": "q62_fixed_state_panel_v2"}) as ledger:
+        request = ledger.claim("cell-00")
+        ledger.record("cell-00", "CLIENT_CALL_STARTED", {"client_call_attempted": True})
+        ledger.finish("cell-00", {
+            "status": "PROVIDER_TIMEOUT", "request_id": request,
+            "condition": "A_RAW", "scenario_id": "s01", "family": "OWNERSHIP",
+            "intent_registered": True, "client_call_attempted": True,
+            "http_response_observed": False, "provider_requests": 1,
+            "timeout_streak_before": 0, "timeout_streak_after": 1,
+            "continue_or_stop_reason": "SINGLE_TIMEOUT_LOCALLY_SETTLED_CONTINUE",
+            "local_call_settled": True, "timeout_locally_safe": True,
+            "strict_json_valid": None, "catalog_valid": None,
+        })
+        ledger.claim("cell-01")
+    path = tmp_path / "v2-timeout/session.sqlite3"
+    before = _hash(path)
+    saved = read_session(tmp_path / "v2-timeout")
+    assert _hash(path) == before
+    assert saved["resume_allowed"] is False
+    first, unknown = saved["rows"][:2]
+    assert first["status"] == "PROVIDER_TIMEOUT"
+    assert first["timeout_streak_before"] == 0 and first["timeout_streak_after"] == 1
+    assert first["local_call_settled"] is first["timeout_locally_safe"] is True
+    assert unknown["status"] == "UNKNOWN"
+    assert unknown["client_call_attempted"] is None
+    summary = summarize(saved["rows"], mode="real", session_status="STOPPED_READ_ONLY_RECOVERY",
+                        protocol_version="v2")
+    assert summary["counts"]["not_run"] == 46
+    assert summary["counts"]["unknown"] == 1
+    assert summary["counts"]["valid_proposals"] == 0
+    assert summary["timeout_summary"]["provider_timeout_count"] == 1
+    assert summary["provider_request_evidence"]["unknown_intents"] == 1
+    assert _hash(path) == before
+
+
+def test_v2_missing_final_row_keeps_timeout_receipt_but_never_invents_local_safety(tmp_path):
+    from social_sim.continuity.q6_2_panel_reporting import summarize
+
+    with create_session(tmp_path, "v2-no-final", _manifest(), {"mode": "REAL_PROVIDER"}) as ledger:
+        ledger.claim("cell-00")
+        ledger.record("cell-00", "CLIENT_CALL_STARTED", {"client_call_attempted": True})
+        ledger.record("cell-00", "WORLD_RESULT_COMMITTED", {
+            "status": "PROVIDER_TIMEOUT", "timeout_streak_before": 1,
+            "timeout_streak_after": 2, "continue_or_stop_reason": "CONSECUTIVE_TIMEOUT_LIMIT",
+            "local_call_settled": None, "timeout_locally_safe": None,
+            "http_response_observed": None, "provider_requests": None})
+    path = tmp_path / "v2-no-final/session.sqlite3"
+    before = _hash(path)
+    saved = read_session(path)
+    assert saved["rows"][0]["status"] == "PROVIDER_TIMEOUT"
+    assert saved["rows"][0]["missing_evidence"] == ["FINAL_ROW"]
+    assert saved["rows"][0]["timeout_streak_after"] == 2
+    summary = summarize(saved["rows"], mode="real", session_status="STOPPED_READ_ONLY_RECOVERY",
+                        protocol_version="v2")
+    assert summary["timeout_summary"]["max_timeout_streak"] == 2
+    assert summary["timeout_summary"]["single_timeout_continued_count"] == 0
+    assert summary["timeout_summary"]["timeout_locally_safe"]["unknown"] == 1
+    assert summary["counts"]["not_run"] == 47
+    assert _hash(path) == before
+
+
 class _ProcessInterrupted(BaseException):
     """A process interruption must bypass the runner's handled failure path."""
 

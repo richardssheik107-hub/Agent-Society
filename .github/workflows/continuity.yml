@@ -36,6 +36,9 @@ jobs:
           python scripts/run_q6_2_fixed_state_panel.py --session-id ci-panel-dry
           python scripts/run_q6_2_fixed_state_panel.py --session-id ci-panel-offline --mode offline
           python scripts/run_q6_2_fixed_state_panel.py --export-only run/evaluation/q6_2_fixed_state_panel/ci-panel-offline --output run/evaluation/q6_2_fixed_state_panel_recovery/ci-panel-offline
+          python scripts/run_q6_2_fixed_state_panel.py --protocol v2 --session-id ci-panel-v2-dry
+          python scripts/run_q6_2_fixed_state_panel.py --protocol v2 --session-id ci-panel-v2-offline --mode offline
+          python scripts/run_q6_2_fixed_state_panel.py --export-only run/evaluation/q6_2_fixed_state_panel/ci-panel-v2-offline --output run/evaluation/q6_2_fixed_state_panel_recovery/ci-panel-v2-offline
       - name: 七天与三十天工程验证
         run: python scripts/run_continuity.py
       - uses: actions/upload-artifact@v4
@@ -53,6 +56,7 @@ jobs:
             run/evaluation/q6_2_real_ab/ci-dry-run/arm_b/summary.json
             run/evaluation/q6_2_fixed_state_panel/ci-panel-*/**
             run/evaluation/q6_2_fixed_state_panel_recovery/ci-panel-offline/**
+            run/evaluation/q6_2_fixed_state_panel_recovery/ci-panel-v2-offline/**
             audit-result.json
             run/evaluation/ci/core.xml
             run/evaluation/continuity/**/summary.json

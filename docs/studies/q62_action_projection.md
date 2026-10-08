@@ -127,3 +127,15 @@ input / output / reasoning token 分别记录 known subtotal、缺失行数和�
 集成、48 单元演练、故障恢复、旧专项、全库及 AS2 的实际结果统一记入[验收账本](../current/acceptance.md)，本段不提前填写尚未完成的通过数。入口 `scripts/run_q6_2_fixed_state_panel.py` 的默认 dry-run 不读取真实配置；offline 明示 `OFFLINE_SYNTHETIC`。脚本案例 A 非法 / B 合法、双方合法、B 更差、没有有效分母用于检查执行与汇总不内置“B 必胜”，不是模型行为证据。
 
 未来真实结果可以无差异、负结果或证据不足；应连同失败停止造成的不完整覆盖、未知后端、上下文成本与十二状态覆盖局限解释。工程就绪不等于授权：**本轮真实请求 0，真实协议与 48 次预算仍待人工审核，MODEL_BENEFIT=NOT_TESTED**。游戏获取、Resource 新检索器、本地模型替换、长期运行和界面不在本轮范围。[D-01](../review/decisions.md#d-01) 与[运行手册](../current/runbook.md)继续作为授权和命令入口。
+
+## 2026-10-08｜v2 超时增量与唯一真实面板预注册
+
+上节是v1工程轮的历史记录（真实请求0），不因本轮授权改写。v1配置保持原字节，入口默认仍v1，一次超时仍停止整轮；`--protocol v2`显式选择新schema/protocol_version。v2只改变超时调度与兼容描述字段；12场景、seed20261008、48独立world、24相邻配对、A/B提示、对象及规则和minimal_request均不改变。公平性指纹比较排除协议元数据，完整manifest hash可以不同。
+
+v2单次PROVIDER_TIMEOUT仅在调用协程返回或完成取消、无遗留本地任务、当前世界无未解释提交且不变量/持久证据完整时继续下一预分配单元，不重发原cell。取消中的晚到回复不解析、不执行。记录streak前/后、local_call_settled、timeout_locally_safe与继续/停止理由；记录本地终态不证明服务端没收到或没计费。取消无法终结或证据不足停止session。每调用60秒，v2取消收尾最多再观察5秒；不能等待取消的同时启动下一请求。
+
+连续计数跨A/B、pair和场景。有效提案正常记录执行结果（包括RULE_REJECTED和已知COMMITMENT_FAILED）才清零；第二次连续超时cell仍为PROVIDER_TIMEOUT，session为CONSECUTIVE_TIMEOUT_LIMIT。HTTP错误含408、非超时连接错误、契约/JSON/目录外输出、外部取消、架构/不变量/预算/证据异常均立即停止。cleanup最多5秒，安全异常类型单列，不覆盖原失败。旧双短链与Q6.1停止语义不变。
+
+本轮[D-01](../review/decisions.md#d-01)只批准 `q62-panel-real-v2-01` 一次，最多48客户端调用尝试，额外探针/真实smoke/旧双短链0；所有失败、超时与未知占用预算。代码、预注册、专项、Ruff、审计和新版本完整CI/AS2全部通过后，冻结本地干净HEAD与同加载器的规范JSON协议hash；CI临时merge SHA另列，不替代本地EXECUTION_COMMIT。执行窗口不改tracked文件、不换commit/环境、不merge；已有session不删除/不换ID/不重跑。
+
+结果先报告全部分配覆盖、阶段计数、token缺失与backend；同时看拒绝率和活动完成，不能只报启动接受。完整可评配对与同后端敏感性描述分别计算B−A，保留全部24对的不完整原因。行为分布检查B是否只是多选LEISURE，不增加事后正确答案。只允许透明归纳OBSERVED_IMPROVEMENT、NO_CLEAR_DIFFERENCE、OBSERVED_REGRESSION或INSUFFICIENT_EVIDENCE；未执行时NOT_TESTED。固定状态面板不能证明连续追剧、长期自主或人类相似性；Q6.1历史结论不变。实际结果结束后追加，门禁与产物见[验收账本](../current/acceptance.md)。

@@ -23,6 +23,10 @@ from .validation import validate_world
 
 PROTOCOL_SCHEMA = "Q62_FIXED_STATE_PANEL_PROTOCOL_V1"
 PROTOCOL_VERSION = "q62_fixed_state_panel_v1"
+PROTOCOL_IDENTITIES = {
+    "v1": (PROTOCOL_SCHEMA, PROTOCOL_VERSION),
+    "v2": ("Q62_FIXED_STATE_PANEL_PROTOCOL_V2", "q62_fixed_state_panel_v2"),
+}
 FIXTURE_SCHEMA = "Q62_FIXED_STATE_FIXTURES_V1"
 SCENARIO_IDS = tuple(f"s{index:02d}" for index in range(1, 13))
 FAMILIES = (
@@ -46,30 +50,47 @@ STOP_MAPPING = {
     ), "STOP_SESSION"),
 }
 PROTOCOL_RELATIVE_PATH = Path("config/experimental/q6_2_fixed_state_panel_v1.json")
+SINGLE_TIMEOUT_V2 = "RECORD_CELL_AND_CONTINUE_IF_LOCALLY_SETTLED"
 
 
-def load_protocol(root: str | Path | None = None) -> dict[str, Any]:
-    """Load the checked-in, secret-free protocol; no environment/config lookup."""
+def load_protocol(root: str | Path | None = None, *, version: str = "v1") -> dict[str, Any]:
+    """Explicit protocol selection; old calls still load v1 without env lookup."""
+    if not isinstance(version, str) or version not in PROTOCOL_IDENTITIES:
+        raise ValueError("UNSUPPORTED_PANEL_PROTOCOL")
     repository = Path(root) if root is not None else Path(__file__).resolve().parents[3]
-    with (repository / PROTOCOL_RELATIVE_PATH).open(encoding="utf-8") as stream:
+    relative = PROTOCOL_RELATIVE_PATH.with_name(f"q6_2_fixed_state_panel_{version}.json")
+    with (repository / relative).open(encoding="utf-8") as stream:
         protocol = json.load(stream)
     validate_protocol(protocol)
+    if protocol_version(protocol) != version:
+        raise ValueError("PANEL_PROTOCOL_FILE_VERSION_MISMATCH")
     return protocol
+
+
+def protocol_version(protocol: dict[str, Any]) -> str:
+    """Resolve only an exact supported schema/version pair; never infer defaults."""
+    if isinstance(protocol, dict):
+        pair = (protocol.get("schema"), protocol.get("protocol_version"))
+        for version, identity in PROTOCOL_IDENTITIES.items():
+            if pair == identity:
+                return version
+    raise ValueError("UNSUPPORTED_PANEL_PROTOCOL")
 
 
 def validate_protocol(protocol: dict[str, Any]) -> None:
     """Reject changed panel dimensions/contracts rather than silently truncate."""
     if not isinstance(protocol, dict):
         raise ValueError("INVALID_PANEL_PROTOCOL")
-    if (protocol.get("schema") != PROTOCOL_SCHEMA
-            or protocol.get("protocol_version") != PROTOCOL_VERSION):
-        raise ValueError("UNSUPPORTED_PANEL_PROTOCOL")
+    version = protocol_version(protocol)
     integer(protocol.get("seed"), "seed", high=2**63 - 1)
     expected = {"repeats": 2, "planned_scenarios": 12, "planned_cells": 48,
                 "planned_pairs": 24, "transport_retries": 0}
     for field, value in expected.items():
         if type(protocol.get(field)) is not int or protocol.get(field) != value:
             raise ValueError("INVALID_PANEL_DIMENSIONS")
+    global_authorization = protocol.get("real_provider_requests_authorized_this_delivery")
+    if type(global_authorization) is not int or global_authorization != 0:
+        raise ValueError("GLOBAL_PANEL_AUTHORIZATION_NOT_ALLOWED")
     if protocol.get("conditions") != list(CONDITIONS):
         raise ValueError("INVALID_PANEL_CONDITIONS")
     budgets = protocol.get("budgets")
@@ -92,7 +113,16 @@ def validate_protocol(protocol: dict[str, Any]) -> None:
         raise ValueError("INVALID_PANEL_TIMEOUT")
     if protocol.get("known_commitment_failures") != list(KNOWN_COMMITMENT_FAILURES):
         raise ValueError("CHANGED_PANEL_COMMITMENT_FAILURES")
-    if protocol.get("stop_mapping") != STOP_MAPPING:
+    expected_stops = STOP_MAPPING
+    if version == "v2":
+        if (type(protocol.get("max_consecutive_timeouts")) is not int
+                or protocol["max_consecutive_timeouts"] != 2
+                or protocol.get("single_timeout") != SINGLE_TIMEOUT_V2):
+            raise ValueError("CHANGED_PANEL_TIMEOUT_POLICY")
+        expected_stops = {**STOP_MAPPING, "PROVIDER_TIMEOUT": SINGLE_TIMEOUT_V2}
+    elif {"max_consecutive_timeouts", "single_timeout"} & protocol.keys():
+        raise ValueError("CHANGED_PANEL_TIMEOUT_POLICY")
+    if protocol.get("stop_mapping") != expected_stops:
         raise ValueError("CHANGED_PANEL_STOP_MAPPING")
     scenarios = protocol.get("scenarios")
     if (not isinstance(scenarios, list) or len(scenarios) != 12
@@ -314,3 +344,34 @@ def allocate_cells(protocol: dict[str, Any], scenarios: list[dict[str, Any]]) ->
             or Counter(cell["condition"] for cell in cells) != {RAW: 24, FEASIBLE: 24}):
         raise AssertionError("INVALID_PANEL_ALLOCATION")
     return cells
+
+
+def fairness_fingerprint(protocol: dict[str, Any], scenarios: list[dict[str, Any]] | None = None,
+                         cells: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Version-independent fingerprints of actual states, prompts and allocation.
+
+    Protocol/schema/timeout metadata are excluded intentionally. Full manifest
+    digests may differ while this exact research-input comparison remains equal.
+    Optional prepared inputs avoid repeating legal fixture construction; no raw
+    prompt, provider identity or output is involved.
+    """
+    validate_protocol(protocol)
+    scenarios = freeze_scenarios(protocol) if scenarios is None else scenarios
+    if (len(scenarios) != 12
+            or tuple(row["scenario_id"] for row in scenarios) != SCENARIO_IDS):
+        raise ValueError("INVALID_FROZEN_PANEL_SCENARIOS")
+    cells = allocate_cells(protocol, scenarios) if cells is None else cells
+    if len(cells) != 48:
+        raise ValueError("INVALID_PANEL_ALLOCATION")
+    scenario_fields = ("scenario_id", "family", "state_hash", "initial_projected_state",
+                       "observation_hash", "object_candidates", "candidate_hash", "prompt_hashes")
+    cell_fields = ("cell_id", "pair_id", "scenario_id", "family", "repeat", "condition",
+                   "order", "pair_order", "within_pair_order")
+    research_states = [{key: row[key] for key in scenario_fields} for row in scenarios]
+    allocation = [{key: row[key] for key in cell_fields} for row in cells]
+    return {
+        "schema": "Q62_FIXED_PANEL_FAIRNESS_V1", "scenario_count": 12, "cell_count": 48,
+        "scenario_fingerprint": digest(research_states),
+        "schedule_fingerprint": digest(allocation),
+        "fairness_fingerprint": digest({"scenarios": research_states, "cells": allocation}),
+    }
