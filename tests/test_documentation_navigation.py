@@ -113,7 +113,15 @@ def test_source_status_not_confused_with_behavioral_success():
     assert "UNRESOLVED" in q4
     assert "不是完整千万对象世界已完成" in q5
     assert "INSUFFICIENT_EVIDENCE" in q61
-    assert "真实 A/B 尚未运行" in q62
+    # The old autonomous short-chain and the newly executed fixed panel are
+    # different protocols. Real execution is not proof of behavioral benefit.
+    assert "旧8-call真实短链仍未运行" in q62
+    assert "已完成唯一真实session" in q62
+    assert "MODEL_BENEFIT=NO_CLEAR_DIFFERENCE" in q62
+    assert "REAL_DATA_COVERAGE=PARTIAL" in q62
+    assert "不证明两种提示等效" in q62
+    assert "LONG_TERM_HUMAN_LIKENESS=NOT_TESTED" in q62
+    assert "SHORT_HORIZON_STATE_CONTINUITY=INSUFFICIENT_EVIDENCE" in q62
 
 
 def test_original_current_entrypoints_preserved():
