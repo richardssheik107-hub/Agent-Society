@@ -57,3 +57,9 @@ D-09 批准 `APPROVED_MULTIDIMENSIONAL_EVALUATION`：L1 检查工程不变量，
 `ENGINEERING_CONSISTENCY` 可自动检查。`TASK_CONTINUITY` 依实际发生的获取后使用、观看、工作与恢复覆盖判定；未触发标 NOT_EXERCISED。没有人工标注时 `HUMAN_BEHAVIOR_APPROPRIATENESS=UNRESOLVED`、`HUMAN_LIKENESS_PROVEN=NO`。
 
 旧 Q6.1 正式证据不足、Q6.2 `NO_CLEAR_DIFFERENCE`、M1.5 `EXPLORATORY_POST_HOC` 均保持。新 Runtime 不证明真实模型已经自主生活七天，不证明人格、真人偏好、医学需求、多人社会或真实大目录；这些必须有新的明确实验和预算。
+
+## 八、正式验收中的预算截断记录
+
+初始实现提交 `7c243d727f529e34efb0770baf35461d6e1fa0e7` 在干净工作树运行 `m5-offline-acceptance-01`。七天达到10080分钟、113高层决策；不中断与重启6次的语义状态、事件及请求账本一致。该版本离线墙钟上限120秒，在本机三十天不中断运行中实际达到34530分钟、364决策、2303微步骤、4253事件后以 `WALL_CLOCK_LIMIT` 停止（120.019139671秒），**不是三十天 PASS**。当时 WORK 已执行150分钟、尚余120分钟，保留 ACTIVE，不补动作、不跳时间。
+
+原目录不改写；只读失败导出另存 `run/evaluation/m5_longrun/m5-offline-acceptance-01-day30-stop-export/`。后续仅将新协议有限离线墙钟改为600秒，并补上验收 helper 在拒绝 PASS 前先导出失败报告/资源的回归测试；不修改世界参数、初态、驱动策略、规则或真实预算0。新正式会话使用全新ID，不能恢复旧会话并暗中充值预算。最终完整结果另按其实际执行提交登记。

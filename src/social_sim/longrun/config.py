@@ -45,7 +45,7 @@ class LongRunConfig:
     sim_days: int = 7
     max_decisions: int = 1000
     max_provider_requests: int = 0
-    max_wall_seconds: float = 120.0
+    max_wall_seconds: float = 600.0
     request_timeout_seconds: float = 60.0
     max_micro_steps: int = 1000
     step_minutes: int = 15

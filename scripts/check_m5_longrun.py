@@ -110,17 +110,11 @@ async def run_one(root: Path, days: int, *, restarted: bool, provenance: dict,
             session.close()
             session = LongRunSession.open(old_dir, resume=True)
         audit = check_invariants_full(session.world)
-        if result["stop_reason"] != "SIMULATION_HORIZON_REACHED" or session.world.minute != days * 1440:
-            raise AssertionError("M5_ACTUAL_HORIZON_NOT_REACHED")
         data = session.export_data()
         data["session"]["invariants"] = audit
         summary = export_reports(session)
         coverage = summary["evaluation"]["L2"]["goal_progress"]["observed_coverage"]
         required = ("WORK", "MEAL", "SLEEP", "TRAVEL", "LEISURE", "ACQUIRE", "PLAY", "WATCH")
-        if any(coverage.get(activity) != "EXERCISED" for activity in required):
-            raise AssertionError("M5_REQUIRED_COVERAGE_NOT_EXERCISED")
-        if client.provider_request_count != 0 or result["provider_requests_reserved"] != 0:
-            raise AssertionError("M5_OFFLINE_PROVIDER_BUDGET_VIOLATED")
         samples.append({"minute": session.world.minute, **memory_sample()})
         resource_evidence = {
             "result_class": "SCRIPTED_OR_FAKE_LONG_RUN", "days": days,
@@ -130,13 +124,29 @@ async def run_one(root: Path, days: int, *, restarted: bool, provenance: dict,
             "database_bytes": session.path.stat().st_size,
             "events": len(data["events"]), "micro_steps": result["micro_steps"],
             "decisions": result["decisions"], "resume_count": result["resume_count"],
+            "stop_reason": result["stop_reason"], "horizon_reached": summary["horizon_reached"],
             "samples": samples, "provider_requests": 0,
             "memory_claim": "FINITE_7_30_DAY_OBSERVATION_NOT_UNLIMITED_DURATION_PROOF",
             "full_ledger_audit": audit,
         }
         write_json(session.dir / "resources.json", resource_evidence)
+        # Even a budget-truncated validation retains reports and observed
+        # resources before rejecting the pass gate; never silently lose evidence.
+        if result["stop_reason"] != "SIMULATION_HORIZON_REACHED" or session.world.minute != days * 1440:
+            write_json(session.dir / "validation_failure.json", {
+                "result": "FAIL", "reason": "M5_ACTUAL_HORIZON_NOT_REACHED",
+                "simulation_minutes": session.world.minute, "stop_reason": result["stop_reason"],
+                "provider_requests": 0,
+            })
+            raise AssertionError("M5_ACTUAL_HORIZON_NOT_REACHED")
+        if any(coverage.get(activity) != "EXERCISED" for activity in required):
+            raise AssertionError("M5_REQUIRED_COVERAGE_NOT_EXERCISED")
+        if client.provider_request_count != 0 or result["provider_requests_reserved"] != 0:
+            raise AssertionError("M5_OFFLINE_PROVIDER_BUDGET_VIOLATED")
         return {"runtime": result, "resources": resource_evidence,
-                "context": summary.get("context"), "coverage": coverage,
+                "context": {"max_chars": summary["max_context_chars"],
+                            "max_token_upper_bound": summary["max_context_token_upper_bound"],
+                            "accounting": summary["context_token_accounting"]}, "coverage": coverage,
                 "semantic_hash": digest(semantic_evidence(data)),
                 "artifacts": str(session.dir)}, semantic_evidence(data)
     finally:

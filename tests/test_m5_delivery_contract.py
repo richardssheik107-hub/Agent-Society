@@ -1,6 +1,9 @@
 """M5 的兼容和交付门禁以真实文件/冻结 Git 为准，不只断言成功标签。"""
 import importlib.util
+import asyncio
+import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -61,3 +64,21 @@ def test_validation_guard_cannot_open_external_network():
     import socket
     with module.offline_network_guard(), pytest.raises(RuntimeError, match="OFFLINE_NETWORK_FORBIDDEN"):
         socket.getaddrinfo("must-not-resolve.invalid", 443)
+
+
+def test_budget_truncated_validation_keeps_failure_report_and_resources(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location("m5_validation_failure", ROOT / "scripts/check_m5_longrun.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    config = replace(module.LongRunConfig(), max_wall_seconds=0.000001)
+    monkeypatch.setattr(module.LongRunConfig, "load", lambda _: config)
+    with pytest.raises(AssertionError, match="M5_ACTUAL_HORIZON_NOT_REACHED"):
+        asyncio.run(module.run_one(tmp_path, 7, restarted=False, provenance={"execution_commit": STARTING_MAIN}))
+    folder = tmp_path / "day7-plain"
+    summary = json.loads((folder / "summary.json").read_text())
+    resources = json.loads((folder / "resources.json").read_text())
+    failure = json.loads((folder / "validation_failure.json").read_text())
+    assert summary["stop_reason"] == resources["stop_reason"] == "WALL_CLOCK_LIMIT"
+    assert summary["simulation_minutes"] == resources["simulation_minutes"] < 10080
+    assert resources["horizon_reached"] is False and failure["result"] == "FAIL"
+    assert (folder / "report.md").is_file() and resources["provider_requests"] == 0

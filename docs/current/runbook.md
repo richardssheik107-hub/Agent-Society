@@ -187,7 +187,7 @@ python -m pytest -q tests/test_m2_acquire*.py
 .venv/bin/python scripts/run_m5_long_horizon.py --mode offline --session-id <全新三十天ID> --sim-days 30
 ```
 
-上面的尖括号是待替换说明，不是可直接执行的 shell 参数。默认协议为 `config/experimental/m5_longrun_v1.json`，其中 `acquire_enabled=true` 只对该协议新建的 M5 实验世界明确 opt-in，不修改全局默认或旧世界。高层决策最多1000、provider预算0、累计运行墙钟120秒、微步骤15分钟、每活动最多1000微步骤、上下文字符/token上界各12000。资源预算先到则保留实际时间，不补足七天。独立完整验收及多次重启对照：
+上面的尖括号是待替换说明，不是可直接执行的 shell 参数。默认协议为 `config/experimental/m5_longrun_v1.json`，其中 `acquire_enabled=true` 只对该协议新建的 M5 实验世界明确 opt-in，不修改全局默认或旧世界。高层决策最多1000、provider预算0、累计运行墙钟600秒、微步骤15分钟、每活动最多1000微步骤、上下文字符/token上界各12000。资源预算先到则保留实际时间，不补足七天。独立完整验收及多次重启对照：
 
 ```bash
 .venv/bin/python scripts/check_m5_longrun.py --session-id <全新验收ID>

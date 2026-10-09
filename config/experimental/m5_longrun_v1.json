@@ -4,7 +4,7 @@
   "sim_days": 7,
   "max_decisions": 1000,
   "max_provider_requests": 0,
-  "max_wall_seconds": 120.0,
+  "max_wall_seconds": 600.0,
   "request_timeout_seconds": 60.0,
   "max_micro_steps": 1000,
   "step_minutes": 15,
