@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-10-09。Q6.2 固定状态面板和 M1.5 后果审计已合入 `main`；M2 可选获取机制通过独立离线验收，已合入主线，但仍不是生产默认行为。旧 `q62-panel-real-v2-01` 已完成且许可用尽，禁止重跑或复用。所有真实调用均须新协议和明确授权。[现行计划](plan.md)。
+更新：2026-10-09。Q6.2、M1.5、M2 已合入 main；本轮 D-02/D-09 追加批准 M5 的限定 opt-in 能力与三层评价，真实预算仍为 0。旧 `q62-panel-real-v2-01` 已完成且许可用尽，禁止重跑或复用。所有真实调用均须新协议和明确授权。[现行计划](plan.md)。
 
 ## 工作区与环境
 
@@ -176,3 +176,53 @@ python -m pytest -q tests/test_m2_acquire*.py
 
 
 **此命令只执行合成世界的离线工程测试，M2 `ACQUIRE` 默认关闭；原真实 Q6.2 目录严禁重用。**
+
+## M5 多日生活、停止与恢复
+
+以下入口复用旧世界规则；默认是合成自适应策略、零真实请求，不读 `.env`。从父仓库使用已建好的 Python 3.12 环境，每次新运行必须给未使用的 session ID：
+
+```bash
+.venv/bin/python scripts/run_m5_long_horizon.py --help
+.venv/bin/python scripts/run_m5_long_horizon.py --mode offline --session-id <全新七天ID> --sim-days 7
+.venv/bin/python scripts/run_m5_long_horizon.py --mode offline --session-id <全新三十天ID> --sim-days 30
+```
+
+上面的尖括号是待替换说明，不是可直接执行的 shell 参数。默认协议为 `config/experimental/m5_longrun_v1.json`，其中 `acquire_enabled=true` 只对该协议新建的 M5 实验世界明确 opt-in，不修改全局默认或旧世界。高层决策最多1000、provider预算0、累计运行墙钟120秒、微步骤15分钟、每活动最多1000微步骤、上下文字符/token上界各12000。资源预算先到则保留实际时间，不补足七天。独立完整验收及多次重启对照：
+
+```bash
+.venv/bin/python scripts/check_m5_longrun.py --session-id <全新验收ID>
+```
+
+产物位于 `run/evaluation/m5_longrun/<session>/`：`world.sqlite3` 为持久事实，`summary.json` 为评价与总计，`requests.jsonl`、`activities.jsonl`、`checkpoints.jsonl` 分开记录请求、活动和快照；`daily/dayNNN.json` 与中文日报在午夜 checkpoint 后即时生成。多次重启对照的四个子目录另有真实墙钟、数据库大小和 RSS 观测 `resources.json`。输出目录已存在时禁止覆盖。
+
+停止使用一次 Ctrl+C，等待程序退出并检查摘要/收据，不要在原进程仍持锁时启动第二个写入进程。恢复已有离线会话：
+
+```bash
+.venv/bin/python scripts/run_m5_long_horizon.py --mode offline --resume run/evaluation/m5_longrun/<原会话ID>
+```
+
+恢复读取原协议与预算，不接受新的天数或预算 override，不重新 seed。有 ACTIVE 活动先继续确定性步骤，不重新问同一意图；世界活动若被显式 PAUSED 则不擅自 RESUME。请求登记后发送不明则停在 `UNCERTAIN_REQUEST_STATE`，不能用恢复重发。终点处尚未完成的活动仍保持真实承诺。只核对和导出时使用全新目标目录：
+
+```bash
+.venv/bin/python scripts/run_m5_long_horizon.py --export-only run/evaluation/m5_longrun/<原会话ID> --output run/evaluation/m5_longrun/<全新只读导出ID>
+```
+
+只读模式以 SQLite `mode=ro` 打开源事实，不读取凭据、不构造 provider、不执行世界动作；即使源会话不可安全继续，也能保留 UNKNOWN 和真实终止原因。
+
+### 未来真实七天：目前不可执行
+
+当前付费请求授权为 **0**。接口已经实现，但不能因为密钥存在就运行。将来必须先批准新的 session、已验收的干净执行 commit、冻结的独立 `mode=real` JSON 协议及其规范 `LongRunConfig.protocol_hash`、总请求预算和本次执行授权。不要改默认离线协议来绕过门禁。预算建议为七天上限、最多256高层决策/256请求、累计墙钟7200秒、每次60秒、上下文上限12000；这只是有限资源建议，不是授权，也不保证真实模型能到达10080分钟。
+
+授权文件无密钥，合同字段必须严格为实际批准值：`authorization_type=EXPLICIT_USER_SESSION_AUTHORIZATION`、`approved=true`、`session_id`、`execution_commit`、`protocol_hash`、`max_provider_requests`、`acceptance={execution_commit,result:PASS}`、`request_policy={retry:false,fallback:false}`、`resume=false`。协议内容必须匹配这些值及 CLI，不能临时 override。环境文件必须为既有受保护配置，沿用原 alias/endpoint/思考设置；minimal request **不等于关闭深度思考**。未来获批后才可使用以下参数形态（本轮未执行）：
+
+```bash
+.venv/bin/python scripts/run_m5_long_horizon.py --mode real --allow-provider \
+  --session-id <独立新ID> --protocol <已冻结real协议.json> \
+  --sim-days 7 --max-decisions 256 --max-provider-requests 256 --max-wall-seconds 7200 \
+  --execution-commit <已验收且干净的40位SHA> --protocol-hash <规范协议SHA256> \
+  --authorization-path <本轮独立授权.json> --env-file <受保护环境文件>
+```
+
+真实暂停后的继续执行需要新的 `resume:true` 执行授权，绑定原 session/commit/hash/**原总预算**，不能充值预算。用 `--resume <原会话目录>` 替代 `--session-id`，保留 real/allow-provider、原冻结协议与授权参数，不附加预算 override。UNKNOWN、服务错误和不可恢复终态不继续请求；只读导出仍可用。所有 timeout、错误、非法输出按协议记录，没有 retry、JSON repair、fallback WAIT、自动换模型或自动切思考参数。
+
+L1不变量错误立即停止；L2分开记录需求、资金和任务后果；L3仍由人审核。预警只记录，不替人物吃饭、睡觉或工作。具体实现与实际证据见[M5问题档案](../studies/m5_long_horizon_autonomy.md)和[验收账本](acceptance.md)。

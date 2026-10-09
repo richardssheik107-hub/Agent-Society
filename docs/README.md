@@ -1,8 +1,8 @@
 # 中文文档总目录
 
-更新：2026-10-09。Q6.2 固定状态真实面板（PR #6）与 M1.5 离线审计（PR #7）已经合入 `main`。M2 获取与持久使用（PR #8）已完成联合回归并正式合入 `main`（合并提交 `6b808335f45ddf0ca83d70a4b48f4295143d969f`）；**生产默认仍禁用，D-02/D-09 未获人工批准，新增真实请求 0**。原 Q6.2 研究结论仍为 `NO_CLEAR_DIFFERENCE`。
+更新：2026-10-09。Q6.2、M1.5、M2 已合入 main；本轮用户追加批准 D-02 限定 opt-in 获取与 D-09 三层评价，授权交付 [M5 长周期 Runtime](studies/m5_long_horizon_autonomy.md)。**全局 ACQUIRE 默认仍关闭，新的真实请求预算仍为 0**。原 Q6.2 `NO_CLEAR_DIFFERENCE` 和 M1.5 `EXPLORATORY_POST_HOC` 不改写。
 
-当前 M1.5 是对已有真实证据的**事后探索性审计**，新增真实请求0：查看[中文客观结果与提示审计](studies/q62_outcome_audit.md)、[安全结果表](reference/q62_outcome_audit_results.json)及[人工盲审包](studies/q62_outcome_human_review.md)。需求变化不自动等于行为适当性，人工尚未标注；下一轮标准见[D-09待讨论项](review/decisions.md#d-09)，没有批准新实验。
+当前 M1.5 是对已有真实证据的**事后探索性审计**，新增真实请求0：查看[中文客观结果与提示审计](studies/q62_outcome_audit.md)、[安全结果表](reference/q62_outcome_audit_results.json)及[人工盲审包](studies/q62_outcome_human_review.md)。需求变化不自动等于行为适当性，人工尚未标注；新评价结构见[D-09追加决定](review/decisions.md#d-09)，没有批准新的付费实验。
 
 ## 四种检索方式
 
@@ -22,7 +22,7 @@
 | 人工审核 | [待决事项总表](review/README.md)、[讨论单与决策记录](review/decisions.md)、[M1.5人工盲审包](studies/q62_outcome_human_review.md) |
 | 前置阶段 | [基础闭环](stages/00_foundation.md)、[发呆与最小上下文](stages/01_idle_context.md)、[真人日记与行为校准](stages/02_behavior_data.md) |
 | 三个会议问题 | [Q3 对象集](studies/q3_object_set.md)、[Q4 可见状态](studies/q4_resource_visibility.md)、[Q5 规则扩展](studies/q5_rule_scaling.md) |
-| 持续运行 | [Q6 长期事实](studies/q6_continuity.md)、[Q6.1 真实短链](studies/q61_real_pilot.md)、[Q6.2 可执行活动投影](studies/q62_action_projection.md)、[M1.5行为结果与提示干预审计](studies/q62_outcome_audit.md)、[M2对象获取与使用闭环](studies/m2_object_acquisition.md) |
+| 持续运行 | [Q6 长期事实](studies/q6_continuity.md)、[Q6.1 真实短链](studies/q61_real_pilot.md)、[Q6.2 可执行活动投影](studies/q62_action_projection.md)、[M1.5行为结果与提示干预审计](studies/q62_outcome_audit.md)、[M2对象获取与使用闭环](studies/m2_object_acquisition.md)、[M5长周期Runtime](studies/m5_long_horizon_autonomy.md) |
 | 工程参考 | [架构职责](current/architecture.md)、[仓库模块地图](current/repository.md)、[运行手册](current/runbook.md)、[分支状态](current/branches.md) |
 | 查词与追溯 | [术语及指标](reference/glossary.md)、[证据登记](reference/evidence.md)、[删除与迁移记录](reference/cleanup.md) |
 

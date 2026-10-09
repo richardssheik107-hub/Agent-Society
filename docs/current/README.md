@@ -8,7 +8,7 @@
 
 **接着确认[D-01](../review/decisions.md#d-01)。** 旧 main 双短链 A/B 入口最多八请求，仍未真实运行；Q6.2 固定状态面板已完成唯一真实 session，主结论 NO_CLEAR_DIFFERENCE。两项研究不能混为一项，原面板许可已用完；本轮 M2 不发送模型请求。
 
-**并行讨论[D-02](../review/decisions.md#d-02)与[D-09](../review/decisions.md#d-09)。** [M2 获取机制](../studies/m2_object_acquisition.md)已实验性实现，但是否进入生产默认仍待批准；人的行为适当性也未验收。不能为了漂亮结果免费赋予物品、强禁第二餐或强制日程。
+**查看[D-02](../review/decisions.md#d-02)与[D-09](../review/decisions.md#d-09)的新追加批准。** 本次已批准限定 opt-in 获取和三层评价，授权交付[M5 长周期 Runtime](../studies/m5_long_horizon_autonomy.md)。全局默认仍关闭，真实预算仍为 0；评价框架获准不代表人的行为适当性已验收。不能免费赋予物品、强禁第二餐或强制日程制造漂亮轨迹。
 
 ## 已完成，不要反复重做
 
@@ -23,8 +23,9 @@ Q6.1真实四次提案为旅行、两次进餐、未拥有游戏的PLAY被拒绝
 | 查看真实执行与状态反馈 | [Q6.1](../studies/q61_real_pilot.md) |
 | 查看候选投影与现有A/B | [Q6.2](../studies/q62_action_projection.md) |
 | 查看合法获取与后续使用 | [M2 获取闭环](../studies/m2_object_acquisition.md) |
+| 查看多日生活、逐日结果与恢复 | [M5 Runtime](../studies/m5_long_horizon_autonomy.md) |
 | 需要人拍板 | [人工审核](../review/README.md)、[决定记录](../review/decisions.md) |
 | 查命令与环境 | [运行手册](runbook.md) |
 | 查版本和历史证据 | [分支状态](branches.md)、[验收账本](acceptance.md) |
 
-本次实现独立、可选启用的 M2，并执行零模型工程验收；当前提交与完整 CI 状态见[验收账本](acceptance.md)。没有新增真实请求，也没有改写旧研究结论。
+本次实现独立 M5 Runtime，复用 M2 并完成新的多日工程验收；当前提交与完整 CI 状态见[验收账本](acceptance.md)。没有新增真实请求，也没有改写旧研究结论。

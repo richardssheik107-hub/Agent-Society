@@ -36,7 +36,8 @@
       "docs/studies/q61_real_pilot.md",
       "docs/studies/q62_action_projection.md",
       "docs/studies/q62_outcome_audit.md",
-      "docs/studies/m2_object_acquisition.md"
+      "docs/studies/m2_object_acquisition.md",
+      "docs/studies/m5_long_horizon_autonomy.md"
     ],
     "工程参考": [
       "docs/current/architecture.md",
