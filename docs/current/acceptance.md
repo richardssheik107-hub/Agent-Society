@@ -21,7 +21,7 @@ Q6.2初版运行ID `35680426146`；后续准备运行ID `35842428974`。文档�
 
 ## 当前研究判定
 
-Q3目录是工程参考；Q4最小值未知；Q5结构门槛通过；Q6状态机制通过；Q6.1原结论仍证据不足；Q6.2原产物核验与旧短链工程已进入主线，旧8-call真实短链未测；研究分支固定面板v2已真实执行，主指标为NO_CLEAR_DIFFERENCE、可评分覆盖PARTIAL，不证明等价或长期真人效果。
+Q3目录是工程参考；Q4最小值未知；Q5结构门槛通过；Q6状态机制通过；Q6.1原结论仍证据不足；Q6.2 原产物核验与旧短链工程已进入主线，旧8-call真实短链未测；固定面板v2已真实执行，主指标为NO_CLEAR_DIFFERENCE、可评分覆盖PARTIAL，不证明等价或长期真人效果。
 
 分支与主线代码位置见[分支状态](branches.md)。
 
@@ -165,3 +165,59 @@ CI临时merge `df70e7154ac0c077f021e2f339facc41b33d3ab7` 的parents严格是base
 8跳过仍为test_a2_final三项、behavior_prior_context两项、behavior_prior_index三项，缺 `run/calibration/neutral_day_v1/calibration_manifest.json` 与 `behavior_days_core7_candidate.jsonl`；没有伪造、上传或把缺失语料测试算通过。7/30天均completed_days等于7/30、不变量PASS、recovery_equivalent=true、provider_calls=0、model_behavior_proven=false，不把工程恢复写成模型真人证明。
 
 本次后续补账只修改中文报告/本账本，离线业务与安全结果完全相同；最终文档提交重新触发完整CI，其实际run见PR #7检查与最终交付汇报，不冒称本段9528e8d的run就是后续HEAD。完成后不启动下一研究阶段；NEW_REAL_PROVIDER_REQUESTS=0。
+
+
+## M2 本轮验收：当前版本单独记录
+
+起点 `53b1244ac0f8562fd01fe8439e73ca900a40dd8c`，分支 `research/m2-acquire-closed-loop`，目标 main；实现提交 `46fb620c0e53a5ab6e03836c95f9a64e1354430b`。[新 PR #8](https://github.com/richardssheik107-hub/Agent-Society/pull/8)为独立交付，未合并；本节所在后续提交只补结果记录，业务代码不变。PR #6/#7 保持原 HEAD 与 OPEN，旧固定面板与 M1.5 结果不是本轮验收数字。
+
+| 本轮范围 | 当前实际记录 | 最终判定 / 待补证据 |
+|---|---|---|
+| M2 focused tests | 87 passed，包含 79 个专属用例与 8 个 CLI 场景用例 | PASS：本轮统一预检结果 |
+| 核心验收组合（与本轮 CI core 合同同范围） | 本机 216 passed | PASS：本机实际执行，独立 CI 结果仍另记 |
+| 原 continuity/decision/provider contract/Q6.1/Q6.2/购买消费/规则与 reducer 联合回归 | 159 passed | PASS：仅此受测联合范围，不与 focused 相加 |
+| M2 独立 offline runner | clean 实现提交的 `m2-offline-acceptance-01`：17/17 场景 PASS；fake 高层调用 3；LLM_CALLS=0；PROVIDER_REQUESTS=0 | PASS：合成与 fake 工程证据，非真实模型研究 |
+| 完整闭环 | 同地 game_a：余额 300000→297000 cents、库存 100→99、拥有量 0→1、获取 0 分钟；重开后独立 PLAY 累计 45 分钟 | PASS：实际离线执行摘要，详情见本轮新 session |
+| 异地获取 | 合成物品价格 4200 cents，余额 300000→295800；旅行 15 分钟；饥饿 800→815、精力 700→685 | PASS：到达先保存 BUY0，下一明确 advance 结算 |
+| Ruff | 新代码、测试与文档审计工具通过 | PASS：最终提交再核对差异范围 |
+| 文档与仓库专项 / 两项只读审计 | 专项 25 passed；audit_repository、audit_documentation 均 PASS | PASS：本轮统一预检结果 |
+| 本机完整回归 / AS2 | Python 3.12.14；`find_spec("litellm")` 为 False | NOT_RUN：本机依赖不完整，不冒充全部通过 |
+| 独立完整 CI / 固定 AS2 子模块适配器 | 实现 SHA `46fb620`：全库 778 passed、8 skipped；AS2_CONTINUITY_ADAPTER_PASS，LLM_CALLS=0、PROVIDER_REQUESTS=0 | PASS：本轮新 CI，不是本机完整环境或旧 PR 的结果 |
+| 历史产物保护 | 四个受保护目录 316 文件的字节复核 unchanged=True；原真实 297 文件 listing digest 与 M1.5 登记一致（前缀 b72156ff） | PASS：未改旧 session、恢复、分析或 M1.5 final |
+| 官方子模块保护 | 固定 `670c94fff7c64c4f79b632125f2ccf968155e746`，工作区 clean | PASS：未升级或修改官方子模块；适配器执行结果另列 |
+| Secret scan / 受保护文件差异 | 新增及修改文件凭据模式扫描无匹配；共享业务仅 engine.py，旧 context/action_projection/models/store 和 Q3/Q4/Q5 不变 | PASS：启发式扫描不是凭据不存在的数学证明；提交前仅纳入本任务文件 |
+
+本轮[工程 CI 37787843811](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37787843811)已 success：核心216（JUnit 中 M2 精确87）、全库778/8、Ruff、仓库审计、M2离线17/17、七天/三十天恢复等价和固定AS2通过。[文档 CI 37787843755](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37787843755)已 success：25 passed、静态与两审计通过。各 job 为 Python **3.12.15**；本机仍是3.12.14。CI临时合并 `22749ff4a77e9652441cee75ae44051e0ec6f455` 的两个父提交为起点main和实现提交，其整树 `b15a5539010c98b095bd90cb768255054ddd6f33` 与实现HEAD相等，不代表merge main。
+
+八项 SKIP 均因 `run/calibration/neutral_day_v1/calibration_manifest.json` 与 `behavior_days_core7_candidate.jsonl` 未入库：test_a2_final三项、test_behavior_prior_context两项、test_behavior_prior_index三项。没有伪造语料或计入通过。
+
+正式离线产物只放在 `run/evaluation/m2_acquire/m2-offline-acceptance-01/`：provenance记录完整实现SHA、`git_dirty=false`、Python3.12.14；summary SHA256 `99acd6303b404ee0f67b174eb348a12454e05514b170336cead8b94e15b38ed0`，configuration SHA256 `09544b99162372b8bdd06e489662071e7bc1f653dcb60b0afd587e817ef42243`。开发01/02/03输出同样保留，但不冒充clean冻结结果。CI上传纯合成world、case与报告；大型本机run不入Git。旧 `q62-panel-real-v2-01` 不重跑。
+
+```text
+M2_EXPERIMENTAL_IMPLEMENTATION = READY
+M2_ACQUIRE_ENGINEERING_READY = YES
+HIGH_LEVEL_ACQUIRE_AVAILABLE_OPT_IN = YES
+ACQUIRE_DEFAULT_ENABLED = NO
+ACQUIRE_PRODUCTION_DEFAULT = DISABLED
+PURCHASE_RULE_REUSED = PASS
+MONEY_INVENTORY_ATOMICITY = PASS
+OWNERSHIP_PERSISTENCE = PASS
+ACQUIRE_TO_PLAY_PATH = PASS
+MID_TRAVEL_FAILURE_HANDLING = PASS
+REQUEST_ID_IDEMPOTENCY = PASS
+RESTART_RECOVERY = PASS
+CONCURRENT_STOCK_RACE = PASS
+LEGACY_Q6_COMPATIBILITY = PASS
+LEGACY_Q62_FROZEN_BEHAVIOR = PASS
+D02_PRODUCT_SEMANTICS_APPROVED = NO
+D09_HUMAN_REVIEW = PENDING
+HUMAN_BEHAVIOR_APPROPRIATENESS = NOT_TESTED
+REAL_PROVIDER_REQUESTS_THIS_TASK = 0
+```
+
+机制、事务与恢复边界见[M2 获取闭环](../studies/m2_object_acquisition.md)。以上PASS限实际受测SQLite与fake工程路径，不能扩大为分布式保证或人工产品批准。独立代码审查修复了跨人物请求归属、竞争命令覆盖冲突结果、未知中断误判成交，并有回归；独立文档读者审查修正工作台/运行手册的过时入口，保留唯一现行plan。
+
+
+## 2026-10-09 分支整合说明
+
+PR #6、PR #7 已合入主线；M2 工程整合使用两父提交，保留两项研究文档、M1.5 的 297 文件来源完整性与 M2 的 316 文件历史保护。M2 源自原 main，先前单独验收 778 passed/8 skipped **不与** PR #7 的 1082 passed/8 skipped 累加；联合主线结果需以本次集成 HEAD 的 CI 为准。无新真实 provider 调用，已使用的 Q6.2 48 次请求许可不再有效。D-02/D-09 仍待人工决定；M2 生产默认禁用。

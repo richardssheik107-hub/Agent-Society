@@ -1,6 +1,6 @@
 # 按问题检索：研究状态与结论边界
 
-更新：2026-10-08。Q6.1/Q6.2 早期代码已通过 PR #4 合入 `main`（merge `cce3e7bd850f72faf0efa41017491d392b00ee11`）；固定状态 v2 代码与真实结果位于仍 OPEN 的 PR #6，结果 HEAD 为 `b7c6d503dc09c0c2d7dc32467b277a23a1a26404`。本轮 M1.5 从该提交建立 `research/q62-outcome-audit`，使用 stacked PR，以 `research/q62-fixed-state-panel` 为 base，不合并 PR #6。会议三问为 Q3、Q4、Q5；早期发呆与数据来源是 A/B 系列；Q6 补连续性。编号沿用历史，不补造 Q1/Q2 实验。
+更新：2026-10-09。Q6.2 固定状态真实实验 PR #6 和 M1.5 离线审计 PR #7 已合入 `main`；M2 opt-in ACQUIRE 工程验收通过，PR #8 正在集成。原 Q6.2 主结论 `NO_CLEAR_DIFFERENCE`，M1.5 需求适当性 `UNRESOLVED`，M2 真实自主行为 `NOT_TESTED`。历史问题编号沿用，不补造 Q1/Q2。
 
 | 问题 | 实验证据与当前回答 | 状态 | 中文详解 | 人工讨论 |
 |---|---|---|---|---|
@@ -15,6 +15,8 @@
 | 合法且完成以后，人物状态怎样变？ | M1.5只读审计原48单元/24配对；TRAVEL准备步骤与MEAL宏活动、客观delta及提示混杂分开 | `EXPLORATORY_POST_HOC`；需求适当性 `UNRESOLVED`，不修改旧主结论 | [M1.5结果审计](../studies/q62_outcome_audit.md)、[人工盲审包](../studies/q62_outcome_human_review.md) | [D-09](../review/decisions.md#d-09) |
 
 当前边界：原 v2 为 **48 attempts**；本轮 `NEW_REAL_PROVIDER_REQUESTS=0`。两个超时配对 p014/p021 的行为后果保持 `UNKNOWN`，不补0、不补请求。`HUMAN_REVIEW_COMPLETED=NO`；`HUMAN_NEED_SATISFACTION_CONCLUSION=UNRESOLVED`；长期真人相似性 `NOT_TESTED`；Q6.1 `INSUFFICIENT_EVIDENCE` 均不改变。客观饥饿、精力、金钱和模拟时间变化不合成为未经批准的人类合理性总分。
+
+| 未拥有对象怎样获取并在之后使用？ | M2 可选 ACQUIRE 复用原 BUY、交易/承诺/重启；17/17 离线场景、零模型请求 | `M2_ACQUIRE_ENGINEERING_READY=YES`；生产默认禁用、D-02 仍待批准，真实自主未测 | [M2 合法获取闭环](../studies/m2_object_acquisition.md) | [D-02](../review/decisions.md#d-02) |
 
 证据按报告和代码提交冻结，见[验收账本](acceptance.md)与[证据登记](../reference/evidence.md)。测试数、请求数、成功活动数不能互换。
 

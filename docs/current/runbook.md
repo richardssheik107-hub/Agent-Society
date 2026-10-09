@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-10-08。既有Q6.1/Q6.2已合入main；PR #6的固定面板v2已完成唯一真实session、只读恢复与分析。本页不是付费请求授权，正式ID已使用，不能重跑、换ID或补样本；获取活动尚未实现。现行状态见[完整计划](plan.md)，结果见[Q6.2问题档案](../studies/q62_action_projection.md)。
+更新：2026-10-09。Q6.2 固定状态面板和 M1.5 后果审计已合入 `main`；M2 可选获取机制通过独立离线验收，正在整合，不是生产默认行为。旧 `q62-panel-real-v2-01` 已完成且许可用尽，禁止重跑或复用。所有真实调用均须新协议和明确授权。[现行计划](plan.md)。
 
 ## 工作区与环境
 
@@ -161,3 +161,18 @@ python -m pytest -q tests/test_documentation_navigation.py tests/test_repository
 ```
 
 需要完整Git历史；浅克隆缺对象必须报告不能完成，不能忽略。文档审计只读、零模型。旧文件检索见[清理映射](../reference/cleanup.md)。
+
+
+## M2 独立离线获取闭环
+
+在 `research/m2-acquire-closed-loop` 及已验收 Python 环境运行以下命令；每次必须使用新 session，不能覆盖已存在目录：
+
+```bash
+python scripts/run_m2_acquire_validation.py --mode offline --session <新的离线唯一ID>
+python -m pytest -q tests/test_m2_acquire*.py
+```
+
+默认也是 offline，没有 real 模式，不读取 `.env`，不构造 provider。输出位于 `run/evaluation/m2_acquire/<session>/`，保存所有成功、拒绝、失败及恢复证据。新 world 显式启用 ACQUIRE，生产默认仍禁用；完成获取不自动 PLAY。完整机制和事务边界见[M2](../studies/m2_object_acquisition.md)，本轮实际结果见[验收账本](acceptance.md)。
+
+
+**此命令只执行合成世界的离线工程测试，M2 `ACQUIRE` 默认关闭；原真实 Q6.2 目录严禁重用。**

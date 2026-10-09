@@ -1,6 +1,6 @@
 # 人工讨论单与决策记录
 
-更新：2026-10-08。D-01 保留v2唯一session的有限真实授权及已完成结果，许可已用完；v1工程轮的零请求记录保留。当前M1.5只读审计该历史，新增真实请求0，不改变原 `NO_CLEAR_DIFFERENCE`。D-02—D-07与新增D-09仍待审核，D-08已完成。路线只维护在[完整计划](../current/plan.md)，本页维护选择与授权，不自动转授权后续实验。
+更新：2026-10-09。Q6.2 固定状态面板与 M1.5 审计已合入 `main`；原唯一真实面板已完成、旧预算用尽。M2 opt-in ACQUIRE 工程在独立 PR #8 完成 17/17 离线场景，当前整合中；**D-02 生产默认语义与 D-09 行为评价仍待人决定，不授权任何新模型请求**。本页维护决定和授权，路线以[唯一计划](../current/plan.md)为准。
 
 <a id="d-01"></a>
 ## D-01｜Q6.2比较对象、预算与停止规则（P0）
@@ -48,6 +48,9 @@ M0 已补独立调度预算、安全阶段留痕、只读导出、显式分母�
 
 <a id="d-02"></a>
 ## D-02｜对象获取与购买游戏活动（P0）
+
+**2026-10-09 工程进度补记：** M2 实验性 `ACQUIRE` 已在独立新世界以 opt-in 模式实现；复用底层 BUY、确定性活动控制器、SQLite 原子购买和持久所有权，17/17 合成场景通过，获取后重启再独立 PLAY 成功。默认 `ACQUIRE_DEFAULT_ENABLED=NO`、生产能力 `DISABLED`；`D02_PRODUCT_SEMANTICS_APPROVED=NO`。真实模型从未在 M2 上自主执行，需新协议与预算。旧 Q6.2 提示和结果未修改，见[M2 档案](../studies/m2_object_acquisition.md)。
+
 
 当前高层JSON不含BUY，PLAY不代购。过滤非法PLAY不等于产生合法采购路径。选项：限定已拥有目录；显式获取宏活动；更一般的受约束获取计划。
 
@@ -119,7 +122,7 @@ D-08当时的未授权范围包括真实Q6.2 A/B、12-call和多日付费运行�
 
 本轮人工包仅展示实际初态、已有物品、时间/位置、所选活动、真实消耗与后果，保留成对关系但隐藏条件。请逐案选择“行为合理 / 不合理 / 信息不足”，写具体事实、是否准备步骤、对未来的依赖及不确定性。原超时侧是缺失案例，后果保持 `UNKNOWN`，不能补0或替它生成行为。不展示研究条件答案，不要求审阅者偏好MEAL，不伪造判断或两人一致性。
 
-**决定：待审核。审核人：研究负责人/规则负责人，尚未实际标注。** `HUMAN_REVIEW_COMPLETED=NO`；本轮 `EVALUATION_TYPE=EXPLORATORY_POST_HOC`；`NEW_REAL_PROVIDER_REQUESTS=0`。暂不合成全局福利/真人分数，不自动approve新实验。长期真人相似性 `NOT_TESTED`，Q6.1 `INSUFFICIENT_EVIDENCE` 不变。PR #6保持OPEN；M1.5在独立stacked研究PR交付，代码/报告审核不等于批准真实请求。[唯一计划M1.5](../current/plan.md#56-当前m15客观后果与提示干预审计不追加实验)
+**决定：待审核。审核人：研究负责人/规则负责人，尚未实际标注。** `HUMAN_REVIEW_COMPLETED=NO`；本轮 `EVALUATION_TYPE=EXPLORATORY_POST_HOC`；`NEW_REAL_PROVIDER_REQUESTS=0`。暂不合成全局福利/真人分数，不自动approve新实验。长期真人相似性 `NOT_TESTED`，Q6.1 `INSUFFICIENT_EVIDENCE` 不变。PR #6/#7 已按依赖关系合入 main，M1.5 历史仍按原独立研究证据归档，代码/报告审核不等于批准真实请求。[唯一计划M1.5](../current/plan.md#56-当前m15客观后果与提示干预审计不追加实验)
 
 ## 每项决定填写模板
 

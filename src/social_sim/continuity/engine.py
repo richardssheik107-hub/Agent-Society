@@ -11,8 +11,14 @@ from .models import (TIMED_ACTIVITIES, ObjectDefinition, Rejected, RuleParameter
 from .store import StateStore
 
 
+ACQUIRE_CONFIG_VERSION = "M2_ACQUIRE_V1"
+
+
 class ContinuityWorld:
-    def __init__(self, path: str | Path, parameters: RuleParameters | None = None) -> None:
+    def __init__(self, path: str | Path, parameters: RuleParameters | None = None,
+                 *, acquire_enabled: bool | None = None) -> None:
+        if acquire_enabled is not None and not isinstance(acquire_enabled, bool):
+            raise ValueError("acquire_enabled must be boolean or None")
         self.store = StateStore(path)
         try:
             with self.store.transaction():
@@ -26,10 +32,96 @@ class ContinuityWorld:
                     self.parameters = parameters or RuleParameters()
                     self.store.db.execute("INSERT INTO meta VALUES('rule_parameters',?)",
                                           (canonical_json(asdict(self.parameters)),))
+                self._configure_acquire(acquire_enabled)
+                self._validate_acquire_commitments()
         except BaseException:
             self.store.close()
             raise
         self._request = ""
+
+    def _configure_acquire(self, requested: bool | None) -> None:
+        """独立实验配置，不增加旧 RuleParameters 或默认快照的字段。"""
+        row = self.store.db.execute(
+            "SELECT value FROM meta WHERE key='activity_configuration'").fetchone()
+        if row:
+            saved = json.loads(row[0])
+            if (not isinstance(saved, dict)
+                    or set(saved) != {"version", "acquire_enabled"}
+                    or saved["version"] != ACQUIRE_CONFIG_VERSION
+                    or not isinstance(saved["acquire_enabled"], bool)):
+                raise ValueError("unsupported activity configuration; explicit migration required")
+            self._acquire_enabled = saved["acquire_enabled"]
+            if requested is not None and requested != self._acquire_enabled:
+                raise ValueError("activity configuration changed; explicit migration required")
+            return
+        seeded = self.store.db.execute("SELECT 1 FROM meta WHERE key='fixture'").fetchone()
+        self._acquire_enabled = requested if requested is not None else False
+        if seeded and self._acquire_enabled:
+            raise ValueError("activity configuration changed; explicit migration required")
+        if not seeded:
+            self.store.db.execute("INSERT INTO meta VALUES('activity_configuration',?)",
+                                  (canonical_json(self.activity_configuration),))
+
+    @property
+    def acquire_enabled(self) -> bool:
+        return self._acquire_enabled
+
+    @property
+    def activity_configuration(self) -> dict:
+        return {"version": ACQUIRE_CONFIG_VERSION, "acquire_enabled": self.acquire_enabled}
+
+    def _validate_acquire_commitments(self) -> None:
+        for row in self.store.db.execute(
+                "SELECT id,actor_id,status,data FROM commitments ORDER BY id"):
+            c = json.loads(row["data"])
+            if isinstance(c, dict) and c.get("activity") == "ACQUIRE":
+                if any(c.get(key) != row[key] for key in ("id", "actor_id", "status")):
+                    raise ValueError("invalid saved ACQUIRE commitment; explicit recovery required")
+                self._validate_acquire_commitment(c)
+
+    def _validate_acquire_commitment(self, c: dict) -> None:
+        """无效恢复状态明确停止，绝不据此补送物品或重建购买。"""
+        try:
+            if not self.acquire_enabled or c.get("acquire_version") != ACQUIRE_CONFIG_VERSION:
+                raise ValueError("missing or conflicting ACQUIRE configuration")
+            if c["status"] not in {"ACTIVE", "PAUSED", "COMPLETED", "FAILED", "CANCELLED"}:
+                raise ValueError("invalid status")
+            identity(c["id"])
+            if c["episode"] is not None or c["rewatch"] is not False:
+                raise ValueError("unexpected media argument")
+            integer(c["actor_id"], "actor_id", 1)
+            actor = self._actor(c["actor_id"])
+            target = identity(c["target"])
+            if c["target"] != target or self.resolve(target) != target:
+                raise ValueError("target must be canonical")
+            obj = self.store.object(target)
+            if "purchasable" not in obj["capabilities"] or "edible" in obj["capabilities"]:
+                raise ValueError("unsupported acquisition object")
+            integer(c["elapsed_min"], "elapsed_min", high=self.parameters.travel_minutes)
+            integer(c["remaining_min"], "remaining_min", high=self.parameters.travel_minutes)
+            integer(c["started_minute"], "started_minute", high=self.minute)
+            if c["started_minute"] + c["elapsed_min"] > self.minute:
+                raise ValueError("elapsed time exceeds the simulation clock")
+            destination = c.get("destination")
+            if destination is not None and (destination != obj["seller"]
+                    or destination not in json.loads(self.store.meta("locations"))):
+                raise ValueError("invalid destination")
+            if c["phase"] == "MOVE":
+                if (c["status"] == "COMPLETED" or destination is None or c["remaining_min"] < 1
+                        or c["elapsed_min"] + c["remaining_min"] != self.parameters.travel_minutes):
+                    raise ValueError("invalid travel progress")
+                if c["status"] in {"ACTIVE", "PAUSED"} and actor["location"] == destination:
+                    raise ValueError("travel phase is already at destination")
+            elif c["phase"] == "BUY":
+                expected_elapsed = self.parameters.travel_minutes if destination is not None else 0
+                if c["remaining_min"] != 0 or c["elapsed_min"] != expected_elapsed:
+                    raise ValueError("invalid purchase boundary")
+                if c["status"] in {"ACTIVE", "PAUSED"} and actor["location"] != obj["seller"]:
+                    raise ValueError("purchase phase is not at seller")
+            else:
+                raise ValueError("invalid phase")
+        except (KeyError, TypeError, ValueError, Rejected) as error:
+            raise ValueError("invalid saved ACQUIRE commitment; explicit recovery required") from error
 
     def close(self) -> None:
         self.store.close()
@@ -245,7 +337,24 @@ class ContinuityWorld:
              "target": None, "episode": None, "rewatch": rewatch,
              "phase": activity, "status": "ACTIVE", "remaining_min": 0,
              "elapsed_min": 0, "started_minute": self.minute, "failure_reason": None}
-        if activity in ("MEAL", "WATCH", "PLAY"):
+        if activity == "ACQUIRE":
+            if not self.acquire_enabled:
+                raise Rejected("ACQUIRE_DISABLED")
+            if not target:
+                raise Rejected("MISSING_TARGET")
+            obj = self._object(target, "purchasable")
+            if "edible" in obj["capabilities"]:
+                raise Rejected("UNSUPPORTED_ACQUIRE_OBJECT")
+            c["target"] = obj["object_id"]
+            c["acquire_version"] = ACQUIRE_CONFIG_VERSION
+            self._check_purchase(actor, obj, self.store.link(actor_id, c["target"]),
+                                 require_location=False)
+            if actor["location"] != obj["seller"]:
+                c["phase"], c["remaining_min"] = "MOVE", self.parameters.travel_minutes
+                c["destination"] = obj["seller"]
+            else:
+                c["phase"] = "BUY"
+        elif activity in ("MEAL", "WATCH", "PLAY"):
             if not target:
                 raise Rejected("MISSING_TARGET")
             cap = {"MEAL": "edible", "WATCH": "watchable", "PLAY": "playable"}[activity]
@@ -342,6 +451,17 @@ class ContinuityWorld:
                 actor, c = self._prepare_activity(
                     "q62:preview", actor_id, activity, target, episode, rewatch, expected_version)
                 result["start_allowed"] = True
+                if activity == "ACQUIRE":
+                    needs_travel = c["phase"] == "MOVE"
+                    result.update(executable_now=not needs_travel,
+                                  reason="REQUIRES_TRAVEL" if needs_travel else "ELIGIBLE",
+                                  blocked_stage="TRAVEL" if needs_travel else None,
+                                  requires_purchase=True, requires_travel=needs_travel,
+                                  purchase_feasible_at_snapshot=True, phase=c["phase"],
+                                  target=c["target"], resolved_episode=None,
+                                  guarantees_future_stock=False,
+                                  activity_configuration=self.activity_configuration)
+                    return result
                 needs_purchase = activity == "MEAL" and c["phase"] != "EAT"
                 if needs_purchase:
                     result["blocked_stage"] = "PURCHASE"
@@ -358,6 +478,23 @@ class ContinuityWorld:
     def _settle(self, c: dict) -> None:
         """每个微步骤仍受规则约束；先前已经成功的阶段不会被伪装成未发生。"""
         if c["status"] != "ACTIVE" or c["phase"] != "BUY":
+            return
+        if c["activity"] == "ACQUIRE":
+            self._validate_acquire_commitment(c)
+            self.store.db.execute("SAVEPOINT acquire_purchase")
+            try:
+                self._buy(c["actor_id"], c["target"])
+                c["status"] = "COMPLETED"
+                self.store.put_commitment(c)
+                self._emit("COMMITMENT_COMPLETED", {"id": c["id"],
+                           "actor_id": c["actor_id"], "activity": c["activity"]})
+                self.store.db.execute("RELEASE acquire_purchase")
+            except Rejected as error:
+                self.store.db.execute("ROLLBACK TO acquire_purchase")
+                self.store.db.execute("RELEASE acquire_purchase")
+                c["status"], c["failure_reason"] = "FAILED", str(error)
+                self.store.put_commitment(c)
+                self._emit("COMMITMENT_FAILED", {"id": c["id"], "reason": str(error)})
             return
         try:
             self._buy(c["actor_id"], c["target"])
@@ -399,7 +536,9 @@ class ContinuityWorld:
             if not available:
                 for actor_id in self.store.actor_ids():
                     c = self.store.commitment(actor_id)
-                    if c and c["target"] == oid:
+                    # ACQUIRE keeps committed travel and rechecks availability at BUY.
+                    # Existing activities retain their historical interruption behavior.
+                    if c and c["target"] == oid and c["activity"] != "ACQUIRE":
                         c["status"], c["failure_reason"] = "FAILED", "OBJECT_UNAVAILABLE"
                         self.store.put_commitment(c)
                         self._save_actor(self._actor(actor_id))
@@ -412,6 +551,14 @@ class ContinuityWorld:
         def operation():
             if to_minute < self.minute:
                 raise Rejected("TIME_REVERSAL")
+            self._validate_acquire_commitments()
+            # A separate explicit command settles the persisted arrival boundary.
+            # It may use the same simulation minute: BUY adds no invented duration.
+            for actor_id in self.store.actor_ids():
+                c = self.store.commitment(actor_id)
+                if (c and c["activity"] == "ACQUIRE" and c["status"] == "ACTIVE"
+                        and c["phase"] == "BUY"):
+                    self._settle(c)
             while self.minute < to_minute:
                 active = [c for i in self.store.actor_ids()
                           if (c := self.store.commitment(i)) and c["status"] == "ACTIVE"]
@@ -453,6 +600,11 @@ class ContinuityWorld:
                     self.store.put_commitment(c)
                     if c["remaining_min"] == 0:
                         self._finish_phase(c)
+                if any(c["activity"] == "ACQUIRE" and c["phase"] == "BUY"
+                       and c["status"] == "ACTIVE" for c in active):
+                    # Leave BUY visible even when the caller requested a later minute.
+                    # The next advance command can settle it and continue the clock.
+                    break
             return {"minute": self.minute}
         return self._command(request_id, {"op": "advance", "to_minute": to_minute}, operation)
 
@@ -472,6 +624,10 @@ class ContinuityWorld:
                 return
             c["phase"] = "BUY"
             self.store.put_commitment(c)
+            if c["activity"] == "ACQUIRE":
+                self._emit("ACQUIRE_ARRIVED", {"id": c["id"], "actor_id": actor_id,
+                           "object_id": c["target"], "destination": c["destination"]})
+                return
             self._settle(c)
             return
         try:

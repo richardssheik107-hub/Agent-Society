@@ -23,7 +23,7 @@ def docs_copy(tmp_path):
 def test_current_documents_are_indexed_chinese_and_reachable():
     result = MODULE.audit(include_history=False)
     assert result["status"] == "PASS", result["errors"]
-    assert result["current_markdown_count"] == 29
+    assert result["current_markdown_count"] == 30
     assert result["provider_requests"] == 0
 
 
@@ -181,3 +181,35 @@ def test_m15_public_json_is_valid_complete_and_never_imputes_timeout_effects():
     assert result["markers"]["ORIGINAL_Q62_CONCLUSION"] == "NO_CLEAR_DIFFERENCE"
     assert result["human_review_completed"] is False
     assert result["human_review_key_published"] is False
+
+@pytest.mark.parametrize("url", sorted(MODULE.HISTORICAL_READINGS))
+def test_frozen_chinese_historical_evidence_link_is_allowed(docs_copy, url):
+    path = docs_copy / "docs/README.md"
+    path.write_text(path.read_text(encoding="utf-8") + f"\n[历史证据]({url})\n", encoding="utf-8")
+    errors = MODULE.audit(docs_copy, include_history=False)["errors"]
+    assert not any("EXTERNAL_READING_DOCUMENT" in error for error in errors)
+
+
+@pytest.mark.parametrize("replacement", ["main", "research/q62-outcome-audit", "0" * 40])
+def test_historical_allowlist_does_not_allow_mutable_or_other_commit(docs_copy, replacement):
+    url = next(url for url in MODULE.HISTORICAL_READINGS if "q62_outcome_audit.md" in url)
+    url = url.replace("016fffe28b4a296a24a1ee8c8c4adc63b7394383", replacement)
+    path = docs_copy / "docs/README.md"
+    path.write_text(path.read_text(encoding="utf-8") + f"\n[非冻结证据]({url})\n", encoding="utf-8")
+    errors = MODULE.audit(docs_copy, include_history=False)["errors"]
+    assert any("EXTERNAL_READING_DOCUMENT" in error for error in errors)
+
+
+def test_m2_is_navigable_without_erasing_q62_or_m15():
+    navigation = json.loads((ROOT / "docs/reference/navigation.json").read_text(encoding="utf-8"))
+    assert "docs/studies/m2_object_acquisition.md" in navigation["groups"]["研究问题"]
+    assert "docs/studies/q62_outcome_audit.md" in navigation["groups"]["研究问题"]
+    assert "docs/studies/q62_outcome_human_review.md" in navigation["groups"]["人工审核"]
+    study = (ROOT / "docs/studies/m2_object_acquisition.md").read_text(encoding="utf-8")
+    assert "HIGH_LEVEL_ACQUIRE_AVAILABLE_OPT_IN = YES" in study
+    assert "ACQUIRE_PRODUCTION_DEFAULT = DISABLED" in study
+    assert "D02_PRODUCT_SEMANTICS_APPROVED = NO" in study
+    plan = (ROOT / "docs/current/plan.md").read_text(encoding="utf-8")
+    assert "NO_CLEAR_DIFFERENCE" in plan
+    assert "EXPLORATORY_POST_HOC" in plan
+    assert "m2_object_acquisition.md" in plan
