@@ -2,7 +2,9 @@
 
 更新：2026-10-09。Q6.2、M1.5、M2 已合入 main；本轮用户追加批准 D-02 限定 opt-in 获取与 D-09 三层评价，授权交付 [M5 长周期 Runtime](studies/m5_long_horizon_autonomy.md)。**全局 ACQUIRE 默认仍关闭，新的真实请求预算仍为 0**。原 Q6.2 `NO_CLEAR_DIFFERENCE` 和 M1.5 `EXPLORATORY_POST_HOC` 不改写。
 
-当前 M1.5 是对已有真实证据的**事后探索性审计**，新增真实请求0：查看[中文客观结果与提示审计](studies/q62_outcome_audit.md)、[安全结果表](reference/q62_outcome_audit_results.json)及[人工盲审包](studies/q62_outcome_human_review.md)。需求变化不自动等于行为适当性，人工尚未标注；新评价结构见[D-09追加决定](review/decisions.md#d-09)，没有批准新的付费实验。
+当前M5已实际完成10080/43200模拟分钟及6/29次恢复对照，属于合成自适应工程验收；查看[逐日结果与限制](studies/m5_long_horizon_autonomy.md)、[实测JSON](reference/m5_longrun_acceptance_results.json)、[启动/停止/恢复手册](current/runbook.md#m5-多日生活停止与恢复)。真实七天未运行，L3未人工审核。
+
+历史 M1.5 是对已有真实证据的**事后探索性审计**，新增真实请求0：查看[中文客观结果与提示审计](studies/q62_outcome_audit.md)、[安全结果表](reference/q62_outcome_audit_results.json)及[人工盲审包](studies/q62_outcome_human_review.md)。需求变化不自动等于行为适当性，人工尚未标注；新评价结构见[D-09追加决定](review/decisions.md#d-09)，没有批准新的付费实验。
 
 ## 四种检索方式
 

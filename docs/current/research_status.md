@@ -13,11 +13,10 @@
 | 真实模型能继续用更新状态吗？ | Q6.1 三次完成、一次规则拒绝；观察一致不等于因果利用 | 代码已入 main；原实验结论仍证据不足 | [Q6.1](../studies/q61_real_pilot.md) | [D-01](../review/decisions.md#d-01) |
 | 提前给合法候选有用吗？ | 旧8-call短链未运行；固定v2已完成48尝试、46有效/完成、22完整配对，两臂拒绝均0 | 原主指标 `NO_CLEAR_DIFFERENCE`；不是等价证明 | [Q6.2](../studies/q62_action_projection.md) | [D-01](../review/decisions.md#d-01)、[D-02](../review/decisions.md#d-02) |
 | 合法且完成以后，人物状态怎样变？ | M1.5只读审计原48单元/24配对；TRAVEL准备步骤与MEAL宏活动、客观delta及提示混杂分开 | `EXPLORATORY_POST_HOC`；需求适当性 `UNRESOLVED`，不修改旧主结论 | [M1.5结果审计](../studies/q62_outcome_audit.md)、[人工盲审包](../studies/q62_outcome_human_review.md) | [D-09](../review/decisions.md#d-09) |
+| 未拥有对象怎样获取并在之后使用？ | M2 可选 ACQUIRE 复用原 BUY、交易/承诺/重启；17/17 历史离线场景、零模型请求 | D-02 新批准限定 opt-in；全局默认关闭，真实自主未测 | [M2 合法获取闭环](../studies/m2_object_acquisition.md) | [D-02](../review/decisions.md#d-02) |
+| 新 Runtime 怎样连续运行多日并可恢复？ | 新M5正式七天10080分钟/113决策、三十天43200/457；6/29次重启与不中断状态和账本一致 | 合成工程L1 PASS；L3 UNRESOLVED；真实长期模型未测。不是旧Q6脚本结果 | [M5 长周期系统](../studies/m5_long_horizon_autonomy.md)、[实测JSON](../reference/m5_longrun_acceptance_results.json) | [D-09](../review/decisions.md#d-09) |
 
 当前边界：原 v2 为 **48 attempts**；本轮 `NEW_REAL_PROVIDER_REQUESTS=0`。两个超时配对 p014/p021 的行为后果保持 `UNKNOWN`，不补0、不补请求。`HUMAN_REVIEW_COMPLETED=NO`；`HUMAN_NEED_SATISFACTION_CONCLUSION=UNRESOLVED`；长期真人相似性 `NOT_TESTED`；Q6.1 `INSUFFICIENT_EVIDENCE` 均不改变。客观饥饿、精力、金钱和模拟时间变化不合成为未经批准的人类合理性总分。
-
-| 未拥有对象怎样获取并在之后使用？ | M2 可选 ACQUIRE 复用原 BUY、交易/承诺/重启；17/17 历史离线场景、零模型请求 | D-02 新批准限定 opt-in；全局默认关闭，真实自主未测 | [M2 合法获取闭环](../studies/m2_object_acquisition.md) | [D-02](../review/decisions.md#d-02) |
-| 新 Runtime 怎样连续运行多日并可恢复？ | 复用原世界，独立会话、决策/微步骤、持久收据、每日 checkpoint 与多维评价 | 新七天/三十天运行的实测数字单独登记，不复用旧脚本成绩；真人适当性 UNRESOLVED | [M5 长周期系统](../studies/m5_long_horizon_autonomy.md) | [D-09](../review/decisions.md#d-09) |
 
 证据按报告和代码提交冻结，见[验收账本](acceptance.md)与[证据登记](../reference/evidence.md)。测试数、请求数、成功活动数不能互换。
 
