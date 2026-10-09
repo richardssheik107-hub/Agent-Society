@@ -121,3 +121,47 @@ CI临时merge `c7e41519c3dc73373d442e9aa336a20f040ea954` 的父为main基线53b1
 源 `run/evaluation/q6_2_fixed_state_panel/q62-panel-real-v2-01/`；只读恢复 `run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01/`；确定性分析 `run/evaluation/q62_v2_analysis/q62-panel-real-v2-01/`。中文完整小型结果表、全部24配对、分层与成本、源SHA见[问题档案](../studies/q62_action_projection.md)。大run/DB/原始文本与凭据不强行上传，代码/配置/测试/脱敏中文证据入Git。本次许可已用完，PR #6继续OPEN、不自动merge，结果提交后的文档/审计与新CI另列，不重跑真实面板。
 
 结果阶段只改上述五份中文文档与对应文档状态断言，不改已冻结业务/协议/provider代码。文档专项首次18 passed/1 failed：旧断言硬要求所有Q6.2“真实尚未运行”，与新固定面板结果冲突；改为同时守护旧8-call未运行、新面板已运行、NO_CLEAR_DIFFERENCE/PARTIAL、非等价和长期未测试，未删除测试或把未运行塞回现行状态。最新相关专项 **89 passed**（文档/仓库19＋reporting38＋recovery32，范围与390有重叠，不相加）；Ruff与两审计PASS。全部24配对中文表逐行与原safe pairs一致、297源hash复核PASS、执行后src/scripts/config/.github业务字节未变；本轮最终16文件敏感格式命中0、13保护文件与子模块审计PASS。本文提交前结果HEAD新CI为 **PENDING**；推送后的实际状态以PR #6 checks与最终交付汇报为准，不能混作执行前950/8完整CI。
+
+## 2026-10-08｜M1.5：真实行为结果、需求改善与提示干预离线审计
+
+起点 `b7c6d503dc09c0c2d7dc32467b277a23a1a26404`（PR #6 的已核验 OPEN 分支头），新分支 `research/q62-outcome-audit`。本轮是 **EXPLORATORY_POST_HOC**，不是新模型实验：只读已有 `q62-panel-real-v2-01`，不加载实际 .env / provider 配置，不构造客户端，不执行真实 runner、探针、补样、重试或动作重放。原执行 commit `ae2123f50beaaca6bcac2dcca8e34659bd0a8b24` 与原协议 hash `b66217fa18ce8740deec38334b157ff35f00455d8d2b431dd0b48531debffcc6` 不变。
+
+### 本轮实测与交付门禁
+
+| 范围 | 实际结果 / 明确限制 |
+|---|---|
+| 新审计专项 | 129 passed：客观结果 62、完整性/CLI安全 39、冻结提示审计 28；成功 CLI 路径在新解释器中禁止网络、provider/client 导入、凭据读取和原始 journal 解码 |
+| 新旧联合专项 | 最终523 passed（68.94 秒；首轮73.70秒）；包含 continuity、Q6.1/Q6.2 与新审计，范围重叠，不与129相加 |
+| 来源与只读核对 | 48 world + session SQLite 只读 immutable/query_only；297 源文件全部 SHA256 前后相同；48单元/24配对/22完整可评配对；原恢复与分析一致；c027/c041 两超时保留，效果 null/UNKNOWN，不补0 |
+| 提示和输入核对 | 离线重建12冻结状态、48分配单元；初始状态、候选、system/user及长度指纹一致；不公开完整prompt或completion |
+| 盲审包 | 24对/48案例、随机中性ID，初始资源/单位/实际购买消费/宏活动粒度齐全，判断全部空白；解盲键仅在忽略的本地目录；HUMAN_REVIEW_COMPLETED=NO |
+| 文档/仓库与隐私 | 文档18 passed；两审计PASS/errors=[]、29中文md；20文件限定范围、强秘密格式0命中、旧业务/固定clean detached子模块/Attempt1历史保护PASS；公开JSON与最终产物逐字节相等（390675 bytes，SHA256 4d86090b65024ca2a9d634fb20ba44504639fc0bca04728aeb4f3a372fe1edfe） |
+| 本机全库 / AS2 | NOT_RUN：既有轻量环境缺 litellm，未扩装或修改真实运行环境；完整CI另验，不冒称本机通过 |
+| 实现提交完整CI / AS2 | 9528e8d 的新完整CI37778453314与文档CI37778453278均SUCCESS；核心523、全库1082 passed/8 skipped/0 failed；文档22（18导航+4仓库）；AS2 PASS，LLM_CALLS=0/PROVIDER_REQUESTS=0；不用原950/8代替 |
+| 新真实请求 / 人工评分 / 新实验实施 | 0 / 0 / 0 |
+
+最终只读审计目录 `run/evaluation/q62_outcome_audit/q62-real-v2-outcome-audit-03`；开发期 -01、-02 产物保留，不覆盖。公开报告和盲审包分别来自最终 report/packet，公开安全 JSON 与最终 safe_delivery 逐字节核对；297文件 SHA 列表摘要 `b72156ff956486cc1f56163037fc0bd588dd8917e1e68eb24ffcaf1df88af3f9`。原 run/SQLite/原始模型文本/实际配置与私有解盲键不入Git。
+
+### 开发期失败与复核修正：不删除失败事实
+
+初轮客观测试出现10失败/34通过：测试参数覆盖、fixture与接口约定及尚未写完的CLI等问题逐项修正；随后新回归发现布尔字段可能保留任意字符串、部分媒体offset误标OBSERVED，两处收紧为安全类型和UNKNOWN，不改变原业务。完整合成来源测试曾错误使用绝对advance目标、缺失冻结指纹和超时A/B分配不符，修正测试构造，未放宽生产来源验真。Ruff早期未使用变量问题也已修复。
+
+独立审查发现公开 JSON 复制混入工具截断提示（本地安全产物原本合法，源不变）；交付前以完整分块读取重新应用，增加公开 JSON 解析/维度/超时null回归。后续复制辅助脚本的空数组映射和误把旧污染文本作为新截断问题，均在写入前停止；不当作审计科学结果或通过。独立读者要求补充单位、初始可用资源、TRAVEL/MEAL宏粒度和购买/消费实数，已更新中性盲审上下文并复查通过，48判断仍空白。新增验收记录的D09链接初写为#d09，独立联合验证145通过/2失败（同一broken anchor）；修正为#d-09后独立复验147 passed，无剩余阻塞。
+
+### 研究与工程分层
+
+匹配22对中，B−A平均饥饿缓解 +422.272727 milli，同时精力变化 −23.181818 milli、金钱变化 −1490.909091 cents、模拟耗时 +24.545455 min；完整指标统计、全部24配对及缺失分母见[本轮报告](../studies/q62_outcome_audit.md)。这反映18个匹配对的到店准备动作与进食宏活动差异，不能以“到店未吃”判人类失败，也不能用“吃饭已完成”证明人类最优。
+
+原主指标结论仍 **NO_CLEAR_DIFFERENCE**；本轮 **HUMAN_NEED_SATISFACTION_CONCLUSION=UNRESOLVED**。长期真人相似性 NOT_TESTED、Q6.1 INSUFFICIENT_EVIDENCE 保留。B是候选信息、system指令、顺序、长度和活动粒度的复合提示干预，无法分离各机制因果。新协议候选仅为[人工讨论D09](../review/decisions.md#d-09)，未实施、未预先胜选；任何新增真实调用需要新冻结协议、预算及单独授权。
+
+本轮仅新增独立离线工具/配置/测试、安全结果及中文文档；旧 Q3/Q4/Q5/Q6/Q6.1/Q6.2/provider 业务文件与官方子模块不改。[新PR #7](https://github.com/richardssheik107-hub/Agent-Society/pull/7)以 `research/q62-fixed-state-panel` 为base；原PR #6继续OPEN，不自动merge，不force-push。
+
+### 本轮新CI证据与最终文档补账
+
+实现提交 `9528e8daa7c82c0ca827bb612a439ccb0a2f4d00` 的[完整CI37778453314](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37778453314)与[文档CI37778453278](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37778453278)均SUCCESS。实际核心523 passed（225.00s）、全库1082 passed/8 skipped（320.87s）、文档22 passed；Ruff/两审计、v1/v2零请求演练与恢复、7天30天均PASS；实际固定上游AS2 `AS2_CONTINUITY_ADAPTER_PASS`，LLM_CALLS=0/PROVIDER_REQUESTS=0。三环境均CPython3.12.15；本机3.12.14缺litellm，local full/AS2仍NOT_RUN，不能说被CI远程修好。
+
+CI临时merge `df70e7154ac0c077f021e2f339facc41b33d3ab7` 的parents严格是base b7c6d503与head9528e8d，GitHubAPI tree `6b1044a1fd46122bf05b4e7421328a6e1881a475` 与本机HEAD整树相同；它是PR测试树，不是已合并main。官方子模块CI与本机同为固定 `670c94fff7c64c4f79b632125f2ccf968155e746`。Git fetch临时ref等待期间一次提前读ref失败，随后结束该未完成取回，以GitHubAPI父提交/整树SHA核对，不把失败命令当PASS；PR创建首次Windows/WSL路径传递失败，之后用原生CLI明确文件路径成功，查询确认只有PR #7。
+
+8跳过仍为test_a2_final三项、behavior_prior_context两项、behavior_prior_index三项，缺 `run/calibration/neutral_day_v1/calibration_manifest.json` 与 `behavior_days_core7_candidate.jsonl`；没有伪造、上传或把缺失语料测试算通过。7/30天均completed_days等于7/30、不变量PASS、recovery_equivalent=true、provider_calls=0、model_behavior_proven=false，不把工程恢复写成模型真人证明。
+
+本次后续补账只修改中文报告/本账本，离线业务与安全结果完全相同；最终文档提交重新触发完整CI，其实际run见PR #7检查与最终交付汇报，不冒称本段9528e8d的run就是后续HEAD。完成后不启动下一研究阶段；NEW_REAL_PROVIDER_REQUESTS=0。
