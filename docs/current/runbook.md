@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-10-09。Q6.2 固定状态面板和 M1.5 后果审计已合入 `main`；M2 可选获取机制通过独立离线验收，正在整合，不是生产默认行为。旧 `q62-panel-real-v2-01` 已完成且许可用尽，禁止重跑或复用。所有真实调用均须新协议和明确授权。[现行计划](plan.md)。
+更新：2026-10-09。Q6.2 固定状态面板和 M1.5 后果审计已合入 `main`；M2 可选获取机制通过独立离线验收，已合入主线，但仍不是生产默认行为。旧 `q62-panel-real-v2-01` 已完成且许可用尽，禁止重跑或复用。所有真实调用均须新协议和明确授权。[现行计划](plan.md)。
 
 ## 工作区与环境
 
@@ -165,7 +165,7 @@ python -m pytest -q tests/test_documentation_navigation.py tests/test_repository
 
 ## M2 独立离线获取闭环
 
-在 `research/m2-acquire-closed-loop` 及已验收 Python 环境运行以下命令；每次必须使用新 session，不能覆盖已存在目录：
+在最新 `main` 的独立 Python 运行环境执行以下离线命令；每次必须使用新 session，不能覆盖已存在目录：
 
 ```bash
 python scripts/run_m2_acquire_validation.py --mode offline --session <新的离线唯一ID>

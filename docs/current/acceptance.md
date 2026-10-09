@@ -221,3 +221,13 @@ REAL_PROVIDER_REQUESTS_THIS_TASK = 0
 ## 2026-10-09 分支整合说明
 
 PR #6、PR #7 已合入主线；M2 工程整合使用两父提交，保留两项研究文档、M1.5 的 297 文件来源完整性与 M2 的 316 文件历史保护。M2 源自原 main，先前单独验收 778 passed/8 skipped **不与** PR #7 的 1082 passed/8 skipped 累加；联合主线结果需以本次集成 HEAD 的 CI 为准。无新真实 provider 调用，已使用的 Q6.2 48 次请求许可不再有效。D-02/D-09 仍待人工决定；M2 生产默认禁用。
+
+
+## 2026-10-09 研究分支整合：实际联合验收
+
+- PR #6 已合入 main：`4431ef4ac9e51d1ea48277bedb2bfe3083e7fc24`（Q6.2 固定状态研究）。
+- PR #7 已合入 main：`d2e8ff2055b2c76a6fdfeb64e74002e3806e77eb`（M1.5 事后离线审计）。
+- PR #8 已合入 main：`6b808335f45ddf0ca83d70a4b48f4295143d969f`（M2 可选获取闭环）。
+- 合并前实际测试的组合提交：`74c03b6ef32f0e0452d2abdb7596fcd001221df3`；[工程 CI 37869378096](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37869378096)：core **610 passed**；full regression **1176 passed、8 skipped、0 failed**；固定 AS2 `AS2_CONTINUITY_ADAPTER_PASS`；M2 **17/17 PASS**；`LLM_CALLS=0 PROVIDER_REQUESTS=0`。
+- [中文文档 CI 37869378101](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37869378101)：**29 passed**，中文导航和审计通过。此为组合范围，不与各原始 PR 的独立测试数相加。
+- 8 项 skipped 仍由未入库的历史真人语料引起，不能计入 passed。Q6.2 唯一真实面板已结束、许可用尽且未重跑；M1.5 未新增请求；M2 生产默认禁用，D-02/D-09 人工决定仍待审核。

@@ -1,6 +1,6 @@
 # 按问题检索：研究状态与结论边界
 
-更新：2026-10-09。Q6.2 固定状态真实实验 PR #6 和 M1.5 离线审计 PR #7 已合入 `main`；M2 opt-in ACQUIRE 工程验收通过，PR #8 正在集成。原 Q6.2 主结论 `NO_CLEAR_DIFFERENCE`，M1.5 需求适当性 `UNRESOLVED`，M2 真实自主行为 `NOT_TESTED`。历史问题编号沿用，不补造 Q1/Q2。
+更新：2026-10-09。Q6.2 固定状态真实实验 PR #6 和 M1.5 离线审计 PR #7 已合入 `main`；M2 opt-in ACQUIRE 工程验收通过，PR #8 已合入 `main`。原 Q6.2 主结论 `NO_CLEAR_DIFFERENCE`，M1.5 需求适当性 `UNRESOLVED`，M2 真实自主行为 `NOT_TESTED`。历史问题编号沿用，不补造 Q1/Q2。
 
 | 问题 | 实验证据与当前回答 | 状态 | 中文详解 | 人工讨论 |
 |---|---|---|---|---|

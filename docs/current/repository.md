@@ -1,6 +1,6 @@
 # 仓库地图：研究问题对应哪些代码和文档
 
-盘点范围：当前 `main`、文档引用、历史报告和验收记录。Q6.1/Q6.2 已于 2026-09-24 合入主线；没有读取用户本机被忽略的密钥或原始运行目录。
+盘点范围：当前 `main`、文档引用、历史报告和验收记录。原 Q6.1/Q6.2 已于 2026-09-24 合入主线；固定状态研究、M1.5 与 M2 又于 2026-10-09 依次合入；没有读取用户本机被忽略的密钥或原始运行目录。
 
 ## 代码检索地图
 
@@ -16,6 +16,8 @@
 | resource_benchmark | Q4 状态可见性 | [Q4](../studies/q4_resource_visibility.md) |
 | rule_scaling | Q5 虚拟对象规则索引 | [Q5](../studies/q5_rule_scaling.md) |
 | continuity | Q6 持久状态、活动控制器、Q6.1/Q6.2 投影与 A/B 运行层 | [Q6](../studies/q6_continuity.md)、[Q6.1](../studies/q61_real_pilot.md)、[Q6.2](../studies/q62_action_projection.md) |
+| continuity/q6_2_panel、q6_2_outcome_audit 等 | 固定状态真实面板、M1.5 事后效果与提示审计；原科学结果与人类行为评价边界分开 | [Q6.2](../studies/q62_action_projection.md)、[M1.5](../studies/q62_outcome_audit.md) |
+| continuity/m2_acquire、m2_validation | opt-in 高层 ACQUIRE、复用 BUY 及重启后 PLAY 的离线闭环；生产默认 DISABLED | [M2](../studies/m2_object_acquisition.md) |
 | provider_runtime | Q6.1 独立 provider 运行环境、安全诊断和一次性预检 | [Q6.1](../studies/q61_real_pilot.md) |
 
 `tests/` 保留旧回归和 Q6.1/Q6.2 专项；`config/` 保留冻结实验参数；`scripts/` 按阶段运行。两个写死旧 A2 实验 ID 的工具仍保持停用，原代码留在 `archive/legacy_tools/`。
