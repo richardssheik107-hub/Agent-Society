@@ -1,6 +1,6 @@
 # 运行手册：主线、环境与实验入口
 
-更新：2026-10-08。旧 Q6.1/Q6.2 工程已合入 main；固定面板和 M1.5 留在 PR #6/#7。本轮 M2 在独立研究分支实现，只允许离线新 world。本页不是付费请求授权；现行任务见[完整计划](plan.md)。
+更新：2026-10-09。Q6.2 固定状态面板和 M1.5 后果审计已合入 `main`；M2 可选获取机制通过独立离线验收，正在整合，不是生产默认行为。旧 `q62-panel-real-v2-01` 已完成且许可用尽，禁止重跑或复用。所有真实调用均须新协议和明确授权。[现行计划](plan.md)。
 
 ## 工作区与环境
 
@@ -42,7 +42,7 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 ## 当前Q6.2入口：默认零请求
 
-现有`scripts/run_q6_2_real_ab.py`是两条自主短链，不是 PR #6 已完成的固定状态面板。它支持session-id、AB/BA顺序、输出目录和显式allow-provider；**没有env-file参数**。
+现有`scripts/run_q6_2_real_ab.py`是两条自主短链，不是已经实现的独立固定状态面板。它支持session-id、AB/BA顺序、输出目录和显式allow-provider；**没有env-file参数**。
 
 无凭据试运行示例（先把占位符替换为新的、批准使用的dry-run ID）：
 
@@ -57,20 +57,98 @@ env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
 
 真正运行前按[M0检查](plan.md#四m0下一轮先完成最小证据检查)确认版本、计数、停止和中断证据；本页不提供自动开启真实调用的命令。八请求是旧短链代码上限，不是本次新增授权。
 
-## M2 独立离线获取闭环
-
-在 `research/m2-acquire-closed-loop` 及已验收 Python 环境运行以下命令；每次必须使用新 session，不能覆盖已存在目录：
-
-```bash
-python scripts/run_m2_acquire_validation.py --mode offline --session <新的离线唯一ID>
-python -m pytest -q tests/test_m2_acquire*.py
-```
-
-默认也是 offline，没有 real 模式，不读取 `.env`，不构造 provider。输出位于 `run/evaluation/m2_acquire/<session>/`，保存所有成功、拒绝、失败及恢复证据。新 world 显式启用 ACQUIRE，生产默认仍禁用；完成获取不自动 PLAY。完整机制和事务边界见[M2](../studies/m2_object_acquisition.md)，本轮实际结果见[验收账本](acceptance.md)。
-
 ## 中断与已有session
 
 发现session已存在或上次执行是否发请求不清楚，先只读检查进程、summary、decision记录与SQLite；日志没有某行不能证明请求为0。不得删除目录、换ID或自动补跑。允许导出已存在记录，不重新发送请求。真实停止策略以批准的具体协议为准。
+
+## 新固定状态面板：三个模式与只读恢复
+
+入口为 `scripts/run_q6_2_fixed_state_panel.py`；`--help` 实际列出 protocol(v1/v2，默认v1)、mode、session-id、export-only、output、allow-provider、execution-commit、protocol-hash、max-requests、env-file、offline-case。普通运行注册根固定为 `run/evaluation/q6_2_fixed_state_panel/`，`--output` **仅可用于新恢复报告目录**，不能换目录绕过 session 身份。已有 ID 排他拒绝，不删除后重跑。
+
+以下 dry-run、offline 和 export-only 均已通过离线测试；示例 ID 是本轮已用 ID 的形式，实际再次执行要换**新的离线 ID**，不要复用旧真实 session。默认不读密钥、不创建真实 client；offline 只使用显式脚本 client，报告为 OFFLINE_SYNTHETIC。
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --session-id q62-panel-dry-next
+
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --session-id q62-panel-offline-next --mode offline
+
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py \
+  --export-only run/evaluation/q6_2_fixed_state_panel/q62-panel-offline-next \
+  --output run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-offline-next
+```
+
+恢复源库 `mode=ro`、`query_only` 打开，不调用 StateStore/World 初始化，不迁移，不读凭据、不构造 client、不补动作；报告写新目录。session.sqlite3 记录完整计划与阶段；每个 `cells/cNNN/world.sqlite3` 的 commands、decision_attempts、events、state 是业务事实。意图后中断写发送 UNKNOWN/null；只有响应证据不编造提案；world 已提交从已提交事实恢复。不提供自动 resume/retry，保留中断 session。
+
+离线脚本还可选 `--offline-case both-legal`、`b-worse`、`no-valid-proposal`；它们验证汇总器不保证 B 获胜，不构成模型证据。每单元一次决策，跨决策反馈/重复率/长期连续性为 NOT_APPLICABLE。
+
+### v1轮历史示例：当时尚未授权，不执行
+
+只有独立批准冻结协议和48次预算后，才可将占位符换成已批准执行commit、配置规范JSON hash、新session和保护配置路径：
+
+```bash
+# 尚未授权，不执行；48是固定容量，不是本轮许可
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --mode real --allow-provider \
+  --session-id <待批准的新real-ID> --max-requests 48 \
+  --execution-commit <待批准的干净HEAD> --protocol-hash <待批准的配置SHA256> \
+  --env-file <显式指定的受保护配置文件>
+```
+
+无独立 allow-provider、版本/hash不匹配、环境无效或重复session均不发送请求。沿用 minimal_request，仅 model/messages；不添加 thinking/max_tokens/temperature。首个请求前冻结48计划和全部世界，每单元前再查冻结四项摘要；调用前占预算，逐单元增量输出完成数、cell、状态与累计尝试。规则拒绝和已知活动失败可继续；其余fatal停止整轮，剩余NOT_RUN附停止原因。
+
+v1工程轮真实 provider 请求0、未读取实际 `.env`，这段历史不因v2获授权并执行而改写。两轮均未重跑Q6.1/旧双短链，不自动merge。离线环境中缺完整AS2依赖应单列收集错误，由完整CI验收，不能冒充通过。
+
+### v2预注册与执行命令历史：已执行，不再运行
+
+上述零授权/零请求段落为v1轮历史。本轮仅 `q62-panel-real-v2-01` 获准最多48尝试，现已完成这唯一session；额外探针/真实smoke/旧联调0。D-01记录的许可不是未来永久许可。以下是执行前预注册及原命令留档，不是再次运行指引：v2单次安全终结超时继续下一cell，连续两次停；默认v1仍一次停。正式ID已存在，只能只读核对，不能删除、换ID或执行第二次。
+
+以下v2离线入口已实测；再次使用新的**离线**ID，不删除已有目录：
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --protocol v2 \
+  --session-id q62-panel-offline-v2-next --mode offline
+```
+
+执行前要求且已核对：新HEAD所有CI/AS2通过、工作树clean、环境和配置安全检查通过后，在同一WSL shell用可检查脚本冻结 `EXECUTION_COMMIT` 与 `digest(load_protocol(version="v2"))`。协议使用规范JSON摘要，不用配置原始字节sha256；当次生效地址为 `https://ark.cn-beijing.volces.com/api/coding/v3`、请求别名 `ark-code-latest`，仅现有load_provider_config解析 `third_party/AgentSociety/.env`，未source/cat/回显key；环境覆盖不匹配必须停止，未为测key发额外请求。分析与只读恢复不读取配置。
+
+```bash
+# 已执行命令的历史记录；正式ID已存在，禁止再次执行或换ID重跑
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py --mode real --allow-provider --protocol v2 \
+  --session-id q62-panel-real-v2-01 --max-requests 48 \
+  --execution-commit "$EXECUTION_COMMIT" --protocol-hash "$PROTOCOL_HASH" \
+  --env-file third_party/AgentSociety/.env
+```
+
+当次执行遵守：超时占预算，取消未完成不启动下一请求；串行、无重试、无repair/fallback、未换provider/状态/提示。增量进度区分已处理与活动完成，含CALLS/VALID/ACTIVITIES/REJECTED/TIMEOUTS/STREAK/PAIRS。真实窗口未改tracked文件/commit/环境、未merge。若未来遇中断，先查原进程，原进程未停不并发导出；确认停止后才只读恢复，不恢复实验或补发。本次实际结束标记与验收范围见[验收账本](acceptance.md)。
+
+### v2当前状态：只读复核与结果交接
+
+执行commit为 `ae2123f50beaaca6bcac2dcca8e34659bd0a8b24`，规范协议hash为 `b66217fa18ce8740deec38334b157ff35f00455d8d2b431dd0b48531debffcc6`。执行前CI [37744586404](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37744586404) 全库950 passed、8 skipped，核心394 passed及AS2通过；文档CI [37744586620](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37744586620)通过。临时merge `c7e41519c3dc73373d442e9aa336a20f040ea954` 与执行HEAD整树相等，但不是实际执行commit。本页不把这些CI结果说成本机完整AS2验收或结果文档提交的新CI结果。
+
+正式session最终为 `PANEL_COMPLETED`，cleanup为 `CLOSED`。计划48/48已处理、客户端计数48；HTTP与有效完成活动46，A/B各23；各臂一次孤立安全超时，max streak1。可评分覆盖为 `PARTIAL`：46/48单元、22/24完整同后端配对；两次超时没有输出可评分行为，未补齐。研究解释为 `NO_CLEAR_DIFFERENCE`，并非统计等价或长期效果证明。
+
+|安全产物|当前位置|本次操作|
+|---|---|---|
+|原session|`run/evaluation/q6_2_fixed_state_panel/q62-panel-real-v2-01/`|已结束；禁止覆盖或重新运行|
+|只读恢复|`run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01/`|已执行；297个源文件hash前后相同、阶段计数及原终止原因一致、新增请求0；不得覆盖此目录|
+|确定性分析|`run/evaluation/q62_v2_analysis/q62-panel-real-v2-01/`|`safe_metrics.json`、`result_fragment_zh.md`、`source_integrity.json`；重算与原安全记录一致，新增请求0|
+
+原只读恢复命令保留如下，**输出目录已经存在，不能再次执行并覆盖**；若将来有独立复核需要，先确认原进程停止，另选未使用的新恢复目录，不改变原session：
+
+```bash
+# 本次已执行的只读恢复记录，不重用已有output
+env -u PYTHONPATH -u PYTHONHOME .venv-q61-runtime/bin/python \
+  scripts/run_q6_2_fixed_state_panel.py \
+  --export-only run/evaluation/q6_2_fixed_state_panel/q62-panel-real-v2-01 \
+  --output run/evaluation/q6_2_fixed_state_panel_recovery/q62-panel-real-v2-01
+```
+
+分析只看安全字段和明确分母，不打开原prompt/completion/隐藏推理。已知reasoning token存在，minimal_request不能解释为关闭了思考，也不等于完成小模型对照。不得把runner的自动 `NOT_TESTED` 字段改成收益成功；独立解释及成本/行为局限见[Q6.2问题档案](../studies/q62_action_projection.md)。本轮收束，无追加请求、自动merge、采购功能或长链授权。
 
 ## 文档检查
 
@@ -83,3 +161,18 @@ python -m pytest -q tests/test_documentation_navigation.py tests/test_repository
 ```
 
 需要完整Git历史；浅克隆缺对象必须报告不能完成，不能忽略。文档审计只读、零模型。旧文件检索见[清理映射](../reference/cleanup.md)。
+
+
+## M2 独立离线获取闭环
+
+在 `research/m2-acquire-closed-loop` 及已验收 Python 环境运行以下命令；每次必须使用新 session，不能覆盖已存在目录：
+
+```bash
+python scripts/run_m2_acquire_validation.py --mode offline --session <新的离线唯一ID>
+python -m pytest -q tests/test_m2_acquire*.py
+```
+
+默认也是 offline，没有 real 模式，不读取 `.env`，不构造 provider。输出位于 `run/evaluation/m2_acquire/<session>/`，保存所有成功、拒绝、失败及恢复证据。新 world 显式启用 ACQUIRE，生产默认仍禁用；完成获取不自动 PLAY。完整机制和事务边界见[M2](../studies/m2_object_acquisition.md)，本轮实际结果见[验收账本](acceptance.md)。
+
+
+**此命令只执行合成世界的离线工程测试，M2 `ACQUIRE` 默认关闭；原真实 Q6.2 目录严禁重用。**
