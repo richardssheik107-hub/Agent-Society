@@ -2,6 +2,37 @@
 
 本页整理已有记录，不把文档更新当作重新运行科学实验。不同测试范围不能相加；服务返回、动作接受、活动完成与人类真实性分开。
 
+## 2026-10-09｜M5 完整离线结果与最终交付门槛
+
+正式执行 `d379dbee780ab7436cc2f05ae6912cf962da2f3d`，干净工作树、Python3.12.14、600秒/子会话；新ID `m5-offline-acceptance-02`。四轨迹均为 `SCRIPTED_OR_FAKE_LONG_RUN`，不是付费模型行为。逐日数字和资源原始摘要见[M5完整报告](../studies/m5_long_horizon_autonomy.md#九600秒协议的正式七天与三十天结果)及[可查看JSON](../reference/m5_longrun_acceptance_results.json)。
+
+|验收维度|本轮实际结果|
+|---|---|
+|M5 focused / provider+CLI mock|149 passed；其中40项provider/CLI，实际HTTPX MockTransport，外部请求0；不与全库混加|
+|新Runtime七天|10080分钟、113决策、112完成活动、673微步骤、1230事件、0拒绝；8活动类型均EXERCISED|
+|新Runtime三十天|43200分钟、457决策、456完成活动、2881微步骤、5323事件、0拒绝；8活动类型均EXERCISED|
+|不中断/恢复对照|七天6次、三十天29次重启；世界、事件、请求/命令语义一致，L1独立全量PASS|
+|获取→使用/媒体|游戏只购1次、持有1、库存100→99；七天PLAY405分钟/18集，三十天PLAY1485分钟/72集|
+|终点承诺|七天LEISURE尚余15分钟，三十天WORK尚余120分钟，保留ACTIVE；未伪报全部活动完成|
+|墙钟/DB|七天不中断含导出29.686101秒/6750208字节；三十天156.922508秒/32845824字节；重启三十天170.943618秒/32923648字节|
+|上下文/内存|最大4138字符/4204保守token界，小于12000/12000；四轨迹整进程峰值319440KiB。账本导出内存有增长，不宣称常数内存或无限时长|
+|只读CLI导出|七天/三十天源树hash前后相同，分别4b4af2c6…、41c7f77f…；新目录，不推进世界，不读取凭据|
+|历史保护|5目录353文件树hash前后均ee7a5a46…；13冻结合同文件字节相同、旧源目录无diff、固定clean detached子模块670c94f|
+|L1/L2/L3|L1PASS；L2需求、资源、任务分列、无总分；L3UNRESOLVED/未审核，warnings0也不等于行为正常|
+|真实模型|接口及mock合同PASS；新真实请求0、实际.env/APIKey读取0；真实模型七天验证NO|
+
+开发期暴露并修复最终L1 FAIL优先、全量/restart对价格与剩余时长的盲点、CLI忽略最终FAIL、跨日WORK日报归属与无进展预警误报，均新增真实复现回归，没有放宽规则、删测试或改原世界。首正式本机C1三十天120秒预算截断记录保留如下，不能用新会话改写它。
+
+已完成的C1 CI核心758、全库1324/8skip、新M5七天三十天恢复和AS2均PASS，详见[37875308024](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37875308024)；文档29passed见[37875307967](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37875307967)。C2核心759passed、全库1325/8skip、Ruff/审计/AS2PASS，但[37875680783](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37875680783)整核心job10m0s超时CANCELLED，新M5只完成七天CI marker，**不是全CI通过**；文档[37875680749](https://github.com/richardssheik107-hub/Agent-Society/actions/runs/37875680749)29passed。CI Python均3.12.15。skip仍为缺失的8项冻结真人语料，不计PASS；本机缺litellm未完成全库/AS2。
+
+最后结果提交仅增加中文/JSON实测记录及核心CI有限20分钟上限，不修改受测Runtime/世界/策略。最新head须在[PR #9](https://github.com/richardssheik107-hub/Agent-Society/pull/9)重新全CI通过、分支未被他人更新且无未解决审核问题后才合并；最终SHA、检查URL与合并状态以该PR实际记录为准，不用历史CI替代最后head检查。
+
+## 2026-10-09｜M5 首次正式验收与离线墙钟调整
+
+基线 main `3603d68d43738a7fe1683211e7c7919b17ef5a14`；首实现 `7c243d727f529e34efb0770baf35461d6e1fa0e7`。本轮 D-02/D-09 为新追加批准，真实请求授权0。`m5-offline-acceptance-01` 七天10080分钟、113决策、6次重启对照一致；三十天仅34530分钟，120.019139671秒触发 `WALL_CLOCK_LIMIT`，不得标记完整三十天通过。保留364决策、2303微步骤、4253事件和未完成 WORK，原DB不改写；只读导出写新目录，provider0。
+
+离线墙钟调整为有限600秒，helper先保留失败报告再拒绝通过；世界/初态/策略/provider合同均不改。调整后专项 **149 passed**、Ruff PASS；正式新会话和完整CI结果随后追加，不把本次预算截断改写成成功。本机全库在收集时2项因缺litellm报错，实际AS2入口同样缺依赖；完整环境由CI证明，不沿用旧1176作为M5新结果。
+
 | 阶段/版本 | 已记录验收 | 未覆盖 |
 |---|---|---|
 | Q3 Attempt 2 | 180请求162成功；43组配对；focused11、当时全库485 | 长期状态、真实参数 |

@@ -23,7 +23,7 @@ def docs_copy(tmp_path):
 def test_current_documents_are_indexed_chinese_and_reachable():
     result = MODULE.audit(include_history=False)
     assert result["status"] == "PASS", result["errors"]
-    assert result["current_markdown_count"] == 30
+    assert result["current_markdown_count"] == 31
     assert result["provider_requests"] == 0
 
 

@@ -1,0 +1,33 @@
+{
+  "protocol_version": "M5_LONGRUN_V1",
+  "mode": "offline",
+  "sim_days": 7,
+  "max_decisions": 1000,
+  "max_provider_requests": 0,
+  "max_wall_seconds": 600.0,
+  "request_timeout_seconds": 60.0,
+  "max_micro_steps": 1000,
+  "step_minutes": 15,
+  "max_context_chars": 12000,
+  "max_context_tokens": 12000,
+  "recent_activity_limit": 5,
+  "goal_mode": "OPEN_AUTONOMOUS",
+  "goals": [],
+  "seed": 20261009,
+  "acquire_enabled": true,
+  "max_consecutive_errors": 3,
+  "max_no_progress": 5,
+  "provider_minimal_request": true,
+  "provider_max_tokens": 64,
+  "provider_temperature": 0.0,
+  "provider_thinking_disabled": false,
+  "warnings": {
+    "hunger_high": 900,
+    "energy_low": 150,
+    "sustained_minutes": 180,
+    "repeated_failure_count": 3,
+    "no_improvement_decisions": 5,
+    "money_decline_cents": 5000,
+    "frequent_travel_count": 5
+  }
+}
